@@ -21,7 +21,7 @@ Spec: docs/PROJECT.md#access-control-and-admin
 
 ## Done when
 - [x] Every test above passes
-- [ ] Manual on localhost: a non-admin account lands on Profile, then Waiting (waiting on the owner's OAuth client)
+- [x] Manual on localhost: a non-admin account lands on Profile, then Waiting (checked with a seeded test session; real Google sign-in still waits on the owner's OAuth client)
 - [x] pnpm typecheck, lint, test pass
 
 ## Notes

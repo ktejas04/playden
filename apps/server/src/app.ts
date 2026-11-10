@@ -1,3 +1,4 @@
+import { adminRoutes } from "./api/admin";
 import { meRoutes } from "./api/me";
 import type { GoogleAuth } from "./auth/google";
 import { authRoutes } from "./auth/routes";
@@ -30,7 +31,7 @@ const healthRoutes: Route[] = [
   { method: "GET", path: "/api/health", handler: () => json({ ok: true }) },
 ];
 
-const routes: Route[] = [...healthRoutes, ...authRoutes, ...meRoutes];
+const routes: Route[] = [...healthRoutes, ...authRoutes, ...meRoutes, ...adminRoutes];
 
 function match(route: Route, pathname: string): Record<string, string> | null {
   if (typeof route.path === "string") return route.path === pathname ? {} : null;

@@ -30,6 +30,16 @@ export const profileSchema = z.strictObject({
 
 export type Profile = z.infer<typeof profileSchema>;
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  invitedBy: string | null;
+  status: AccountStatus;
+  createdAt: number;
+  isAdmin: boolean;
+}
+
 export interface ApiError {
   error: string;
 }

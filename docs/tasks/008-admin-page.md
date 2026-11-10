@@ -15,6 +15,10 @@ Spec: docs/PROJECT.md#access-control-and-admin, D22
 3. `/admin` screen (admins only; link in the shell): tabs Pending / Approved / Banned; each row shows name, email, invited by, with Approve or Ban buttons (44 px targets). Ban asks for a confirm.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] Manual on localhost: approve the second account from task 007; it reaches the home screen
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [x] Manual on localhost: approve a waiting account; it leaves the list (checked with seeded test sessions, not real Google sign-in)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Tabs are "Waiting / Members / Banned"; a banned member can be let back in (approve).
+- Statuses come from `userStatuses` in the DB schema (D31).

@@ -1,4 +1,4 @@
-import type { ApiError, Me, Profile } from "@playden/protocol";
+import type { AccountStatus, AdminUser, ApiError, Me, Profile } from "@playden/protocol";
 
 export class ApiFailure extends Error {
   readonly status: number;
@@ -33,6 +33,20 @@ export async function fetchMe(): Promise<Me | null> {
 
 export function saveProfile(profile: Profile): Promise<Me> {
   return request<Me>("/api/me/profile", { method: "PUT", body: JSON.stringify(profile) });
+}
+
+export function listUsers(status: AccountStatus): Promise<AdminUser[]> {
+  return request<AdminUser[]>(`/api/admin/users?status=${status}`);
+}
+
+export function approveUser(id: string): Promise<AdminUser> {
+  return request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+  });
+}
+
+export function banUser(id: string): Promise<AdminUser> {
+  return request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}/ban`, { method: "POST" });
 }
 
 export async function signOut(): Promise<void> {

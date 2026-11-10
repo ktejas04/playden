@@ -4,6 +4,7 @@ import { Toaster, toast } from "@playden/ui/components/sonner";
 import { ThemeProvider } from "@playden/ui/components/theme-provider";
 import { signOut } from "./api";
 import { type Route, navigate, useRoute } from "./router";
+import { Admin } from "./screens/Admin";
 import { Banned } from "./screens/Banned";
 import { Profile } from "./screens/Profile";
 import { SignIn } from "./screens/SignIn";
@@ -89,7 +90,7 @@ function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => 
     case "room":
       return <p className="py-8">Room {route.code}</p>;
     case "admin":
-      return <p className="py-8">Admin</p>;
+      return me.isAdmin ? <Admin /> : <p className="py-8">Page not found.</p>;
     case "notFound":
       return <p className="py-8">Page not found.</p>;
   }
