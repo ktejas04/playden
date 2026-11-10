@@ -1,5 +1,4 @@
 import type { Me } from "@playden/protocol";
-import { Avatar, AvatarFallback } from "@playden/ui/components/avatar";
 import { Button } from "@playden/ui/components/button";
 import {
   DropdownMenu,
@@ -13,7 +12,7 @@ import {
 } from "@playden/ui/components/dropdown-menu";
 import { LogOutIcon, MonitorIcon, MoonIcon, ShieldCheckIcon, SunIcon } from "lucide-react";
 import { useTheme } from "@playden/ui/components/theme-provider";
-import { initials } from "./initials";
+import { PlayerAvatar } from "./components/PlayerAvatar";
 import { navigate } from "./router";
 
 export function AccountMenu({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
@@ -23,12 +22,13 @@ export function AccountMenu({ me, onSignOut }: { me: Me; onSignOut: () => void }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="size-11 rounded-full p-0" aria-label="Account menu">
-          <Avatar size="lg">
-            <AvatarFallback className="bg-primary/15 font-medium text-primary">
-              {initials(name)}
-            </AvatarFallback>
-          </Avatar>
+        <Button
+          variant="ghost"
+          size="icon-lg"
+          className="rounded-full p-0 hover:bg-transparent hover:ring-2 hover:ring-primary/60 data-[state=open]:ring-2 data-[state=open]:ring-primary"
+          aria-label="Account menu"
+        >
+          <PlayerAvatar id={me.id} name={name} size="lg" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">

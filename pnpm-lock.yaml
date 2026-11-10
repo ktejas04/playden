@@ -108,6 +108,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@fontsource-variable/bricolage-grotesque':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
@@ -117,6 +120,9 @@ importers:
       cn:
         specifier: ^0.5.2
         version: 0.5.2
+      input-otp:
+        specifier: ^1.5.0
+        version: 1.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       lucide-react:
         specifier: ^1.70.0
         version: 1.70.0(@types/react@19.3.0)(react@19.3.1)
@@ -862,6 +868,9 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fontsource-variable/bricolage-grotesque@5.3.0':
+    resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
 
   '@fontsource-variable/geist@5.3.0':
     resolution: {integrity: sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA==}
@@ -2729,6 +2738,12 @@ packages:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
     engines: {node: '>=0.8.19'}
 
+  input-otp@1.5.0:
+    resolution: {integrity: sha512-3AcfdW1sNG0FmSA5hHMBXG7jNW5CdcdKs8ln8JOmn6S2SRkoXoJx+2UwC+ZvjflfnOdHJx0SfQ9/YjlxVYLtGQ==}
+    peerDependencies:
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+
   ip-address@10.7.6:
     resolution: {integrity: sha512-00LYkM6byILa9eQIx6qoaXCM40xTLd56AZ4vyaPW3YTyb49VZYPo5xsiAq4tuQ54GH4R7gVdYScJ1B7B77PuTg==}
     engines: {node: '>= 12'}
@@ -4216,6 +4231,8 @@ snapshots:
       react-dom: 19.3.1(react@19.3.1)
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@fontsource-variable/bricolage-grotesque@5.3.0': {}
 
   '@fontsource-variable/geist@5.3.0': {}
 
@@ -6003,6 +6020,11 @@ snapshots:
   ignore@7.0.14: {}
 
   imurmurhash@0.1.4: {}
+
+  input-otp@1.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+    dependencies:
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
 
   ip-address@10.7.6: {}
 

@@ -1,15 +1,15 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@playden/ui/components/card";
 import { Centered } from "../Shell";
 
 export function Banned() {
   return (
     <Centered>
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-2xl">Your access was removed</CardTitle>
-          <CardDescription>Ask an admin if you think this is a mistake.</CardDescription>
-        </CardHeader>
-      </Card>
+      <h1 className="text-[2rem] leading-tight font-bold tracking-tight">
+        Your access was removed
+      </h1>
+      <p className="mt-1.5 max-w-prose text-muted-foreground">
+        You can't create or join rooms any more. If you think this is a mistake, ask an admin in the
+        group.
+      </p>
     </Centered>
   );
 }

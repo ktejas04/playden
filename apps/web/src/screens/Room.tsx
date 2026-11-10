@@ -1,14 +1,12 @@
 import type { Me } from "@playden/protocol";
-import { Avatar, AvatarFallback } from "@playden/ui/components/avatar";
-import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@playden/ui/components/card";
 import { toast } from "@playden/ui/components/sonner";
-import { CopyIcon, Share2Icon } from "lucide-react";
-import { initials } from "../initials";
+import { CopyIcon, LogOutIcon, Share2Icon } from "lucide-react";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+import { RoomCodeTiles } from "../components/RoomCodeTiles";
 import { type ConnectionStatus, useRoomSocket } from "../room/useRoomSocket";
 import { navigate } from "../router";
-import { BottomBar } from "../Shell";
+import { BottomBar, Panel } from "../Shell";
 
 const STATUS: Record<ConnectionStatus, { label: string; dot: string }> = {
   connecting: { label: "Connecting", dot: "bg-warning" },
@@ -23,7 +21,7 @@ function roomLink(code: string) {
 async function copyLink(code: string) {
   try {
     await navigator.clipboard.writeText(roomLink(code));
-    toast.success("Link copied");
+    toast.success("Link copied. Paste it in the group.");
   } catch {
     toast.info(roomLink(code));
   }
@@ -48,64 +46,59 @@ async function shareRoom(code: string) {
 export function Room({ me, code }: { me: Me; code: string }) {
   const { status, players } = useRoomSocket(code);
   const { label, dot } = STATUS[status];
+  const alone = players.length <= 1;
 
   return (
     <>
-      <Card className="mt-4">
-        <CardContent className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">Room code</p>
-            <p className="font-mono text-4xl font-bold tracking-[0.25em]">{code}</p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge variant="outline" className="gap-1.5">
-              <span aria-hidden className={`size-2 rounded-full ${dot}`} />
-              {label}
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={() => void copyLink(code)}>
-              <CopyIcon /> Copy link
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-4 pt-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-muted-foreground">Room code</h1>
+          <span className="flex items-center gap-2 text-sm font-medium" role="status">
+            <span aria-hidden className={`size-2.5 rounded-full ${dot}`} />
+            {label}
+          </span>
+        </div>
+        <RoomCodeTiles code={code} />
+        <Button
+          variant="link"
+          className="h-8 self-start px-0 text-sm"
+          onClick={() => void copyLink(code)}
+        >
+          <CopyIcon /> Copy room link
+        </Button>
+      </div>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Players <Badge variant="secondary">{players.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {players.length === 0 ? (
-            <p className="text-muted-foreground">Waiting for players…</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {players.map((player) => (
-                <li key={player.id} className="flex items-center gap-3 rounded-lg py-1.5">
-                  <Avatar>
-                    <AvatarFallback className="bg-primary/15 text-primary">
-                      {initials(player.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 truncate font-medium">{player.name}</span>
-                  {player.id === me.id && <Badge variant="secondary">You</Badge>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <p className="mt-4 px-1 text-sm text-muted-foreground">
-        Send the link to the group. Games arrive in the next update.
-      </p>
+      <Panel className="mt-6">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-lg font-semibold">Players</h2>
+          <span className="text-sm text-muted-foreground">
+            {players.length} {players.length === 1 ? "player" : "players"}
+          </span>
+        </div>
+        <ul className="mt-3 divide-y">
+          {players.map((player) => (
+            <li key={player.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
+              <PlayerAvatar id={player.id} name={player.name} />
+              <span className="flex-1 truncate font-medium">{player.name}</span>
+              {player.id === me.id && <span className="text-sm text-muted-foreground">You</span>}
+            </li>
+          ))}
+        </ul>
+        {alone && status === "live" && (
+          <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+            You're the first one here. Invite the group, and they'll show up in this list as they
+            join.
+          </p>
+        )}
+      </Panel>
 
       <BottomBar>
-        <Button variant="outline" size="lg" className="h-12 px-5" onClick={() => navigate("/")}>
+        <Button variant="outline" size="xl" className="px-4" onClick={() => navigate("/")}>
+          <LogOutIcon className="size-5" />
           Leave
         </Button>
-        <Button size="lg" className="h-12 flex-1 text-base" onClick={() => void shareRoom(code)}>
-          <Share2Icon /> Invite players
+        <Button size="xl" className="flex-1" onClick={() => void shareRoom(code)}>
+          <Share2Icon className="size-5" /> Invite players
         </Button>
       </BottomBar>
     </>

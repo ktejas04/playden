@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backoffDelay } from "../src/room/backoff";
 import { initials } from "../src/initials";
+import { PLAYER_COLOR_COUNT, playerColor } from "../src/playerColor";
 import { cleanJoinInput, normalizeJoinCode } from "../src/room/joinCode";
 import { socketUrl } from "../src/room/socketUrl";
 
@@ -50,6 +51,16 @@ describe("cleanJoinInput", () => {
 
   it("keeps only letters, in capitals, up to 4", () => {
     expect(cleanJoinInput("ab-c d9e")).toBe("ABCD");
+  });
+});
+
+describe("playerColor", () => {
+  it("is stable for an id and stays within the palette", () => {
+    expect(playerColor("user-1")).toBe(playerColor("user-1"));
+    for (const id of ["a", "b", "c", "d", "e", "f", "g"]) {
+      expect(playerColor(id)).toBeGreaterThanOrEqual(0);
+      expect(playerColor(id)).toBeLessThan(PLAYER_COLOR_COUNT);
+    }
   });
 });
 
