@@ -12,6 +12,9 @@ Spec: docs/PROJECT.md#mobile-ux-learn-controls-and-learn-mode
 5. `vite.config.ts`: proxy `/api` and `/auth` to `http://127.0.0.1:8787`, `ws: true` (D27).
 
 ## Done when
-- [ ] Router tests pass
-- [ ] `pnpm --filter web dev` shows the shell at 375 px and desktop widths
-- [ ] pnpm typecheck, lint, test pass
+- [x] Router tests pass
+- [x] `pnpm --filter @playden/web build` succeeds (visual check at 375 px is done in 010, when there is a real screen)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Extra file: `src/Shell.tsx` (the shared header/main/bottom-bar layout), split out of `App.tsx`.
