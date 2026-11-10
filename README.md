@@ -56,3 +56,26 @@ pnpm dev
 Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+
+## Deploying
+
+Every push to `main` runs the checks on GitHub; once Cloudflare is set up it also deploys. One-time setup, done by the owner:
+
+**Google sign-in**
+
+1. Google Cloud Console → new project "PlayDen" → APIs & Services → OAuth consent screen: External, app name PlayDen, scopes `openid`, `email`, `profile` only → Publish app.
+2. Credentials → Create OAuth client ID → Web application. Authorised redirect URIs: `http://localhost:5173/auth/callback` and `https://playden.<your-subdomain>.workers.dev/auth/callback`.
+3. Put the client ID and secret, and the admin email(s), in `apps/server/.dev.vars` for local use.
+
+**Cloudflare**
+
+1. Create a free account and pick a `workers.dev` subdomain.
+2. In `D:\Projects\PlayDen`: `pnpm --filter @playden/server exec wrangler login`, then `pnpm --filter @playden/server exec wrangler d1 create playden`. Put the printed `database_id` in `apps/server/wrangler.toml`.
+3. Worker secrets, one at a time: `pnpm --filter @playden/server exec wrangler secret put GOOGLE_CLIENT_ID` (then `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`).
+
+**GitHub** (repo → Settings → Secrets and variables → Actions)
+
+1. Secret `CLOUDFLARE_API_TOKEN`: Cloudflare → My Profile → API Tokens → "Edit Cloudflare Workers" template, plus D1 Edit.
+2. Variable `CLOUDFLARE_ACCOUNT_ID`: from the Cloudflare dashboard. Deploys stay off until this is set.
+
+Don't push to `main` during a live game night: a deploy restarts rooms.
