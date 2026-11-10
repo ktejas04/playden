@@ -72,7 +72,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D17 | Copyright | Kept private and free; original names/art if it ever goes public or paid | 2026-11-10 |
 | D18 | Workspace | Everything lives in `D:/Projects/PlayDen`; `AGENTS.md` holds agent rules, `CLAUDE.md` points to it | 2026-11-10 |
 | D19 | Access | Site, API and WebSockets share one origin so the login cookie is first-party (Safari blocks third-party cookies) | 2026-11-10 |
-| D20 | Access | Google OAuth app published to production (testing mode caps at 100 users, 7-day logins); basic scopes only | 2026-11-10 |
+| D20 | Access | Google OAuth app published to production (testing mode needs a tester list and caps at 100 users); basic scopes only, no logo (a logo forces Google review). Publishing needs a homepage and `/privacy` page, so it happens after the first deploy; until then, Testing mode with test users | 2026-11-10 |
 | D21 | Process | Phase 2 (Setup) includes Google sign-in, the approval queue and the admin page; the Draw Battle spec is written right after Setup, before phase 4 | 2026-11-10 |
 | D22 | Access | Admins are the emails in the `ADMIN_EMAILS` secret, auto-approved on sign-in and never bannable; every other account is `pending`, `approved` or `banned` in D1 | 2026-11-10 |
 | D23 | Hosting | No per-PR preview deploys in v1 (Worker preview URLs don't support Durable Objects); pushes to `main` deploy production; try changes locally first | 2026-11-10 |
