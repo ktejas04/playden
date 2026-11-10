@@ -18,5 +18,9 @@ Spec: docs/PROJECT.md#access-control-and-admin, D22, D25
 5. `sessions.ts`: `createSession` (returns raw token), `getSessionUser`, `deleteSession`.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Extra files: `tests/setup.ts` (applies migrations) and `tests/env.d.ts` (types the test-only `TEST_MIGRATIONS` binding).
+- Display name limits moved to `packages/protocol` in 007, since web and server share them; `config.ts` holds `SESSION_DAYS`.
