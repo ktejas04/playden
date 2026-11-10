@@ -87,6 +87,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
 | D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Draw Battle fits the free tier comfortably | 2026-11-10 |
 | D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
+| D35 | Rooms | A room exists only once created (`POST /api/rooms` picks a free code); unknown or closed codes return "Room not found". A room closes 60 s after it becomes empty (`ROOM_EMPTY_CLOSE_MS`), replacing "30 minutes". Joining needs the Join button; no auto-join on the 4th letter | 2026-11-10 |
 
 ## Scope: v1 vs later
 
@@ -249,7 +250,7 @@ Each room is one Durable Object holding one WebSocket per player; a single Lobby
 3. **Setup:** host sets teams (or shuffles them) and settings; players tap ready.
 4. **Play:** host taps start; the Room calls `setup` and the game runs.
 5. **Results:** final scores and highlights; host can tap rematch (same room, same players).
-6. **Close:** the room deletes itself 30 minutes after everyone leaves.
+6. **Close:** the room deletes itself 60 seconds after the last player leaves (or 60 s after creation if nobody joins); its code then shows "Room not found" (D35).
 
 **Reconnects and leaving**
 

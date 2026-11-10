@@ -6,12 +6,13 @@ import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
 import { type ConnectionStatus, useRoomSocket } from "../room/useRoomSocket";
 import { navigate } from "../router";
-import { BottomBar, Panel } from "../Shell";
+import { BottomBar, Centered, Panel } from "../Shell";
 
 const STATUS: Record<ConnectionStatus, { label: string; dot: string }> = {
   connecting: { label: "Connecting", dot: "bg-warning" },
   live: { label: "Live", dot: "bg-success" },
   reconnecting: { label: "Reconnecting", dot: "bg-warning animate-pulse" },
+  missing: { label: "Closed", dot: "bg-muted-foreground" },
 };
 
 function roomLink(code: string) {
@@ -43,29 +44,54 @@ async function shareRoom(code: string) {
   await copyLink(code);
 }
 
+function RoomNotFound({ code }: { code: string }) {
+  return (
+    <Centered>
+      <div className="flex flex-col gap-6">
+        <RoomCodeTiles code={code} decorative className="opacity-50 grayscale" />
+        <div>
+          <h1 className="text-[2rem] leading-tight font-bold tracking-tight">Room not found</h1>
+          <p className="mt-1.5 max-w-prose text-muted-foreground">
+            This room has ended, or the link is wrong. Rooms close a minute after everyone leaves.
+            Ask the group for a new link, or start your own room.
+          </p>
+        </div>
+        <Button size="lg" className="self-start" onClick={() => navigate("/")}>
+          Back to the lobby
+        </Button>
+      </div>
+    </Centered>
+  );
+}
+
 export function Room({ me, code }: { me: Me; code: string }) {
   const { status, players } = useRoomSocket(code);
   const { label, dot } = STATUS[status];
   const alone = players.length <= 1;
 
+  if (status === "missing") return <RoomNotFound code={code} />;
+
   return (
     <>
       <div className="flex flex-col gap-4 pt-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-muted-foreground">Room code</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-semibold text-muted-foreground">Room code</h1>
+            <button
+              type="button"
+              onClick={() => void copyLink(code)}
+              className="flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+              aria-label="Copy room link"
+            >
+              <CopyIcon className="size-4" /> Copy
+            </button>
+          </div>
           <span className="flex items-center gap-2 text-sm font-medium" role="status">
             <span aria-hidden className={`size-2.5 rounded-full ${dot}`} />
             {label}
           </span>
         </div>
         <RoomCodeTiles code={code} />
-        <Button
-          variant="link"
-          className="h-8 self-start px-0 text-sm"
-          onClick={() => void copyLink(code)}
-        >
-          <CopyIcon /> Copy room link
-        </Button>
       </div>
 
       <Panel className="mt-6">

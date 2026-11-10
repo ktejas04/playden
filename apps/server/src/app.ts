@@ -10,7 +10,10 @@ import { errorJson, json } from "./http";
 export interface AppDeps {
   google: (env: Env) => GoogleAuth;
   now: () => number;
+  randomBytes: (length: number) => Uint8Array;
 }
+
+const secureRandomBytes = (length: number) => crypto.getRandomValues(new Uint8Array(length));
 
 export interface RequestContext {
   request: Request;
@@ -46,7 +49,10 @@ function match(route: Route, pathname: string): Record<string, string> | null {
   return result ? { ...result.groups } : null;
 }
 
-export function createApp(deps: AppDeps) {
+export function createApp(
+  overrides: Omit<AppDeps, "randomBytes"> & Partial<Pick<AppDeps, "randomBytes">>,
+) {
+  const deps: AppDeps = { randomBytes: secureRandomBytes, ...overrides };
   return {
     async fetch(request: Request, env: Env): Promise<Response> {
       const url = new URL(request.url);

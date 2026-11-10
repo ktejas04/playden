@@ -7,19 +7,17 @@ const SLOTS = Array.from({ length: ROOM_CODE_LENGTH }, (_, index) => index);
 interface JoinCodeInputProps {
   value: string;
   onChange: (code: string) => void;
-  onComplete: (code: string) => void;
   invalid?: boolean;
 }
 
 /** Four letter tiles. Typing fills them; pasting a room link fills them with its code. */
-export function JoinCodeInput({ value, onChange, onComplete, invalid }: JoinCodeInputProps) {
+export function JoinCodeInput({ value, onChange, invalid }: JoinCodeInputProps) {
   return (
     <InputOTP
       id="joinCode"
       maxLength={ROOM_CODE_LENGTH}
       value={value}
       onChange={(next) => onChange(cleanJoinInput(next))}
-      onComplete={(code: string) => onComplete(cleanJoinInput(code))}
       pasteTransformer={cleanJoinInput}
       pattern="^[A-Za-z]+$"
       inputMode="text"

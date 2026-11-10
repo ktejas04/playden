@@ -1,11 +1,12 @@
 import { type RoomPlayer, parseServerMessage } from "@playden/protocol";
 import { useEffect, useState } from "react";
+import { roomExists } from "../api";
 import { backoffDelay } from "./backoff";
 import { socketUrl } from "./socketUrl";
 
 const PING_EVERY_MS = 25_000;
 
-export type ConnectionStatus = "connecting" | "live" | "reconnecting";
+export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing";
 
 export function useRoomSocket(code: string) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
@@ -17,8 +18,29 @@ export function useRoomSocket(code: string) {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
 
-    function connect() {
+    function retry() {
+      setStatus("reconnecting");
+      retryTimer = setTimeout(() => void connect(), backoffDelay(attempt++));
+    }
+
+    // Each (re)connect first asks whether the room still exists, so a closed room
+    // shows "Room not found" instead of reconnecting forever.
+    async function connect() {
       clearTimeout(retryTimer);
+      let exists: boolean;
+      try {
+        exists = await roomExists(code);
+      } catch {
+        if (!stopped) retry();
+        return;
+      }
+      if (stopped) return;
+      if (!exists) {
+        stopped = true;
+        setStatus("missing");
+        return;
+      }
+
       const ws = new WebSocket(socketUrl(window.location, code));
       socket = ws;
       ws.onopen = () => {
@@ -28,22 +50,22 @@ export function useRoomSocket(code: string) {
       ws.onmessage = (event) => {
         if (typeof event.data !== "string") return;
         const parsed = parseServerMessage(event.data);
-        if (parsed.ok && parsed.message.type === "snapshot")
+        if (parsed.ok && parsed.message.type === "snapshot") {
           setPlayers(parsed.message.room.players);
+        }
       };
       ws.onclose = () => {
         if (stopped || socket !== ws) return;
-        setStatus("reconnecting");
-        retryTimer = setTimeout(connect, backoffDelay(attempt++));
+        retry();
       };
     }
 
     // Phones drop sockets when the screen locks; reconnect at once when the tab is visible again.
     function onVisible() {
-      if (document.visibilityState !== "visible") return;
+      if (stopped || document.visibilityState !== "visible") return;
       if (socket && socket.readyState <= WebSocket.OPEN) return;
       attempt = 0;
-      connect();
+      void connect();
     }
 
     const pingTimer = setInterval(() => {
@@ -52,7 +74,7 @@ export function useRoomSocket(code: string) {
       }
     }, PING_EVERY_MS);
 
-    connect();
+    void connect();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;

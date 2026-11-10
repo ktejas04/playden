@@ -1,34 +1,65 @@
 import { DurableObject } from "cloudflare:workers";
 import { type RoomPlayer, type ServerMessage, parseClientMessage } from "@playden/protocol";
+import { ROOM_EMPTY_CLOSE_MS } from "../config";
 import type { Env } from "../env";
 
 export const ROOM_HEADERS = {
   userId: "x-playden-user-id",
   userName: "x-playden-user-name",
-  roomCode: "x-playden-room-code",
 } as const;
+
+interface RoomInfo {
+  code: string;
+  createdBy: string;
+  createdAt: number;
+}
 
 interface Attachment {
   userId: string;
   name: string;
-  code: string;
 }
 
+const INFO_KEY = "info";
+
+/**
+ * One room. It exists only after `create`; it closes itself (all storage deleted) once it
+ * has been empty for ROOM_EMPTY_CLOSE_MS, after which its code reads as "not found".
+ */
 export class Room extends DurableObject<Env> {
+  /** Returns false when the code is already taken by a live room. */
+  async create(code: string, createdBy: string, now: number): Promise<boolean> {
+    if (await this.info()) return false;
+    const info: RoomInfo = { code, createdBy, createdAt: now };
+    await this.ctx.storage.put(INFO_KEY, info);
+    await this.ctx.storage.setAlarm(now + ROOM_EMPTY_CLOSE_MS);
+    return true;
+  }
+
+  async exists(): Promise<boolean> {
+    return (await this.info()) !== undefined;
+  }
+
   override async fetch(request: Request): Promise<Response> {
+    const info = await this.info();
+    if (!info) return new Response("Room not found", { status: 404 });
+
     const userId = request.headers.get(ROOM_HEADERS.userId);
     const encodedName = request.headers.get(ROOM_HEADERS.userName);
-    const code = request.headers.get(ROOM_HEADERS.roomCode);
-    if (!userId || !encodedName || !code) return new Response("Bad room request", { status: 400 });
+    if (!userId || !encodedName) return new Response("Bad room request", { status: 400 });
 
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     this.ctx.acceptWebSocket(server);
-    const attachment: Attachment = { userId, name: decodeURIComponent(encodedName), code };
+    const attachment: Attachment = { userId, name: decodeURIComponent(encodedName) };
     server.serializeAttachment(attachment);
 
-    this.broadcastSnapshot();
+    await this.ctx.storage.deleteAlarm();
+    this.broadcastSnapshot(info.code);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  override async alarm(): Promise<void> {
+    if (this.openSockets().length === 0) await this.ctx.storage.deleteAll();
   }
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -54,11 +85,24 @@ export class Room extends DurableObject<Env> {
     } catch {
       // Already closed by the runtime.
     }
-    this.broadcastSnapshot(ws);
+    await this.playerLeft(ws);
   }
 
   override async webSocketError(ws: WebSocket): Promise<void> {
-    this.broadcastSnapshot(ws);
+    await this.playerLeft(ws);
+  }
+
+  private async playerLeft(ws: WebSocket): Promise<void> {
+    const info = await this.info();
+    if (!info) return;
+    this.broadcastSnapshot(info.code, ws);
+    if (this.openSockets(ws).length === 0) {
+      await this.ctx.storage.setAlarm(Date.now() + ROOM_EMPTY_CLOSE_MS);
+    }
+  }
+
+  private info(): Promise<RoomInfo | undefined> {
+    return this.ctx.storage.get<RoomInfo>(INFO_KEY);
   }
 
   private openSockets(exclude?: WebSocket): WebSocket[] {
@@ -67,21 +111,17 @@ export class Room extends DurableObject<Env> {
       .filter((ws) => ws !== exclude && ws.readyState === WebSocket.OPEN);
   }
 
-  private broadcastSnapshot(exclude?: WebSocket): void {
+  private broadcastSnapshot(code: string, exclude?: WebSocket): void {
     const sockets = this.openSockets(exclude);
     const players = new Map<string, RoomPlayer>();
-    let code = "";
     for (const ws of sockets) {
       const attachment = ws.deserializeAttachment() as Attachment;
-      code = attachment.code;
       players.set(attachment.userId, {
         id: attachment.userId,
         name: attachment.name,
         connected: true,
       });
     }
-    if (!code) return;
-
     const snapshot: ServerMessage = {
       type: "snapshot",
       room: { code, players: [...players.values()] },
