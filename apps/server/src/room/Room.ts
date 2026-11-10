@@ -3,6 +3,7 @@ import {
   ROOM_CLOSE,
   type RoomPlayer,
   type ServerMessage,
+  canRemovePlayer,
   parseClientMessage,
 } from "@playden/protocol";
 import { roomEmptyCloseMs } from "../config";
@@ -12,6 +13,7 @@ import { refuseSocket } from "../http";
 export const ROOM_HEADERS = {
   userId: "x-playden-user-id",
   userName: "x-playden-user-name",
+  isAdmin: "x-playden-user-admin",
 } as const;
 
 interface RoomInfo {
@@ -23,17 +25,21 @@ interface RoomInfo {
 interface Attachment {
   userId: string;
   name: string;
+  isAdmin: boolean;
   joinedAt: number;
 }
 
 const INFO_KEY = "info";
 const HOST_KEY = "host";
+/** User ids removed by the host or an admin; refused until the room closes (D42). */
+const REMOVED_KEY = "removed";
 
 /**
  * One room. It exists only after `create`; it closes itself (all storage deleted) once it
  * has been empty for ROOM_EMPTY_CLOSE_MS (or its env override), after which its code reads as "not found".
  * The creator is host; when the host is not in the room, host passes to the player who
  * has been seated longest, and stays with them even if the old host comes back.
+ * The host or an admin can remove a player, who then can't rejoin this room.
  */
 export class Room extends DurableObject<Env> {
   /** Returns false when the code is already taken by a live room. */
@@ -56,6 +62,9 @@ export class Room extends DurableObject<Env> {
     const userId = request.headers.get(ROOM_HEADERS.userId);
     const encodedName = request.headers.get(ROOM_HEADERS.userName);
     if (!userId || !encodedName) return new Response("Bad room request", { status: 400 });
+    if ((await this.removedIds()).includes(userId)) {
+      return refuseSocket(ROOM_CLOSE.removed, "Removed from this room");
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
@@ -63,6 +72,7 @@ export class Room extends DurableObject<Env> {
     const attachment: Attachment = {
       userId,
       name: decodeURIComponent(encodedName),
+      isAdmin: request.headers.get(ROOM_HEADERS.isAdmin) === "1",
       joinedAt: Date.now(),
     };
     server.serializeAttachment(attachment);
@@ -90,7 +100,48 @@ export class Room extends DurableObject<Env> {
       case "ping":
         this.send(ws, { type: "pong", t: parsed.message.t, serverTime: Date.now() });
         break;
+      case "remove":
+        await this.removePlayer(ws, parsed.message.playerId);
+        break;
     }
+  }
+
+  private async removePlayer(ws: WebSocket, playerId: string): Promise<void> {
+    const info = await this.info();
+    if (!info) return;
+    const actor = attachmentOf(ws);
+    const targetSockets = this.openSockets().filter((s) => attachmentOf(s).userId === playerId);
+    const target = targetSockets[0];
+    if (!target) {
+      this.send(ws, { type: "error", reason: "That player isn't in the room" });
+      return;
+    }
+    const { name, isAdmin } = attachmentOf(target);
+    const hostId = await this.storedHostId(info);
+    if (
+      !canRemovePlayer(
+        { id: actor.userId, isAdmin: actor.isAdmin },
+        { id: playerId, isAdmin },
+        hostId,
+      )
+    ) {
+      this.send(ws, { type: "error", reason: "You can't remove that player" });
+      return;
+    }
+
+    await this.ctx.storage.put(REMOVED_KEY, [...(await this.removedIds()), playerId]);
+    // The removed player gets the notice too: a close can take seconds to be reported
+    // (the client waits on the TCP teardown), the notice arrives at once.
+    const notice: ServerMessage = { type: "removed", playerId, name };
+    for (const socket of this.openSockets()) this.send(socket, notice);
+    for (const socket of targetSockets) {
+      try {
+        socket.close(ROOM_CLOSE.removed, "Removed from this room");
+      } catch {
+        // Already closing.
+      }
+    }
+    await this.broadcastSnapshot(info, targetSockets);
   }
 
   override async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
@@ -109,8 +160,8 @@ export class Room extends DurableObject<Env> {
   private async playerLeft(ws: WebSocket): Promise<void> {
     const info = await this.info();
     if (!info) return;
-    await this.broadcastSnapshot(info, ws);
-    if (this.openSockets(ws).length === 0) {
+    await this.broadcastSnapshot(info, [ws]);
+    if (this.openSockets([ws]).length === 0) {
       await this.ctx.storage.setAlarm(Date.now() + this.closeAfterMs());
     }
   }
@@ -123,32 +174,40 @@ export class Room extends DurableObject<Env> {
     return this.ctx.storage.get<RoomInfo>(INFO_KEY);
   }
 
-  private openSockets(exclude?: WebSocket): WebSocket[] {
+  private async removedIds(): Promise<string[]> {
+    return (await this.ctx.storage.get<string[]>(REMOVED_KEY)) ?? [];
+  }
+
+  private async storedHostId(info: RoomInfo): Promise<string> {
+    return (await this.ctx.storage.get<string>(HOST_KEY)) ?? info.createdBy;
+  }
+
+  private openSockets(exclude: WebSocket[] = []): WebSocket[] {
     return this.ctx
       .getWebSockets()
-      .filter((ws) => ws !== exclude && ws.readyState === WebSocket.OPEN);
+      .filter((ws) => !exclude.includes(ws) && ws.readyState === WebSocket.OPEN);
   }
 
   /** One entry per player (a player may have several tabs open), longest-seated first. */
   private seatedPlayers(sockets: WebSocket[]): (RoomPlayer & { joinedAt: number })[] {
     const players = new Map<string, RoomPlayer & { joinedAt: number }>();
     for (const ws of sockets) {
-      const { userId, name, joinedAt } = ws.deserializeAttachment() as Attachment;
+      const { userId, name, isAdmin, joinedAt } = attachmentOf(ws);
       const seen = players.get(userId);
       if (!seen || joinedAt < seen.joinedAt) {
-        players.set(userId, { id: userId, name, connected: true, joinedAt });
+        players.set(userId, { id: userId, name, connected: true, isAdmin, joinedAt });
       }
     }
     return [...players.values()].sort((a, b) => a.joinedAt - b.joinedAt);
   }
 
-  private async broadcastSnapshot(info: RoomInfo, exclude?: WebSocket): Promise<void> {
+  private async broadcastSnapshot(info: RoomInfo, exclude: WebSocket[] = []): Promise<void> {
     const sockets = this.openSockets(exclude);
     const seated = this.seatedPlayers(sockets);
     const first = seated[0];
     if (!first) return;
 
-    let hostId = (await this.ctx.storage.get<string>(HOST_KEY)) ?? info.createdBy;
+    let hostId = await this.storedHostId(info);
     if (!seated.some((player) => player.id === hostId)) {
       hostId = first.id;
       await this.ctx.storage.put(HOST_KEY, hostId);
@@ -159,7 +218,12 @@ export class Room extends DurableObject<Env> {
       room: {
         code: info.code,
         hostId,
-        players: seated.map(({ id, name, connected }) => ({ id, name, connected })),
+        players: seated.map(({ id, name, connected, isAdmin }) => ({
+          id,
+          name,
+          connected,
+          isAdmin,
+        })),
       },
     };
     for (const ws of sockets) this.send(ws, snapshot);
@@ -172,4 +236,8 @@ export class Room extends DurableObject<Env> {
       // Socket closed between listing and sending; the close handler rebroadcasts.
     }
   }
+}
+
+function attachmentOf(ws: WebSocket): Attachment {
+  return ws.deserializeAttachment() as Attachment;
 }

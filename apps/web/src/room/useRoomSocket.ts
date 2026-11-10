@@ -1,5 +1,10 @@
-import { type RoomPlayer, parseServerMessage } from "@playden/protocol";
-import { useEffect, useRef, useState } from "react";
+import {
+  type ClientMessage,
+  type RoomPlayer,
+  type ServerMessage,
+  parseServerMessage,
+} from "@playden/protocol";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { backoffDelay } from "./backoff";
 import { closeOutcome } from "./closeOutcome";
 import { earlyRoomSocket } from "./earlySocket";
@@ -7,22 +12,32 @@ import { socketUrl } from "./socketUrl";
 
 const PING_EVERY_MS = 25_000;
 
-export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing";
+export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing" | "removed";
+
+/** Server messages the screen shows as toasts: someone was removed, or a request was refused. */
+export type RoomNotice = Extract<ServerMessage, { type: "removed" | "error" }>;
+
+interface RoomSocketHandlers {
+  /** The account can't play (signed out or not allowed); the app rechecks it. */
+  onRefused: () => void;
+  onNotice: (notice: RoomNotice) => void;
+}
 
 /**
  * The room's live connection. Joining is a single socket: the server answers with the
- * member list, or closes with a code saying the room is gone or the account can't play.
- * `onRefused` runs on the latter so the app can recheck the account.
+ * member list, or closes with a code saying the room is gone, you were removed, or the
+ * account can't play. `myId` lets it act on its own removal notice without waiting for the close.
  */
-export function useRoomSocket(code: string, onRefused: () => void) {
+export function useRoomSocket(code: string, myId: string, handlers: RoomSocketHandlers) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [hostId, setHostId] = useState<string | null>(null);
-  const onRefusedRef = useRef(onRefused);
+  const handlersRef = useRef(handlers);
+  const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    onRefusedRef.current = onRefused;
-  }, [onRefused]);
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -32,10 +47,22 @@ export function useRoomSocket(code: string, onRefused: () => void) {
 
     function receive(data: string) {
       const parsed = parseServerMessage(data);
-      if (!parsed.ok || parsed.message.type !== "snapshot") return;
+      if (!parsed.ok) return;
+      const message = parsed.message;
+      if (message.type === "removed" && message.playerId === myId) {
+        stopped = true;
+        setStatus("removed");
+        socket?.close(1000, "removed");
+        return;
+      }
+      if (message.type === "removed" || message.type === "error") {
+        handlersRef.current.onNotice(message);
+        return;
+      }
+      if (message.type !== "snapshot") return;
       attempt = 0;
-      setPlayers(parsed.message.room.players);
-      setHostId(parsed.message.room.hostId);
+      setPlayers(message.room.players);
+      setHostId(message.room.hostId);
       setStatus("live");
     }
 
@@ -48,8 +75,8 @@ export function useRoomSocket(code: string, onRefused: () => void) {
         return;
       }
       stopped = true;
-      if (outcome === "missing") setStatus("missing");
-      else onRefusedRef.current();
+      if (outcome === "refused") handlersRef.current.onRefused();
+      else setStatus(outcome);
     }
 
     function connect() {
@@ -57,6 +84,7 @@ export function useRoomSocket(code: string, onRefused: () => void) {
       const early = earlyRoomSocket.take(code);
       const ws = early?.ws ?? new WebSocket(socketUrl(window.location, code));
       socket = ws;
+      socketRef.current = ws;
       ws.addEventListener("message", (event) => {
         if (typeof event.data === "string") receive(event.data);
       });
@@ -92,7 +120,13 @@ export function useRoomSocket(code: string, onRefused: () => void) {
       document.removeEventListener("visibilitychange", onVisible);
       socket?.close(1000, "left");
     };
-  }, [code]);
+  }, [code, myId]);
 
-  return { status, players, hostId };
+  const removePlayer = useCallback((playerId: string) => {
+    const ws = socketRef.current;
+    if (ws?.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ type: "remove", playerId } satisfies ClientMessage));
+  }, []);
+
+  return { status, players, hostId, removePlayer };
 }

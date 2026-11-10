@@ -94,6 +94,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D39 | Hosting | `wrangler.toml` top level is local dev (placeholder D1 id, secrets from `.dev.vars`); production is `[env.production]` (real D1 id, secrets via `wrangler secret put --env production`). Remote commands pass `--env production`, so local work never touches the production database | 2026-11-11 |
 | D40 | Rooms | The room's creator is host (or the first player in, if the creator never joins). When the host is not in the room, host passes at once to the longest-seated player and stays with them if the old host returns. The 60 s away grace comes with reconnect seats in Platform v1. In a room, admins open Members in a side sheet so the room stays connected | 2026-11-11 |
 | D41 | Rooms | Joining a room is one WebSocket: the Worker reads the session once and forwards to the room, which answers with a snapshot or refuses with a close code (4401 signed out, 4403 not allowed, 4404 not found), since browsers can't read a failed upgrade's HTTP status. A room link starts its socket before React loads, the last known account is kept in localStorage so screens draw at once while `/api/me` revalidates, and hashed assets are cached for a year (`_headers`) | 2026-11-11 |
+| D42 | Rooms | The host or an admin can remove a player from a room, in the lobby or mid-game. Nobody can remove themselves or an admin (admins are never bannable, D22), so a host can't remove an admin but an admin can remove the host, and host then passes on as usual. The removed player's tabs all close with `ROOM_CLOSE.removed` (4410) and they can't rejoin that room until it closes; the list lives only in the room's storage. Removing is not banning: the account is untouched | 2026-11-11 |
 
 ## Scope: v1 vs later
 
@@ -310,7 +311,7 @@ The site gates people, not links: a forwarded room link is useless to anyone who
 2. Account stays pending until an admin approves it from the admin page.
 3. Approved accounts can create and join rooms; pending ones see a waiting screen; banned ones see "access removed".
 4. Admins can **decline** a waiting request: the person sees "Your request wasn't approved" and may **ask again** after `ASK_AGAIN_AFTER_MS`; repeat requests show an "Asked again" tag (D36).
-5. Admins can **block** a request (spam, strangers) or **ban** a member. Both end their sessions and stop them asking again. In the Banned tab, former members get **Let back in** (member again) and blocked requests get **Unblock** (back to Waiting). Kicking someone from a live room arrives with the Lobby in phase 3.
+5. Admins can **block** a request (spam, strangers) or **ban** a member. Both end their sessions and stop them asking again. In the Banned tab, former members get **Let back in** (member again) and blocked requests get **Unblock** (back to Waiting). In a room, the host or an admin can remove a player (D42); a ban also ending the person's live room seat arrives with the Lobby in phase 3.
 6. Admins are the emails in the `ADMIN_EMAILS` secret (comma-separated): auto-approved, never bannable.
 
 Phone/OTP login is avoided because SMS and WhatsApp messages cost money per message.

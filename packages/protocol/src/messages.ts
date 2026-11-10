@@ -9,10 +9,12 @@ export const roomPlayerSchema = z.strictObject({
   id: userIdSchema,
   name: z.string().min(1).max(40),
   connected: z.boolean(),
+  isAdmin: z.boolean(),
 });
 
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ping"), t: z.number() }),
+  z.strictObject({ type: z.literal("remove"), playerId: userIdSchema }),
 ]);
 
 export const serverMessageSchema = z.discriminatedUnion("type", [
@@ -25,6 +27,11 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     }),
   }),
   z.strictObject({ type: z.literal("pong"), t: z.number(), serverTime: z.number() }),
+  z.strictObject({
+    type: z.literal("removed"),
+    playerId: userIdSchema,
+    name: z.string().min(1).max(40),
+  }),
   z.strictObject({ type: z.literal("error"), reason: z.string() }),
 ]);
 
@@ -63,4 +70,6 @@ export const ROOM_CLOSE = {
   signedOut: 4401,
   notAllowed: 4403,
   notFound: 4404,
+  /** Removed by the host or an admin; refused on rejoin until the room closes. */
+  removed: 4410,
 } as const;

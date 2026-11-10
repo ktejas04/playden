@@ -1,15 +1,38 @@
-import type { Me, RoomPlayer } from "@playden/protocol";
+import { type Me, type RoomPlayer, canRemovePlayer } from "@playden/protocol";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@playden/ui/components/alert-dialog";
 import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@playden/ui/components/dropdown-menu";
 import { Skeleton } from "@playden/ui/components/skeleton";
 import { toast } from "@playden/ui/components/sonner";
 import { cn } from "@playden/ui/lib/utils";
-import { CopyIcon, CrownIcon, LogOutIcon, Share2Icon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+  CopyIcon,
+  CrownIcon,
+  LogOutIcon,
+  MoreHorizontalIcon,
+  Share2Icon,
+  UserMinusIcon,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
 import { orderPlayers } from "../room/orderPlayers";
-import { type ConnectionStatus, useRoomSocket } from "../room/useRoomSocket";
+import { type ConnectionStatus, type RoomNotice, useRoomSocket } from "../room/useRoomSocket";
 import { navigate } from "../router";
 import { BottomBar, Centered, Panel } from "../Shell";
 
@@ -18,6 +41,7 @@ const STATUS: Record<ConnectionStatus, { label: string; dot: string }> = {
   live: { label: "Live", dot: "bg-success" },
   reconnecting: { label: "Reconnecting", dot: "bg-warning animate-pulse" },
   missing: { label: "Closed", dot: "bg-muted-foreground" },
+  removed: { label: "Removed", dot: "bg-muted-foreground" },
 };
 
 function roomLink(code: string) {
@@ -49,17 +73,14 @@ async function shareRoom(code: string) {
   await copyLink(code);
 }
 
-function RoomNotFound({ code }: { code: string }) {
+function RoomEnded({ code, title, children }: { code: string; title: string; children: string }) {
   return (
     <Centered>
       <div className="flex flex-col gap-6">
         <RoomCodeTiles code={code} decorative className="opacity-50 grayscale" />
         <div>
-          <h1 className="text-[2rem] leading-tight font-bold tracking-tight">Room not found</h1>
-          <p className="mt-1.5 max-w-prose text-muted-foreground">
-            This room has ended, or the link is wrong. Rooms close a minute after everyone leaves.
-            Ask the group for a new link, or start your own room.
-          </p>
+          <h1 className="text-[2rem] leading-tight font-bold tracking-tight">{title}</h1>
+          <p className="mt-1.5 max-w-prose text-muted-foreground">{children}</p>
         </div>
         <Button size="lg" className="self-start" onClick={() => navigate("/")}>
           Back to the lobby
@@ -86,7 +107,22 @@ function useHostChangeToast(hostId: string | null, players: RoomPlayer[], myId: 
   }, [hostId, players, myId]);
 }
 
-function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId: string | null }) {
+function showNotice(notice: RoomNotice) {
+  if (notice.type === "removed") toast.info(`${notice.name} was removed from the room.`);
+  else toast.error(notice.reason);
+}
+
+function PlayerRow({
+  player,
+  me,
+  hostId,
+  onRemove,
+}: {
+  player: RoomPlayer;
+  me: Me;
+  hostId: string | null;
+  onRemove?: () => void;
+}) {
   const isMe = player.id === me.id;
   return (
     <li
@@ -108,6 +144,25 @@ function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId:
         </Badge>
       )}
       {isMe && <Badge className="h-6 px-2 text-sm">You</Badge>}
+      {onRemove && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="-my-1 text-muted-foreground"
+              aria-label={`More for ${player.name}`}
+            >
+              <MoreHorizontalIcon className="size-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-52">
+            <DropdownMenuItem variant="destructive" className="h-10" onSelect={onRemove}>
+              <UserMinusIcon /> Remove from room
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </li>
   );
 }
@@ -124,18 +179,40 @@ function PlaceholderRow() {
 }
 
 export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused: () => void }) {
-  const { status, players, hostId } = useRoomSocket(code, onRefused);
+  const handlers = useMemo(() => ({ onRefused, onNotice: showNotice }), [onRefused]);
+  const { status, players, hostId, removePlayer } = useRoomSocket(code, me.id, handlers);
+  const [removing, setRemoving] = useState<RoomPlayer | null>(null);
   const { label, dot } = STATUS[status];
   const joining = hostId === null;
   const alone = players.length <= 1;
   // Until the room answers, show yourself (you're joining) and placeholders, never "0 players".
   // Rows are keyed by player, so your own row stays put when the real list replaces this.
   const rows = joining
-    ? [{ id: me.id, name: me.displayName ?? "You", connected: true }]
+    ? [{ id: me.id, name: me.displayName ?? "You", connected: true, isAdmin: me.isAdmin }]
     : orderPlayers(players, me.id);
   useHostChangeToast(hostId, players, me.id);
 
-  if (status === "missing") return <RoomNotFound code={code} />;
+  if (status === "missing") {
+    return (
+      <RoomEnded code={code} title="Room not found">
+        This room has ended, or the link is wrong. Rooms close a minute after everyone leaves. Ask
+        the group for a new link, or start your own room.
+      </RoomEnded>
+    );
+  }
+  if (status === "removed") {
+    return (
+      <RoomEnded code={code} title="You were removed from this room">
+        The host or an admin took you out of this room, so you can't rejoin it. You can still start
+        your own room or join another one.
+      </RoomEnded>
+    );
+  }
+
+  const canRemove = (player: RoomPlayer) =>
+    hostId !== null &&
+    status === "live" &&
+    canRemovePlayer({ id: me.id, isAdmin: me.isAdmin }, player, hostId);
 
   return (
     <>
@@ -173,7 +250,13 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
         </div>
         <ul className="mt-3 divide-y">
           {rows.map((player) => (
-            <PlayerRow key={player.id} player={player} me={me} hostId={hostId} />
+            <PlayerRow
+              key={player.id}
+              player={player}
+              me={me}
+              hostId={hostId}
+              onRemove={canRemove(player) ? () => setRemoving(player) : undefined}
+            />
           ))}
           {joining &&
             Array.from({ length: PLACEHOLDER_ROWS }, (_, row) => (
@@ -197,6 +280,29 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
           <Share2Icon className="size-5" /> Invite players
         </Button>
       </BottomBar>
+
+      <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They leave the room straight away, even mid-game, and can't rejoin it until it closes.
+              Their account isn't affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (removing) removePlayer(removing.id);
+              }}
+            >
+              Remove {removing?.name}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

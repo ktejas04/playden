@@ -31,6 +31,18 @@ describe("parseClientMessage", () => {
     });
   });
 
+  it("accepts a remove with a player id", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "remove", playerId: "u2" }))).toEqual({
+      ok: true,
+      message: { type: "remove", playerId: "u2" },
+    });
+  });
+
+  it("rejects a remove without a player id", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "remove" })).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "remove", playerId: "" })).ok).toBe(false);
+  });
+
   it("rejects non-JSON", () => {
     expect(parseClientMessage("not json")).toEqual({ ok: false, reason: "Message is not JSON" });
   });
@@ -56,7 +68,7 @@ describe("parseServerMessage", () => {
       room: {
         code: "ABCD",
         hostId: "u1",
-        players: [{ id: "u1", name: "Asha", connected: true }],
+        players: [{ id: "u1", name: "Asha", connected: true, isAdmin: false }],
       },
     };
     expect(parseServerMessage(JSON.stringify(snapshot))).toEqual({ ok: true, message: snapshot });
@@ -70,6 +82,19 @@ describe("parseServerMessage", () => {
   it("accepts pong and error", () => {
     expect(parseServerMessage(JSON.stringify({ type: "pong", t: 1, serverTime: 2 })).ok).toBe(true);
     expect(parseServerMessage(JSON.stringify({ type: "error", reason: "Nope" })).ok).toBe(true);
+  });
+
+  it("accepts a removed notice", () => {
+    const notice = { type: "removed", playerId: "u2", name: "Ravi" };
+    expect(parseServerMessage(JSON.stringify(notice))).toEqual({ ok: true, message: notice });
+  });
+
+  it("rejects a snapshot player without an admin flag", () => {
+    const snapshot = {
+      type: "snapshot",
+      room: { code: "ABCD", hostId: "u1", players: [{ id: "u1", name: "Asha", connected: true }] },
+    };
+    expect(parseServerMessage(JSON.stringify(snapshot)).ok).toBe(false);
   });
 
   it("rejects a snapshot with a bad room code", () => {

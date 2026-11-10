@@ -1,5 +1,6 @@
 import { ROOM_CLOSE, ROOM_CODE_LENGTH, roomCodeSchema } from "@playden/protocol";
 import type { RequestContext, Route } from "../app";
+import { isAdminEmail } from "../auth/admins";
 import { checkApproved, getCurrentUser, requireApproved } from "../auth/session";
 import { ROOM_CODE_ATTEMPTS } from "../config";
 import { errorJson, json, refuseSocket } from "../http";
@@ -66,6 +67,7 @@ export const roomRoutes: Route[] = [
       const headers = new Headers(ctx.request.headers);
       headers.set(ROOM_HEADERS.userId, user.id);
       headers.set(ROOM_HEADERS.userName, encodeURIComponent(user.displayName ?? "Player"));
+      headers.set(ROOM_HEADERS.isAdmin, isAdminEmail(user.email, ctx.env.ADMIN_EMAILS) ? "1" : "0");
       return room.fetch(new Request(ctx.request.url, { method: "GET", headers }));
     },
   },

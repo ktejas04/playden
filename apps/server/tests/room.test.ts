@@ -43,8 +43,24 @@ function wsRequest(code: string, cookie: string, upgrade = true) {
   });
 }
 
-async function connect(code: string, cookie: string) {
-  const response = await wsRequest(code, cookie);
+const ADMIN_SUB = "r-admin";
+
+/** The Worker with `ADMIN_SUB` listed as an admin; `SELF` can't take env overrides. */
+function adminAwareRequest(code: string, cookie: string) {
+  const app = createApp({
+    google: () => {
+      throw new Error("unused");
+    },
+    now: () => NOW,
+  });
+  return app.fetch(
+    new Request(`${ORIGIN}/api/rooms/${code}/ws`, { headers: { upgrade: "websocket", cookie } }),
+    { ...env, ADMIN_EMAILS: `${ADMIN_SUB}@example.com` },
+  );
+}
+
+async function connect(code: string, cookie: string, request = wsRequest) {
+  const response = await request(code, cookie);
   const ws = response.webSocket;
   if (!ws) throw new Error(`No WebSocket (status ${response.status})`);
   ws.accept();
@@ -62,7 +78,11 @@ async function connect(code: string, cookie: string) {
     throw new Error(`Timed out; inbox: ${JSON.stringify(inbox)}`);
   }
 
-  return { ws, next };
+  const closed = new Promise<number>((resolve) => {
+    ws.addEventListener("close", (event) => resolve(event.code));
+  });
+
+  return { ws, next, closed };
 }
 
 /** Opens a socket that the server is expected to refuse; returns its close code. */
@@ -298,5 +318,114 @@ describe("room lifetime", () => {
     expect(await runDurableObjectAlarm(roomStub(code))).toBe(false);
     expect((await getRoom(code, asha.cookie)).status).toBe(200);
     a.ws.close(1000);
+  });
+});
+
+describe("removing a player", () => {
+  const remove = (socket: WebSocket, playerId: string) =>
+    socket.send(JSON.stringify({ type: "remove", playerId }));
+
+  it("the host removes a player: their socket closes, the rest are told, and they can't rejoin", async () => {
+    const asha = await member("k-host", "Asha");
+    const ravi = await member("k-target", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie);
+    await a.next(snapshotWith(2));
+
+    remove(a.ws, ravi.user.id);
+    const notice = { type: "removed", playerId: ravi.user.id, name: "Ravi" };
+    // The removed player is told too, so their screen can stop without waiting on the close.
+    expect(await r.next((m) => m.type === "removed")).toEqual(notice);
+    expect(await r.closed).toBe(ROOM_CLOSE.removed);
+    expect(await a.next((m) => m.type === "removed")).toEqual(notice);
+    expect(playerNames(await a.next(snapshotWith(1)))).toEqual(["Asha"]);
+
+    expect(await refusedWith(code, ravi.cookie)).toBe(ROOM_CLOSE.removed);
+    a.ws.close(1000);
+  });
+
+  it("closes every tab the removed player has open", async () => {
+    const asha = await member("k-tabs-host", "Asha");
+    const ravi = await member("k-tabs-target", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const first = await connect(code, ravi.cookie);
+    const second = await connect(code, ravi.cookie);
+    await second.next(snapshotWith(2));
+
+    remove(a.ws, ravi.user.id);
+    expect(await first.closed).toBe(ROOM_CLOSE.removed);
+    expect(await second.closed).toBe(ROOM_CLOSE.removed);
+    a.ws.close(1000);
+  });
+
+  it("refuses a player who isn't host or admin, and nobody leaves", async () => {
+    const asha = await member("k-refuse-host", "Asha");
+    const ravi = await member("k-refuse-r", "Ravi");
+    const meera = await member("k-refuse-m", "Meera");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie);
+    await r.next(snapshotWith(2));
+    const m = await connect(code, meera.cookie);
+    await r.next(snapshotWith(3));
+
+    remove(r.ws, meera.user.id);
+    expect(await r.next((msg) => msg.type === "error")).toEqual({
+      type: "error",
+      reason: "You can't remove that player",
+    });
+    r.ws.send(JSON.stringify({ type: "ping", t: 1 }));
+    await r.next((msg) => msg.type === "pong");
+    expect(m.ws.readyState).toBe(WebSocket.OPEN);
+    for (const socket of [a, r, m]) socket.ws.close(1000);
+  });
+
+  it("ignores a player who is no longer in the room", async () => {
+    const asha = await member("k-gone-host", "Asha");
+    const ravi = await member("k-gone-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+
+    remove(a.ws, ravi.user.id);
+    expect(await a.next((msg) => msg.type === "error")).toEqual({
+      type: "error",
+      reason: "That player isn't in the room",
+    });
+    expect((await connect(code, ravi.cookie)).ws.readyState).toBe(WebSocket.OPEN);
+    a.ws.close(1000);
+  });
+
+  it("an admin can remove the host, and host passes on; the host can't remove an admin", async () => {
+    const asha = await member("k-admin-host", "Asha");
+    const ravi = await member("k-admin-r", "Ravi");
+    const boss = await member(ADMIN_SUB, "Boss");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie, adminAwareRequest);
+    await a.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie, adminAwareRequest);
+    await r.next(snapshotWith(2));
+    const b = await connect(code, boss.cookie, adminAwareRequest);
+    const snapshot = await r.next(snapshotWith(3));
+    expect(
+      snapshot.type === "snapshot" && snapshot.room.players.map((p) => [p.name, p.isAdmin]),
+    ).toEqual([
+      ["Asha", false],
+      ["Ravi", false],
+      ["Boss", true],
+    ]);
+
+    remove(a.ws, boss.user.id);
+    expect((await a.next((msg) => msg.type === "error")).type).toBe("error");
+
+    remove(b.ws, asha.user.id);
+    expect(await a.closed).toBe(ROOM_CLOSE.removed);
+    expect(hostOf(await r.next(snapshotWith(2)))).toBe(ravi.user.id);
+    for (const socket of [r, b]) socket.ws.close(1000);
   });
 });

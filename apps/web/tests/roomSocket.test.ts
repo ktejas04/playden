@@ -13,6 +13,10 @@ describe("closeOutcome", () => {
     expect(closeOutcome(ROOM_CLOSE.notAllowed)).toBe("refused");
   });
 
+  it("stops for good when the host or an admin removed you", () => {
+    expect(closeOutcome(ROOM_CLOSE.removed)).toBe("removed");
+  });
+
   it("retries anything else, such as a dropped network", () => {
     expect(closeOutcome(1006)).toBe("retry");
     expect(closeOutcome(1001)).toBe("retry");

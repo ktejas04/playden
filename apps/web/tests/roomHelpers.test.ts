@@ -56,7 +56,7 @@ describe("cleanJoinInput", () => {
 });
 
 describe("orderPlayers", () => {
-  const player = (id: string) => ({ id, name: id, connected: true });
+  const player = (id: string) => ({ id, name: id, connected: true, isAdmin: false });
 
   it("puts you first and keeps everyone else in join order", () => {
     const joined = [player("asha"), player("ravi"), player("me"), player("meera")];
