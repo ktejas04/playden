@@ -14,6 +14,11 @@ Spec: docs/PROJECT.md#rooms-lobby-and-realtime-protocol, #mobile-ux-learn-contro
 4. `useRoomSocket`: connect, parse server messages with protocol schemas, reconnect with backoff, reconnect at once when the tab becomes visible again, ping every 25 s.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] Manual on localhost: two browsers (two accounts) see each other join and leave
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [x] Manual on localhost: two accounts see each other join and leave (browser as one seeded test account, a Node WebSocket client as the other)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Tests live in one file, `tests/roomHelpers.test.ts`.
+- `Shell.tsx` gained `BottomBar` (sticky, thumb-reach actions); the Shell `bottomBar` prop was removed.
+- Room screen: big code, live/reconnecting badge, player list with "You", Leave + "Invite players" (Web Share, falls back to copying the link).

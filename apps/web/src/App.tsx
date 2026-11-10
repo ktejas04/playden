@@ -6,7 +6,9 @@ import { signOut } from "./api";
 import { type Route, navigate, useRoute } from "./router";
 import { Admin } from "./screens/Admin";
 import { Banned } from "./screens/Banned";
+import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
+import { Room } from "./screens/Room";
 import { SignIn } from "./screens/SignIn";
 import { Waiting } from "./screens/Waiting";
 import { Centered, Shell } from "./Shell";
@@ -86,9 +88,9 @@ function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => 
 
   switch (route.name) {
     case "home":
-      return <p className="py-8">Hi {me.displayName}. Rooms arrive in task 010.</p>;
+      return <Home me={me} />;
     case "room":
-      return <p className="py-8">Room {route.code}</p>;
+      return <Room key={route.code} me={me} code={route.code} />;
     case "admin":
       return me.isAdmin ? <Admin /> : <p className="py-8">Page not found.</p>;
     case "notFound":

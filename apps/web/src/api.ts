@@ -35,6 +35,10 @@ export function saveProfile(profile: Profile): Promise<Me> {
   return request<Me>("/api/me/profile", { method: "PUT", body: JSON.stringify(profile) });
 }
 
+export function createRoom(): Promise<{ code: string }> {
+  return request<{ code: string }>("/api/rooms", { method: "POST" });
+}
+
 export function listUsers(status: AccountStatus): Promise<AdminUser[]> {
   return request<AdminUser[]>(`/api/admin/users?status=${status}`);
 }
