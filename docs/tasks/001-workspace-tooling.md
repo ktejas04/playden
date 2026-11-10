@@ -14,6 +14,11 @@ Spec: docs/PROJECT.md#tech-stack-and-repo-layout, #code-practices-and-modularity
 7. `pnpm install`.
 
 ## Done when
-- [ ] `pnpm install` succeeds in PowerShell
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test` exit 0
-- [ ] The pre-commit hook runs on `git commit`
+- [x] `pnpm install` succeeds in PowerShell
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm test` exit 0
+- [x] The pre-commit hook runs on `git commit`
+
+## Notes
+- Vitest `projects` are added in 002, once packages exist (an empty list is an error).
+- Prettier skips `*.md`, so hand-written doc tables aren't reflowed.
+- Version pins are logged in D29.
