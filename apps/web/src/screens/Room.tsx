@@ -91,7 +91,7 @@ function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId:
   return (
     <li
       className={cn(
-        "flex items-center gap-3 py-3",
+        "flex items-center gap-3 py-3 duration-300 animate-in fade-in-0",
         isMe && "-mx-3 my-1 rounded-xl border-none bg-primary/15 px-3 first:mt-0",
       )}
     >
@@ -100,7 +100,10 @@ function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId:
         {player.name}
       </span>
       {player.id === hostId && (
-        <Badge variant="outline" className="h-6 gap-1 px-2 text-sm">
+        <Badge
+          variant="outline"
+          className="h-6 gap-1 px-2 text-sm duration-300 animate-in fade-in-0 zoom-in-90"
+        >
           <CrownIcon className="size-3.5! text-warning" /> Host
         </Badge>
       )}
@@ -109,19 +112,14 @@ function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId:
   );
 }
 
-/** Until the room answers, show yourself (you're joining) and placeholder rows, never "0 players". */
-function JoiningRows({ me }: { me: Me }) {
-  const self: RoomPlayer = { id: me.id, name: me.displayName ?? "You", connected: true };
+const PLACEHOLDER_ROWS = 2;
+
+function PlaceholderRow() {
   return (
-    <>
-      <PlayerRow player={self} me={me} hostId={null} />
-      {[0, 1].map((row) => (
-        <li key={row} className="flex items-center gap-3 py-3" aria-hidden>
-          <Skeleton className="size-8 rounded-full" />
-          <Skeleton className="h-4 w-32" />
-        </li>
-      ))}
-    </>
+    <li className="flex items-center gap-3 py-3" aria-hidden>
+      <Skeleton className="size-8 rounded-full" />
+      <Skeleton className="h-4 w-32" />
+    </li>
   );
 }
 
@@ -130,6 +128,11 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
   const { label, dot } = STATUS[status];
   const joining = hostId === null;
   const alone = players.length <= 1;
+  // Until the room answers, show yourself (you're joining) and placeholders, never "0 players".
+  // Rows are keyed by player, so your own row stays put when the real list replaces this.
+  const rows = joining
+    ? [{ id: me.id, name: me.displayName ?? "You", connected: true }]
+    : orderPlayers(players, me.id);
   useHostChangeToast(hostId, players, me.id);
 
   if (status === "missing") return <RoomNotFound code={code} />;
@@ -150,7 +153,7 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
             </button>
           </div>
           <span className="flex items-center gap-2 text-sm font-medium" role="status">
-            <span aria-hidden className={`size-2.5 rounded-full ${dot}`} />
+            <span aria-hidden className={`size-2.5 rounded-full transition-colors ${dot}`} />
             {label}
           </span>
         </div>
@@ -161,24 +164,24 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Players</h2>
           {joining ? (
-            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-5 w-16" />
           ) : (
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground duration-300 animate-in fade-in-0">
               {players.length} {players.length === 1 ? "player" : "players"}
             </span>
           )}
         </div>
         <ul className="mt-3 divide-y">
-          {joining ? (
-            <JoiningRows me={me} />
-          ) : (
-            orderPlayers(players, me.id).map((player) => (
-              <PlayerRow key={player.id} player={player} me={me} hostId={hostId} />
-            ))
-          )}
+          {rows.map((player) => (
+            <PlayerRow key={player.id} player={player} me={me} hostId={hostId} />
+          ))}
+          {joining &&
+            Array.from({ length: PLACEHOLDER_ROWS }, (_, row) => (
+              <PlaceholderRow key={`placeholder-${row}`} />
+            ))}
         </ul>
         {alone && status === "live" && (
-          <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground duration-300 animate-in fade-in-0">
             You're the first one here. Invite the group, and they'll show up in this list as they
             join.
           </p>
