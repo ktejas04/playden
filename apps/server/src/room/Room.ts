@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { type RoomPlayer, type ServerMessage, parseClientMessage } from "@playden/protocol";
-import { ROOM_EMPTY_CLOSE_MS } from "../config";
+import { roomEmptyCloseMs } from "../config";
 import type { Env } from "../env";
 
 export const ROOM_HEADERS = {
@@ -25,7 +25,7 @@ const HOST_KEY = "host";
 
 /**
  * One room. It exists only after `create`; it closes itself (all storage deleted) once it
- * has been empty for ROOM_EMPTY_CLOSE_MS, after which its code reads as "not found".
+ * has been empty for ROOM_EMPTY_CLOSE_MS (or its env override), after which its code reads as "not found".
  * The creator is host; when the host is not in the room, host passes to the player who
  * has been seated longest, and stays with them even if the old host comes back.
  */
@@ -35,7 +35,7 @@ export class Room extends DurableObject<Env> {
     if (await this.info()) return false;
     const info: RoomInfo = { code, createdBy, createdAt: now };
     await this.ctx.storage.put(INFO_KEY, info);
-    await this.ctx.storage.setAlarm(now + ROOM_EMPTY_CLOSE_MS);
+    await this.ctx.storage.setAlarm(now + this.closeAfterMs());
     return true;
   }
 
@@ -105,8 +105,12 @@ export class Room extends DurableObject<Env> {
     if (!info) return;
     await this.broadcastSnapshot(info, ws);
     if (this.openSockets(ws).length === 0) {
-      await this.ctx.storage.setAlarm(Date.now() + ROOM_EMPTY_CLOSE_MS);
+      await this.ctx.storage.setAlarm(Date.now() + this.closeAfterMs());
     }
+  }
+
+  private closeAfterMs(): number {
+    return roomEmptyCloseMs(this.env.ROOM_EMPTY_CLOSE_MS);
   }
 
   private info(): Promise<RoomInfo | undefined> {

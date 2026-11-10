@@ -5,6 +5,8 @@ declare global {
       GOOGLE_CLIENT_ID: string;
       GOOGLE_CLIENT_SECRET: string;
       ADMIN_EMAILS: string;
+      /** Optional, local testing only: how long an empty room stays open, in ms. */
+      ROOM_EMPTY_CLOSE_MS?: string;
     }
   }
 }

@@ -1,3 +1,5 @@
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 ADMIN_EMAILS=you@example.com
+# Optional: empty rooms close after this many ms (default 60000). Handy for testing.
+# ROOM_EMPTY_CLOSE_MS=20000
