@@ -10,11 +10,22 @@ import { SESSION_COOKIE, sessionToken } from "./session";
 
 const STATE_COOKIE = "pd_oauth_state";
 const VERIFIER_COOKIE = "pd_oauth_verifier";
+const NEXT_COOKIE = "pd_oauth_next";
 const OAUTH_COOKIE_PATH = "/auth";
 const OAUTH_COOKIE_SECONDS = 600;
 
 function callbackUrl(url: URL): string {
   return new URL("/auth/callback", url.origin).toString();
+}
+
+// Only a path on this site may be a return target; anything else would let a
+// crafted sign-in link send people to another site after they sign in.
+function returnPath(next: string | null | undefined): string {
+  if (!next?.startsWith("/")) return "/";
+  const base = "https://playden.invalid";
+  const target = new URL(next, base);
+  if (target.origin !== base || target.pathname.startsWith("/auth/")) return "/";
+  return target.pathname + target.search + target.hash;
 }
 
 export const authRoutes: Route[] = [
@@ -29,6 +40,8 @@ export const authRoutes: Route[] = [
       const options = { path: OAUTH_COOKIE_PATH, maxAge: OAUTH_COOKIE_SECONDS };
       headers.append("set-cookie", serializeCookie(STATE_COOKIE, state, options));
       headers.append("set-cookie", serializeCookie(VERIFIER_COOKIE, verifier, options));
+      const next = returnPath(url.searchParams.get("next"));
+      headers.append("set-cookie", serializeCookie(NEXT_COOKIE, next, options));
       return new Response(null, { status: 302, headers });
     },
   },
@@ -55,13 +68,14 @@ export const authRoutes: Route[] = [
       });
       const { token } = await createSession(db, user.id, now);
 
-      const headers = new Headers({ location: "/" });
+      const headers = new Headers({ location: returnPath(cookies.get(NEXT_COOKIE)) });
       headers.append(
         "set-cookie",
         serializeCookie(SESSION_COOKIE, token, { maxAge: SESSION_DAYS * 24 * 60 * 60 }),
       );
       headers.append("set-cookie", clearCookie(STATE_COOKIE, OAUTH_COOKIE_PATH));
       headers.append("set-cookie", clearCookie(VERIFIER_COOKIE, OAUTH_COOKIE_PATH));
+      headers.append("set-cookie", clearCookie(NEXT_COOKIE, OAUTH_COOKIE_PATH));
       return new Response(null, { status: 302, headers });
     },
   },

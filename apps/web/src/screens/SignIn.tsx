@@ -25,6 +25,12 @@ function GoogleMark() {
   );
 }
 
+function loginHref(): string {
+  const { pathname, search, hash } = window.location;
+  const here = pathname + search + hash;
+  return here === "/" ? "/auth/login" : `/auth/login?next=${encodeURIComponent(here)}`;
+}
+
 export function SignIn() {
   return (
     <Centered>
@@ -40,7 +46,7 @@ export function SignIn() {
         </div>
         <div className="flex flex-col gap-3">
           <Button asChild variant="outline" size="xl" className="w-full">
-            <a href="/auth/login">
+            <a href={loginHref()}>
               <GoogleMark />
               Continue with Google
             </a>

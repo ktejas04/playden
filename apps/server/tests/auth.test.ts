@@ -31,12 +31,12 @@ function cookiesFrom(response: Response): Map<string, string> {
   return cookies;
 }
 
-async function signIn(identity: GoogleIdentity) {
+async function signIn(identity: GoogleIdentity, loginPath = "/auth/login") {
   const fetchApp = makeApp(identity);
-  const login = await fetchApp("/auth/login");
+  const login = await fetchApp(loginPath);
   const loginCookies = cookiesFrom(login);
   const state = loginCookies.get("pd_oauth_state") ?? "";
-  const cookie = `pd_oauth_state=${state}; pd_oauth_verifier=${loginCookies.get("pd_oauth_verifier")}`;
+  const cookie = [...loginCookies].map(([name, value]) => `${name}=${value}`).join("; ");
   const callback = await fetchApp(`/auth/callback?code=c&state=${state}`, {
     headers: { cookie },
   });
@@ -82,6 +82,25 @@ describe("Google sign-in", () => {
       isAdmin: false,
     });
   });
+
+  it("returns to the page the sign-in started from", async () => {
+    const { callback } = await signIn(
+      { sub: "g-next", email: "next@example.com", emailVerified: true },
+      `/auth/login?next=${encodeURIComponent("/r/ABCD")}`,
+    );
+    expect(callback.headers.get("location")).toBe("/r/ABCD");
+  });
+
+  it.each(["//evil.test", "https://evil.test/r/ABCD", "/\\evil.test", "r/ABCD", "/auth/login"])(
+    "ignores an unsafe return path %s",
+    async (next) => {
+      const { callback } = await signIn(
+        { sub: "g-unsafe", email: "unsafe@example.com", emailVerified: true },
+        `/auth/login?next=${encodeURIComponent(next)}`,
+      );
+      expect(callback.headers.get("location")).toBe("/");
+    },
+  );
 
   it("an admin email arrives approved", async () => {
     const { session, fetchApp } = await signIn({
