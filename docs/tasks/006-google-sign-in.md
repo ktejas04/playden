@@ -23,6 +23,11 @@ Spec: docs/PROJECT.md#access-control-and-admin, D10, D20, D22, D24, D25
 6. `session.ts`: `getCurrentUser(request, env, now)` used by every protected route.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] Manual: sign in with Google on `localhost:5173`, `/api/me` shows your account as admin
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [ ] Manual: sign in with Google on `localhost:5173`, `/api/me` shows your account as admin (waiting on the owner's OAuth client)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Routing moved into `src/app.ts` (`createApp(deps)` with a route table), so tests inject a fake Google; `src/api/me.ts` holds `/api/me`. `Me` type lives in `packages/protocol/src/api.ts`.
+- Checked through the Vite proxy: the redirect URI is `http://localhost:5173/auth/callback`.
+- Added `db:migrate:local` script for the local D1.

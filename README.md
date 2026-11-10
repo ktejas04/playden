@@ -49,6 +49,7 @@ Needs Node 20+ and pnpm. In PowerShell, from `D:\Projects\PlayDen`:
 pnpm install
 pnpm --filter @playden/web build      # the server serves this folder; build once
 Copy-Item apps/server/.dev.vars.example apps/server/.dev.vars   # then fill in the values
+pnpm --filter @playden/server db:migrate:local                   # after every new migration
 pnpm dev
 ```
 
