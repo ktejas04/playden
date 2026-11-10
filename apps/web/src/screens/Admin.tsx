@@ -30,31 +30,40 @@ const TABS: { status: AccountStatus; label: string; empty: string }[] = [
   { status: "banned", label: "Banned", empty: "Nobody is banned or blocked." },
 ];
 
+export const MEMBERS_SUBTITLE = "Let new people in, or take access away.";
+
 export function Admin() {
+  return (
+    <div className="pb-10">
+      <PageTitle title="Members" subtitle={MEMBERS_SUBTITLE} />
+      <MembersManager className="mt-6" />
+    </div>
+  );
+}
+
+/** The member tabs on their own, so they can also open in a sheet over a room. */
+export function MembersManager({ className }: { className?: string }) {
   const [tab, setTab] = useState<AccountStatus>("pending");
 
   return (
-    <div className="pb-10">
-      <PageTitle title="Members" subtitle="Let new people in, or take access away." />
-      <Tabs className="mt-6" value={tab} onValueChange={(value) => setTab(value as AccountStatus)}>
-        <TabsList className="w-full group-data-horizontal/tabs:h-12 rounded-xl p-1">
-          {TABS.map((t) => (
-            <TabsTrigger
-              key={t.status}
-              value={t.status}
-              className="rounded-lg font-heading text-sm"
-            >
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <Tabs
+      className={className}
+      value={tab}
+      onValueChange={(value) => setTab(value as AccountStatus)}
+    >
+      <TabsList className="w-full group-data-horizontal/tabs:h-12 rounded-xl p-1">
         {TABS.map((t) => (
-          <TabsContent key={t.status} value={t.status} className="pt-3">
-            {tab === t.status && <UserList status={t.status} empty={t.empty} />}
-          </TabsContent>
+          <TabsTrigger key={t.status} value={t.status} className="rounded-lg font-heading text-sm">
+            {t.label}
+          </TabsTrigger>
         ))}
-      </Tabs>
-    </div>
+      </TabsList>
+      {TABS.map((t) => (
+        <TabsContent key={t.status} value={t.status} className="pt-3">
+          {tab === t.status && <UserList status={t.status} empty={t.empty} />}
+        </TabsContent>
+      ))}
+    </Tabs>
   );
 }
 

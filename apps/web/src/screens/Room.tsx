@@ -1,7 +1,10 @@
-import type { Me } from "@playden/protocol";
+import type { Me, RoomPlayer } from "@playden/protocol";
+import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
 import { toast } from "@playden/ui/components/sonner";
-import { CopyIcon, LogOutIcon, Share2Icon } from "lucide-react";
+import { cn } from "@playden/ui/lib/utils";
+import { CopyIcon, CrownIcon, LogOutIcon, Share2Icon } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
 import { orderPlayers } from "../room/orderPlayers";
@@ -65,10 +68,28 @@ function RoomNotFound({ code }: { code: string }) {
   );
 }
 
+/** Tells everyone when the host changes hands; the first host of a visit is not news. */
+function useHostChangeToast(hostId: string | null, players: RoomPlayer[], myId: string) {
+  const previous = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hostId) return;
+    const before = previous.current;
+    previous.current = hostId;
+    if (!before || before === hostId) return;
+    if (hostId === myId) {
+      toast.info("You're the host now.");
+    } else {
+      const name = players.find((player) => player.id === hostId)?.name;
+      if (name) toast.info(`${name} is the host now.`);
+    }
+  }, [hostId, players, myId]);
+}
+
 export function Room({ me, code }: { me: Me; code: string }) {
-  const { status, players } = useRoomSocket(code);
+  const { status, players, hostId } = useRoomSocket(code);
   const { label, dot } = STATUS[status];
   const alone = players.length <= 1;
+  useHostChangeToast(hostId, players, me.id);
 
   if (status === "missing") return <RoomNotFound code={code} />;
 
@@ -103,13 +124,29 @@ export function Room({ me, code }: { me: Me; code: string }) {
           </span>
         </div>
         <ul className="mt-3 divide-y">
-          {orderPlayers(players, me.id).map((player) => (
-            <li key={player.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
-              <PlayerAvatar id={player.id} name={player.name} />
-              <span className="flex-1 truncate font-medium">{player.name}</span>
-              {player.id === me.id && <span className="text-sm text-muted-foreground">You</span>}
-            </li>
-          ))}
+          {orderPlayers(players, me.id).map((player) => {
+            const isMe = player.id === me.id;
+            return (
+              <li
+                key={player.id}
+                className={cn(
+                  "flex items-center gap-3 py-3",
+                  isMe && "-mx-3 my-1 rounded-xl border-none bg-primary/15 px-3 first:mt-0",
+                )}
+              >
+                <PlayerAvatar id={player.id} name={player.name} />
+                <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
+                  {player.name}
+                </span>
+                {player.id === hostId && (
+                  <Badge variant="outline" className="h-6 gap-1 px-2 text-sm">
+                    <CrownIcon className="size-3.5! text-warning" /> Host
+                  </Badge>
+                )}
+                {isMe && <Badge className="h-6 px-2 text-sm">You</Badge>}
+              </li>
+            );
+          })}
         </ul>
         {alone && status === "live" && (
           <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">

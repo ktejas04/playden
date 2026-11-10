@@ -53,9 +53,18 @@ describe("parseServerMessage", () => {
   it("accepts a snapshot", () => {
     const snapshot = {
       type: "snapshot",
-      room: { code: "ABCD", players: [{ id: "u1", name: "Asha", connected: true }] },
+      room: {
+        code: "ABCD",
+        hostId: "u1",
+        players: [{ id: "u1", name: "Asha", connected: true }],
+      },
     };
     expect(parseServerMessage(JSON.stringify(snapshot))).toEqual({ ok: true, message: snapshot });
+  });
+
+  it("rejects a snapshot without a host", () => {
+    const snapshot = { type: "snapshot", room: { code: "ABCD", players: [] } };
+    expect(parseServerMessage(JSON.stringify(snapshot)).ok).toBe(false);
   });
 
   it("accepts pong and error", () => {
@@ -64,7 +73,7 @@ describe("parseServerMessage", () => {
   });
 
   it("rejects a snapshot with a bad room code", () => {
-    const snapshot = { type: "snapshot", room: { code: "OOOO", players: [] } };
+    const snapshot = { type: "snapshot", room: { code: "OOOO", hostId: "u1", players: [] } };
     expect(parseServerMessage(JSON.stringify(snapshot)).ok).toBe(false);
   });
 });

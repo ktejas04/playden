@@ -17,13 +17,17 @@ interface RoomInfo {
 interface Attachment {
   userId: string;
   name: string;
+  joinedAt: number;
 }
 
 const INFO_KEY = "info";
+const HOST_KEY = "host";
 
 /**
  * One room. It exists only after `create`; it closes itself (all storage deleted) once it
  * has been empty for ROOM_EMPTY_CLOSE_MS, after which its code reads as "not found".
+ * The creator is host; when the host is not in the room, host passes to the player who
+ * has been seated longest, and stays with them even if the old host comes back.
  */
 export class Room extends DurableObject<Env> {
   /** Returns false when the code is already taken by a live room. */
@@ -50,11 +54,15 @@ export class Room extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
     this.ctx.acceptWebSocket(server);
-    const attachment: Attachment = { userId, name: decodeURIComponent(encodedName) };
+    const attachment: Attachment = {
+      userId,
+      name: decodeURIComponent(encodedName),
+      joinedAt: Date.now(),
+    };
     server.serializeAttachment(attachment);
 
     await this.ctx.storage.deleteAlarm();
-    this.broadcastSnapshot(info.code);
+    await this.broadcastSnapshot(info);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -95,7 +103,7 @@ export class Room extends DurableObject<Env> {
   private async playerLeft(ws: WebSocket): Promise<void> {
     const info = await this.info();
     if (!info) return;
-    this.broadcastSnapshot(info.code, ws);
+    await this.broadcastSnapshot(info, ws);
     if (this.openSockets(ws).length === 0) {
       await this.ctx.storage.setAlarm(Date.now() + ROOM_EMPTY_CLOSE_MS);
     }
@@ -111,20 +119,38 @@ export class Room extends DurableObject<Env> {
       .filter((ws) => ws !== exclude && ws.readyState === WebSocket.OPEN);
   }
 
-  private broadcastSnapshot(code: string, exclude?: WebSocket): void {
-    const sockets = this.openSockets(exclude);
-    const players = new Map<string, RoomPlayer>();
+  /** One entry per player (a player may have several tabs open), longest-seated first. */
+  private seatedPlayers(sockets: WebSocket[]): (RoomPlayer & { joinedAt: number })[] {
+    const players = new Map<string, RoomPlayer & { joinedAt: number }>();
     for (const ws of sockets) {
-      const attachment = ws.deserializeAttachment() as Attachment;
-      players.set(attachment.userId, {
-        id: attachment.userId,
-        name: attachment.name,
-        connected: true,
-      });
+      const { userId, name, joinedAt } = ws.deserializeAttachment() as Attachment;
+      const seen = players.get(userId);
+      if (!seen || joinedAt < seen.joinedAt) {
+        players.set(userId, { id: userId, name, connected: true, joinedAt });
+      }
     }
+    return [...players.values()].sort((a, b) => a.joinedAt - b.joinedAt);
+  }
+
+  private async broadcastSnapshot(info: RoomInfo, exclude?: WebSocket): Promise<void> {
+    const sockets = this.openSockets(exclude);
+    const seated = this.seatedPlayers(sockets);
+    const first = seated[0];
+    if (!first) return;
+
+    let hostId = (await this.ctx.storage.get<string>(HOST_KEY)) ?? info.createdBy;
+    if (!seated.some((player) => player.id === hostId)) {
+      hostId = first.id;
+      await this.ctx.storage.put(HOST_KEY, hostId);
+    }
+
     const snapshot: ServerMessage = {
       type: "snapshot",
-      room: { code, players: [...players.values()] },
+      room: {
+        code: info.code,
+        hostId,
+        players: seated.map(({ id, name, connected }) => ({ id, name, connected })),
+      },
     };
     for (const ws of sockets) this.send(ws, snapshot);
   }

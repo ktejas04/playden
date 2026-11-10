@@ -13,9 +13,14 @@ import {
 import { LogOutIcon, MonitorIcon, MoonIcon, ShieldCheckIcon, SunIcon } from "lucide-react";
 import { useTheme } from "@playden/ui/components/theme-provider";
 import { PlayerAvatar } from "./components/PlayerAvatar";
-import { navigate } from "./router";
 
-export function AccountMenu({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
+interface AccountMenuProps {
+  me: Me;
+  onOpenMembers: () => void;
+  onSignOut: () => void;
+}
+
+export function AccountMenu({ me, onOpenMembers, onSignOut }: AccountMenuProps) {
   const { theme = "system", setTheme } = useTheme();
   const name = me.displayName ?? me.email;
 
@@ -39,7 +44,7 @@ export function AccountMenu({ me, onSignOut }: { me: Me; onSignOut: () => void }
         {me.isAdmin && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="h-10" onSelect={() => navigate("/admin")}>
+            <DropdownMenuItem className="h-10" onSelect={onOpenMembers}>
               <ShieldCheckIcon /> Members
             </DropdownMenuItem>
           </>

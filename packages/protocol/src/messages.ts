@@ -3,8 +3,10 @@ import { roomCodeSchema } from "./roomCode";
 
 export const MAX_MESSAGE_LENGTH = 4096;
 
+const userIdSchema = z.string().min(1).max(64);
+
 export const roomPlayerSchema = z.strictObject({
-  id: z.string().min(1).max(64),
+  id: userIdSchema,
   name: z.string().min(1).max(40),
   connected: z.boolean(),
 });
@@ -16,7 +18,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
 export const serverMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("snapshot"),
-    room: z.strictObject({ code: roomCodeSchema, players: z.array(roomPlayerSchema) }),
+    room: z.strictObject({
+      code: roomCodeSchema,
+      hostId: userIdSchema,
+      players: z.array(roomPlayerSchema),
+    }),
   }),
   z.strictObject({ type: z.literal("pong"), t: z.number(), serverTime: z.number() }),
   z.strictObject({ type: z.literal("error"), reason: z.string() }),

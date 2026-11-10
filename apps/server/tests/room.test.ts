@@ -200,6 +200,59 @@ describe("room WebSocket", () => {
   });
 });
 
+function hostOf(message: ServerMessage): string | undefined {
+  return message.type === "snapshot" ? message.room.hostId : undefined;
+}
+
+describe("room host", () => {
+  it("the creator is the host, and players are listed in the order they joined", async () => {
+    const asha = await member("h-creator", "Asha");
+    const ravi = await member("h-creator-2", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const b = await connect(code, ravi.cookie);
+    const snapshot = await b.next(snapshotWith(2));
+    expect(hostOf(snapshot)).toBe(asha.user.id);
+    expect(snapshot.type === "snapshot" && snapshot.room.players.map((p) => p.name)).toEqual([
+      "Asha",
+      "Ravi",
+    ]);
+    a.ws.close(1000);
+    b.ws.close(1000);
+  });
+
+  it("when the host leaves, the longest-seated player becomes host and keeps it", async () => {
+    const asha = await member("h-leave-a", "Asha");
+    const ravi = await member("h-leave-r", "Ravi");
+    const meera = await member("h-leave-m", "Meera");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie);
+    await r.next(snapshotWith(2));
+    const m = await connect(code, meera.cookie);
+    await m.next(snapshotWith(3));
+    await r.next(snapshotWith(3));
+
+    a.ws.close(1000);
+    expect(hostOf(await m.next(snapshotWith(2)))).toBe(ravi.user.id);
+
+    const back = await connect(code, asha.cookie);
+    expect(hostOf(await back.next(snapshotWith(3)))).toBe(ravi.user.id);
+    for (const socket of [back, r, m]) socket.ws.close(1000);
+  });
+
+  it("if the creator never joins, the first player in becomes host", async () => {
+    const asha = await member("h-absent-a", "Asha");
+    const ravi = await member("h-absent-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const r = await connect(code, ravi.cookie);
+    expect(hostOf(await r.next(snapshotWith(1)))).toBe(ravi.user.id);
+    r.ws.close(1000);
+  });
+});
+
 describe("room lifetime", () => {
   it("a room nobody joins closes when its timer runs out", async () => {
     const asha = await member("r-unused", "Asha");

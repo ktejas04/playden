@@ -11,6 +11,7 @@ export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing
 export function useRoomSocket(code: string) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [hostId, setHostId] = useState<string | null>(null);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -52,6 +53,7 @@ export function useRoomSocket(code: string) {
         const parsed = parseServerMessage(event.data);
         if (parsed.ok && parsed.message.type === "snapshot") {
           setPlayers(parsed.message.room.players);
+          setHostId(parsed.message.room.hostId);
         }
       };
       ws.onclose = () => {
@@ -85,5 +87,5 @@ export function useRoomSocket(code: string) {
     };
   }, [code]);
 
-  return { status, players };
+  return { status, players, hostId };
 }
