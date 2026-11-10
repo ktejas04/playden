@@ -31,6 +31,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
+import { forgetCreatedHere, wasCreatedHere } from "../room/earlySocket";
 import { orderPlayers } from "../room/orderPlayers";
 import { type ConnectionStatus, type RoomNotice, useRoomSocket } from "../room/useRoomSocket";
 import { navigate } from "../router";
@@ -180,7 +181,19 @@ function PlaceholderRow() {
 
 export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused: () => void }) {
   const handlers = useMemo(() => ({ onRefused, onNotice: showNotice }), [onRefused]);
-  const { status, players, hostId, removePlayer } = useRoomSocket(code, me.id, handlers);
+  // A room you just created has only you in it, with you as host: show that at once.
+  const [initial] = useState(() =>
+    wasCreatedHere(code)
+      ? {
+          players: [
+            { id: me.id, name: me.displayName ?? "You", connected: true, isAdmin: me.isAdmin },
+          ],
+          hostId: me.id,
+        }
+      : undefined,
+  );
+  useEffect(() => forgetCreatedHere(code), [code]);
+  const { status, players, hostId, removePlayer } = useRoomSocket(code, me.id, handlers, initial);
   const [removing, setRemoving] = useState<RoomPlayer | null>(null);
   const { label, dot } = STATUS[status];
   const joining = hostId === null;

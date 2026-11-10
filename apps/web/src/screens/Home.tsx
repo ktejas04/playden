@@ -4,11 +4,17 @@ import { Label } from "@playden/ui/components/label";
 import { toast } from "@playden/ui/components/sonner";
 import { ChevronRightIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { createRoom, roomExists } from "../api";
+import { createRoom } from "../api";
 import { JoinCodeInput } from "../components/JoinCodeInput";
+import { ROOM_CLOSE } from "@playden/protocol";
+import { earlyRoomSocket, markCreatedHere } from "../room/earlySocket";
 import { normalizeJoinCode } from "../room/joinCode";
+import { socketBase } from "../room/socketUrl";
 import { navigate } from "../router";
 import { BottomBar, PageTitle, Panel } from "../Shell";
+
+/** How long Join waits for the room before opening the room screen anyway. */
+const JOIN_WAIT_MS = 4000;
 
 function greeting(hour: number): string {
   if (hour < 5) return "Still up";
@@ -57,6 +63,8 @@ export function Home({ me, waiting }: { me: Me; waiting: number | null }) {
     setCreating(true);
     try {
       const { code } = await createRoom();
+      markCreatedHere(code);
+      earlyRoomSocket.join(code, socketBase(window.location));
       navigate(`/r/${code}`);
     } catch (failure) {
       toast.error(failure instanceof Error ? failure.message : "Couldn't create a room");
@@ -71,18 +79,18 @@ export function Home({ me, waiting }: { me: Me; waiting: number | null }) {
       setJoinError("That code has a letter we never use (I, L or O). Check it and try again.");
       return;
     }
+    // Joining is the check: the room answers the socket with its member list, or closes it
+    // as not found. Either way the room screen opens with the answer already in hand.
     setChecking(true);
-    try {
-      if (await roomExists(code)) {
-        navigate(`/r/${code}`);
-        return;
-      }
+    earlyRoomSocket.join(code, socketBase(window.location));
+    const answer = await earlyRoomSocket.peek(code)?.answer(JOIN_WAIT_MS);
+    setChecking(false);
+    if (answer?.kind === "closed" && answer.code === ROOM_CLOSE.notFound) {
+      earlyRoomSocket.abandon();
       setJoinError(`Room not found. There's no open room called ${code}; check the code.`);
-    } catch (failure) {
-      setJoinError(failure instanceof Error ? failure.message : "Couldn't check that room");
-    } finally {
-      setChecking(false);
+      return;
     }
+    navigate(`/r/${code}`);
   }
 
   const firstName = me.displayName?.split(/\s+/)[0] ?? "";

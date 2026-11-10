@@ -39,16 +39,6 @@ export function createRoom(): Promise<{ code: string }> {
   return request<{ code: string }>("/api/rooms", { method: "POST" });
 }
 
-export async function roomExists(code: string): Promise<boolean> {
-  try {
-    await request<{ code: string }>(`/api/rooms/${encodeURIComponent(code)}`);
-    return true;
-  } catch (error) {
-    if (error instanceof ApiFailure && error.status === 404) return false;
-    throw error;
-  }
-}
-
 export function listUsers(status: AccountStatus): Promise<AdminUser[]> {
   return request<AdminUser[]>(`/api/admin/users?status=${status}`);
 }

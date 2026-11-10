@@ -28,10 +28,16 @@ interface RoomSocketHandlers {
  * member list, or closes with a code saying the room is gone, you were removed, or the
  * account can't play. `myId` lets it act on its own removal notice without waiting for the close.
  */
-export function useRoomSocket(code: string, myId: string, handlers: RoomSocketHandlers) {
+export function useRoomSocket(
+  code: string,
+  myId: string,
+  handlers: RoomSocketHandlers,
+  /** What the room is known to look like before it answers, e.g. a room you just created. */
+  initial?: { players: RoomPlayer[]; hostId: string },
+) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const [players, setPlayers] = useState<RoomPlayer[]>([]);
-  const [hostId, setHostId] = useState<string | null>(null);
+  const [players, setPlayers] = useState<RoomPlayer[]>(initial?.players ?? []);
+  const [hostId, setHostId] = useState<string | null>(initial?.hostId ?? null);
   const handlersRef = useRef(handlers);
   const socketRef = useRef<WebSocket | null>(null);
 
