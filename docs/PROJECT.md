@@ -91,6 +91,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D36 | Access | Statuses: pending, approved, declined, banned. Decline (waiting only) lets the person ask again after `ASK_AGAIN_AFTER_MS` (5 s while testing; raise before launch). Block = ban for someone never approved; Unblock returns them to Waiting, Let back in restores a former member. Sign out lives in the avatar menu | 2026-11-10 |
 | D37 | Database | Drizzle rebuilds a SQLite table to change a CHECK constraint; on D1 that drops the old table, which cascades and deletes all sessions (everyone is signed out once). Avoid CHECK changes on `users` after launch, or accept a one-time sign-out. Generate column additions and constraint changes as separate migrations | 2026-11-10 |
 | D38 | Brand | Logo: ivory "P" letter tile on a felt-green rounded square (`apps/web/public/favicon.svg`), used as favicon and header mark. No logo on the Google consent screen until we own a domain (a logo triggers Google review). PNG app icons come with the PWA in phase 3 | 2026-11-11 |
+| D39 | Hosting | `wrangler.toml` top level is local dev (placeholder D1 id, secrets from `.dev.vars`); production is `[env.production]` (real D1 id, secrets via `wrangler secret put --env production`). Remote commands pass `--env production`, so local work never touches the production database | 2026-11-11 |
 
 ## Scope: v1 vs later
 
@@ -446,11 +447,11 @@ Pushing to `main` deploys to production automatically after tests pass. There ar
 2. Typecheck, lint, format check.
 3. `pnpm test`.
 4. Build web and server.
-5. On `main` only: apply D1 migrations, then deploy the Worker (Wrangler), which ships the web build as its static assets.
+5. On `main` only: apply D1 migrations, then deploy the Worker (Wrangler), which ships the web build as its static assets. Both run with `--env production` (D39).
 
 **Rules**
 
-- Secrets (Cloudflare API token, Google OAuth keys, `ADMIN_EMAILS`) live in GitHub and Cloudflare secrets, never in the repo. Locally they go in `apps/server/.dev.vars` (gitignored).
+- Secrets (Cloudflare API token, Google OAuth keys, `ADMIN_EMAILS`) live in GitHub and Cloudflare secrets, never in the repo. Locally they go in `apps/server/.dev.vars` (gitignored); production Worker secrets are set with `wrangler secret put <NAME> --env production` (D39).
 - Don't deploy during a live game night. Deploys restart room objects, which can drop games in progress.
 - **Rollback:** revert the commit on `main`; CI redeploys the previous version in a few minutes. Cloudflare's dashboard can also roll back to the previous deployment instantly.
 - Durable Object data changes need a migration entry in `wrangler.toml`; never rename an object class without one.

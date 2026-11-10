@@ -1,3 +1,6 @@
+# Top level is local development: `wrangler dev` and tests use it, everything runs
+# on this machine, and secrets come from .dev.vars. Production lives in
+# [env.production] and is only used with `--env production`.
 name = "playden"
 main = "src/index.ts"
 compatibility_date = "2026-11-01"
@@ -15,7 +18,23 @@ class_name = "Room"
 tag = "v1"
 new_sqlite_classes = ["Room"]
 
+# Placeholder id: it names the local database file and matches no real database,
+# so a remote command without `--env production` fails instead of touching production.
 [[d1_databases]]
+binding = "DB"
+database_name = "playden"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Secrets are set with `wrangler secret put <NAME> --env production`.
+[env.production]
+name = "playden"
+
+[[env.production.durable_objects.bindings]]
+name = "ROOM"
+class_name = "Room"
+
+[[env.production.d1_databases]]
 binding = "DB"
 database_name = "playden"
 database_id = "d5e5c1ce-9733-4dc4-9198-f406f7d925a7"

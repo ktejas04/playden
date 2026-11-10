@@ -53,7 +53,7 @@ pnpm --filter @playden/server db:migrate:local                   # after every n
 pnpm dev
 ```
 
-Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production.
+Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production. Everything runs on your machine: the Worker, rooms and the database (in `apps/server/.wrangler`), with secrets from `.dev.vars`. Nothing local touches production.
 
 Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`.
 
@@ -70,12 +70,14 @@ Every push to `main` runs the checks on GitHub; once Cloudflare is set up it als
 **Cloudflare**
 
 1. Create a free account and pick a `workers.dev` subdomain.
-2. In `D:\Projects\PlayDen`: `pnpm --filter @playden/server exec wrangler login`, then `pnpm --filter @playden/server exec wrangler d1 create playden`. Put the printed `database_id` in `apps/server/wrangler.toml`.
-3. Worker secrets, one at a time: `pnpm --filter @playden/server exec wrangler secret put GOOGLE_CLIENT_ID` (then `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`).
+2. In `D:\Projects\PlayDen`: `pnpm --filter @playden/server exec wrangler login`, then `pnpm --filter @playden/server exec wrangler d1 create playden`. Put the printed `database_id` under `[env.production]` in `apps/server/wrangler.toml` (the top-level id is the local placeholder; leave it).
+3. Worker secrets, one at a time: `pnpm --filter @playden/server exec wrangler secret put GOOGLE_CLIENT_ID --env production` (then `GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`). These are the production values; local ones stay in `.dev.vars`.
 
 **GitHub** (repo → Settings → Secrets and variables → Actions)
 
 1. Secret `CLOUDFLARE_API_TOKEN`: Cloudflare → My Profile → API Tokens → "Edit Cloudflare Workers" template, plus D1 Edit.
 2. Variable `CLOUDFLARE_ACCOUNT_ID`: from the Cloudflare dashboard. Deploys stay off until this is set.
+
+Production commands always need `--env production`; the scripts `pnpm --filter @playden/server db:migrate:remote` and `... run deploy` include it. Without it, a remote command hits the placeholder database and fails.
 
 Don't push to `main` during a live game night: a deploy restarts rooms.

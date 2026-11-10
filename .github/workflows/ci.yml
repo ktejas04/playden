@@ -47,5 +47,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @playden/web build
-      - run: pnpm --filter @playden/server exec wrangler d1 migrations apply playden --remote
-      - run: pnpm --filter @playden/server exec wrangler deploy
+      - run: pnpm --filter @playden/server run db:migrate:remote
+      - run: pnpm --filter @playden/server run deploy
