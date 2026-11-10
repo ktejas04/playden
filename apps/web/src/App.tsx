@@ -2,6 +2,7 @@ import type { Me } from "@playden/protocol";
 import { Button } from "@playden/ui/components/button";
 import { Toaster, toast } from "@playden/ui/components/sonner";
 import { ThemeProvider } from "@playden/ui/components/theme-provider";
+import { AccountMenu } from "./AccountMenu";
 import { signOut } from "./api";
 import { type Route, navigate, useRoute } from "./router";
 import { Admin } from "./screens/Admin";
@@ -53,7 +54,13 @@ function Gate() {
   }
 
   const { me } = state;
-  if (!me) return <Shell>{<SignIn />}</Shell>;
+  if (!me) {
+    return (
+      <Shell>
+        <SignIn />
+      </Shell>
+    );
+  }
 
   async function handleSignOut() {
     try {
@@ -65,20 +72,15 @@ function Gate() {
     }
   }
 
-  const header = (
-    <>
-      {me.isAdmin && route.name !== "admin" && (
-        <Button variant="ghost" size="lg" onClick={() => navigate("/admin")}>
-          Admin
-        </Button>
-      )}
-      <Button variant="ghost" size="lg" onClick={() => void handleSignOut()}>
-        Sign out
-      </Button>
-    </>
+  const canPlay = Boolean(me.displayName) && (me.isAdmin || me.status === "approved");
+  return (
+    <Shell
+      back={canPlay && route.name !== "home"}
+      headerRight={<AccountMenu me={me} onSignOut={() => void handleSignOut()} />}
+    >
+      {screenFor(me, route, setMe, reload)}
+    </Shell>
   );
-
-  return <Shell headerRight={header}>{screenFor(me, route, setMe, reload)}</Shell>;
 }
 
 function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => Promise<void>) {
@@ -92,8 +94,21 @@ function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => 
     case "room":
       return <Room key={route.code} me={me} code={route.code} />;
     case "admin":
-      return me.isAdmin ? <Admin /> : <p className="py-8">Page not found.</p>;
+      return me.isAdmin ? <Admin /> : <NotFound />;
     case "notFound":
-      return <p className="py-8">Page not found.</p>;
+      return <NotFound />;
   }
+}
+
+function NotFound() {
+  return (
+    <Centered>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <p className="text-lg font-medium">This page doesn't exist.</p>
+        <Button size="lg" className="h-11" onClick={() => navigate("/")}>
+          Back to the lobby
+        </Button>
+      </div>
+    </Centered>
+  );
 }

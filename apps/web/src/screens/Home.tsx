@@ -10,11 +10,12 @@ import {
 import { Input } from "@playden/ui/components/input";
 import { Label } from "@playden/ui/components/label";
 import { toast } from "@playden/ui/components/sonner";
+import { ArrowRightIcon, PlusIcon } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import { createRoom } from "../api";
-import { normalizeJoinCode } from "../room/joinCode";
+import { cleanJoinInput, normalizeJoinCode } from "../room/joinCode";
 import { navigate } from "../router";
-import { BottomBar } from "../Shell";
+import { BottomBar, PageTitle } from "../Shell";
 
 export function Home({ me }: { me: Me }) {
   const [joinCode, setJoinCode] = useState("");
@@ -44,44 +45,56 @@ export function Home({ me }: { me: Me }) {
 
   return (
     <>
-      <div className="flex flex-col gap-4 py-4">
-        <h1 className="text-2xl font-semibold">Hi {me.displayName}</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>Join a room</CardTitle>
-            <CardDescription>Got a code or link from the group? Enter it here.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={join} className="flex flex-col gap-3">
-              <Label htmlFor="joinCode" className="sr-only">
-                Room code
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="joinCode"
-                  className="h-11 text-lg tracking-widest uppercase"
-                  placeholder="ABCD"
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  value={joinCode}
-                  onChange={(e) => {
-                    setJoinCode(e.target.value);
-                    setJoinError(null);
-                  }}
-                />
-                <Button type="submit" variant="secondary" size="lg" className="h-11 px-5">
-                  Join
-                </Button>
-              </div>
-              {joinError && (
-                <p role="alert" className="text-sm text-destructive">
-                  {joinError}
-                </p>
-              )}
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      <PageTitle
+        title={`Hi, ${me.displayName}`}
+        subtitle="Start a room for tonight, or join one from the group."
+      />
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Join a room</CardTitle>
+          <CardDescription>Type the 4-letter code, or paste the link.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={join} className="flex flex-col gap-2">
+            <Label htmlFor="joinCode" className="sr-only">
+              Room code
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="joinCode"
+                className="h-12 flex-1 text-center font-mono text-xl tracking-[0.4em]"
+                placeholder="ABCD"
+                autoCapitalize="characters"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="go"
+                value={joinCode}
+                aria-invalid={joinError ? true : undefined}
+                onChange={(e) => {
+                  setJoinCode(cleanJoinInput(e.target.value));
+                  setJoinError(null);
+                }}
+              />
+              <Button
+                type="submit"
+                size="lg"
+                variant="secondary"
+                className="h-12 px-4"
+                disabled={joinCode.length < 4}
+                aria-label="Join room"
+              >
+                Join <ArrowRightIcon />
+              </Button>
+            </div>
+            {joinError && (
+              <p role="alert" className="text-sm text-destructive">
+                {joinError}
+              </p>
+            )}
+          </form>
+        </CardContent>
+      </Card>
       <BottomBar>
         <Button
           size="lg"
@@ -89,7 +102,7 @@ export function Home({ me }: { me: Me }) {
           disabled={creating}
           onClick={() => void create()}
         >
-          {creating ? "Creating…" : "Create a room"}
+          <PlusIcon /> {creating ? "Creating…" : "Create a room"}
         </Button>
       </BottomBar>
     </>

@@ -86,6 +86,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
 | D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Draw Battle fits the free tier comfortably | 2026-11-10 |
+| D34 | UX | Look and layout: violet primary on soft lavender (light) or deep indigo (dark), never pure black; whole page scrolls with the scrollbar hidden; header shows "‹ Lobby" off the home screen and an avatar menu (Members for admins, theme, sign out); main actions in a sticky bottom bar | 2026-11-10 |
 
 ## Scope: v1 vs later
 

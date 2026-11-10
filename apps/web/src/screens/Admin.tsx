@@ -10,16 +10,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@playden/ui/components/alert-dialog";
+import { Avatar, AvatarFallback } from "@playden/ui/components/avatar";
 import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
-import { Card, CardContent } from "@playden/ui/components/card";
+import { Card } from "@playden/ui/components/card";
 import { toast } from "@playden/ui/components/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@playden/ui/components/tabs";
+import { UserXIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { approveUser, banUser, listUsers } from "../api";
+import { initials } from "../initials";
+import { PageTitle } from "../Shell";
 
 const TABS: { status: AccountStatus; label: string; empty: string }[] = [
-  { status: "pending", label: "Waiting", empty: "Nobody is waiting." },
+  { status: "pending", label: "Waiting", empty: "Nobody is waiting. New sign-ups show up here." },
   { status: "approved", label: "Members", empty: "No members yet." },
   { status: "banned", label: "Banned", empty: "Nobody is banned." },
 ];
@@ -28,12 +32,12 @@ export function Admin() {
   const [tab, setTab] = useState<AccountStatus>("pending");
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <h1 className="text-2xl font-semibold">Members</h1>
-      <Tabs value={tab} onValueChange={(value) => setTab(value as AccountStatus)}>
-        <TabsList className="w-full">
+    <div className="pb-8">
+      <PageTitle title="Members" subtitle="Let new people in, or remove access." />
+      <Tabs className="mt-4" value={tab} onValueChange={(value) => setTab(value as AccountStatus)}>
+        <TabsList className="w-full group-data-horizontal/tabs:h-11">
           {TABS.map((t) => (
-            <TabsTrigger key={t.status} value={t.status} className="h-9">
+            <TabsTrigger key={t.status} value={t.status} className="text-sm">
               {t.label}
             </TabsTrigger>
           ))}
@@ -75,9 +79,9 @@ function UserList({ status, empty }: { status: AccountStatus; empty: string }) {
     }
   }
 
-  if (error) return <p className="text-destructive">{error}</p>;
-  if (!users) return <p className="text-muted-foreground">Loading…</p>;
-  if (users.length === 0) return <p className="text-muted-foreground">{empty}</p>;
+  if (error) return <p className="py-6 text-center text-destructive">{error}</p>;
+  if (!users) return <p className="py-6 text-center text-muted-foreground">Loading…</p>;
+  if (users.length === 0) return <p className="py-6 text-center text-muted-foreground">{empty}</p>;
 
   return (
     <ul className="flex flex-col gap-2">
@@ -85,57 +89,66 @@ function UserList({ status, empty }: { status: AccountStatus; empty: string }) {
         const name = user.displayName ?? "No name yet";
         return (
           <li key={user.id}>
-            <Card size="sm">
-              <CardContent className="flex flex-col gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate font-medium">{name}</span>
-                    {user.isAdmin && <Badge variant="secondary">Admin</Badge>}
-                  </div>
-                  <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-                  {user.invitedBy && (
-                    <p className="text-sm text-muted-foreground">Invited by {user.invitedBy}</p>
-                  )}
+            <Card className="flex-row items-center gap-3 px-4 py-3">
+              <Avatar size="lg">
+                <AvatarFallback className="bg-primary/15 text-primary">
+                  {initials(user.displayName ?? user.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate font-medium">{name}</span>
+                  {user.isAdmin && <Badge variant="secondary">Admin</Badge>}
                 </div>
-                <div className="flex gap-2">
-                  {status !== "approved" && (
-                    <Button
-                      size="lg"
-                      className="h-11 flex-1"
-                      onClick={() => void act(() => approveUser(user.id), `${name} can play now`)}
-                    >
-                      {status === "banned" ? "Let back in" : "Approve"}
-                    </Button>
-                  )}
-                  {status !== "banned" && !user.isAdmin && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="lg" className="h-11 flex-1">
+                <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                {user.invitedBy && (
+                  <p className="truncate text-xs text-muted-foreground">
+                    Invited by {user.invitedBy}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {status !== "approved" && (
+                  <Button
+                    className="h-10"
+                    variant={status === "banned" ? "outline" : "default"}
+                    onClick={() => void act(() => approveUser(user.id), `${name} can play now`)}
+                  >
+                    {status === "banned" ? "Let in" : "Approve"}
+                  </Button>
+                )}
+                {status !== "banned" && !user.isAdmin && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="size-10 text-muted-foreground hover:text-destructive"
+                        aria-label={`Ban ${name}`}
+                      >
+                        <UserXIcon />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Ban {name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          They're signed out and can't create or join rooms. You can let them back
+                          in later from the Banned tab.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          variant="destructive"
+                          onClick={() => void act(() => banUser(user.id), `${name} is banned`)}
+                        >
                           Ban
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Ban {name}?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            They are signed out and can't create or join rooms. You can let them
-                            back in later.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            variant="destructive"
-                            onClick={() => void act(() => banUser(user.id), `${name} is banned`)}
-                          >
-                            Ban
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-              </CardContent>
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </Card>
           </li>
         );

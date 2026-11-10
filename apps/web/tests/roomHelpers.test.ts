@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backoffDelay } from "../src/room/backoff";
-import { normalizeJoinCode } from "../src/room/joinCode";
+import { initials } from "../src/initials";
+import { cleanJoinInput, normalizeJoinCode } from "../src/room/joinCode";
 import { socketUrl } from "../src/room/socketUrl";
 
 describe("socketUrl", () => {
@@ -38,5 +39,29 @@ describe("normalizeJoinCode", () => {
     expect(normalizeJoinCode("ABCO")).toBeNull();
     expect(normalizeJoinCode("ABC")).toBeNull();
     expect(normalizeJoinCode("")).toBeNull();
+  });
+});
+
+describe("cleanJoinInput", () => {
+  it("turns a pasted link into just its code", () => {
+    expect(cleanJoinInput("http://localhost:5173/r/qqmh")).toBe("QQMH");
+    expect(cleanJoinInput("Join my PlayDen room https://playden.example.dev/r/QQMH")).toBe("QQMH");
+  });
+
+  it("keeps only letters, in capitals, up to 4", () => {
+    expect(cleanJoinInput("ab-c d9e")).toBe("ABCD");
+  });
+});
+
+describe("initials", () => {
+  it("uses the first letters of up to two words", () => {
+    expect(initials("Tejas Kumar")).toBe("TK");
+    expect(initials("asha")).toBe("A");
+    expect(initials("Tejas (dev)")).toBe("TD");
+    expect(initials("  ")).toBe("?");
+  });
+
+  it("handles non-Latin names", () => {
+    expect(initials("मीरा")).toBe("म");
   });
 });
