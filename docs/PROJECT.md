@@ -88,6 +88,8 @@ Every agreed decision in one place. Sections below explain the details.
 | D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Draw Battle fits the free tier comfortably | 2026-11-10 |
 | D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
 | D35 | Rooms | A room exists only once created (`POST /api/rooms` picks a free code); unknown or closed codes return "Room not found". A room closes 60 s after it becomes empty (`ROOM_EMPTY_CLOSE_MS`), replacing "30 minutes". Joining needs the Join button; no auto-join on the 4th letter | 2026-11-10 |
+| D36 | Access | Statuses: pending, approved, declined, banned. Decline (waiting only) lets the person ask again after `ASK_AGAIN_AFTER_MS` (5 s while testing; raise before launch). Block = ban for someone never approved; Unblock returns them to Waiting, Let back in restores a former member. Sign out lives in the avatar menu | 2026-11-10 |
+| D37 | Database | Drizzle rebuilds a SQLite table to change a CHECK constraint; on D1 that drops the old table, which cascades and deletes all sessions (everyone is signed out once). Avoid CHECK changes on `users` after launch, or accept a one-time sign-out. Generate column additions and constraint changes as separate migrations | 2026-11-10 |
 
 ## Scope: v1 vs later
 
@@ -303,8 +305,9 @@ The site gates people, not links: a forwarded room link is useless to anyone who
 1. Member signs in with Google and enters a display name and who invited them.
 2. Account stays pending until an admin approves it from the admin page.
 3. Approved accounts can create and join rooms; pending ones see a waiting screen; banned ones see "access removed".
-4. Admins can ban an account, which ends its sessions. Kicking it from a live room arrives with the Lobby in phase 3.
-5. Admins are the emails in the `ADMIN_EMAILS` secret: auto-approved, never bannable.
+4. Admins can **decline** a waiting request: the person sees "Your request wasn't approved" and may **ask again** after `ASK_AGAIN_AFTER_MS`; repeat requests show an "Asked again" tag (D36).
+5. Admins can **block** a request (spam, strangers) or **ban** a member. Both end their sessions and stop them asking again. In the Banned tab, former members get **Let back in** (member again) and blocked requests get **Unblock** (back to Waiting). Kicking someone from a live room arrives with the Lobby in phase 3.
+6. Admins are the emails in the `ADMIN_EMAILS` secret (comma-separated): auto-approved, never bannable.
 
 Phone/OTP login is avoided because SMS and WhatsApp messages cost money per message.
 

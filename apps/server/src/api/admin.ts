@@ -23,6 +23,8 @@ function toAdminUser(user: User, adminEmails: string | undefined): AdminUser {
     status: user.status,
     createdAt: user.createdAt,
     isAdmin: isAdminEmail(user.email, adminEmails),
+    wasMember: user.approvedAt !== null,
+    askedAgain: user.status === "pending" && user.declinedAt !== null,
   };
 }
 
@@ -30,7 +32,10 @@ function isStatus(value: string): value is UserStatus {
   return (userStatuses as readonly string[]).includes(value);
 }
 
-function changeStatus(status: UserStatus): Route["handler"] {
+/** Returns a reason when the change isn't allowed for this person, otherwise null. */
+type Rule = (target: User, ctx: RequestContext) => string | null;
+
+function changeStatus(status: UserStatus, rule: Rule = () => null): Route["handler"] {
   return async (ctx) => {
     const { response } = await requireAdmin(ctx);
     if (response) return response;
@@ -38,9 +43,8 @@ function changeStatus(status: UserStatus): Route["handler"] {
     const id = ctx.params.id ?? "";
     const target = await getUser(ctx.db, id);
     if (!target) return errorJson(404, "No such user");
-    if (status === "banned" && isAdminEmail(target.email, ctx.env.ADMIN_EMAILS)) {
-      return errorJson(400, "Admins can't be banned");
-    }
+    const refusal = rule(target, ctx);
+    if (refusal) return errorJson(400, refusal);
 
     await setStatus(ctx.db, id, status, ctx.now);
     const updated = await getUser(ctx.db, id);
@@ -49,6 +53,8 @@ function changeStatus(status: UserStatus): Route["handler"] {
       : errorJson(404, "No such user");
   };
 }
+
+const userAction = (action: string) => new RegExp(`^/api/admin/users/(?<id>[^/]+)/${action}$`);
 
 export const adminRoutes: Route[] = [
   {
@@ -67,12 +73,31 @@ export const adminRoutes: Route[] = [
   },
   {
     method: "POST",
-    path: /^\/api\/admin\/users\/(?<id>[^/]+)\/approve$/,
+    path: userAction("approve"),
     handler: changeStatus("approved"),
   },
   {
     method: "POST",
-    path: /^\/api\/admin\/users\/(?<id>[^/]+)\/ban$/,
-    handler: changeStatus("banned"),
+    path: userAction("decline"),
+    handler: changeStatus("declined", (target) =>
+      target.status === "pending" ? null : "Only waiting requests can be declined",
+    ),
+  },
+  {
+    // "Ban" for a member, "Block" for a request; the same status, told apart by approvedAt.
+    method: "POST",
+    path: userAction("ban"),
+    handler: changeStatus("banned", (target, ctx) =>
+      isAdminEmail(target.email, ctx.env.ADMIN_EMAILS) ? "Admins can't be banned" : null,
+    ),
+  },
+  {
+    method: "POST",
+    path: userAction("unblock"),
+    handler: changeStatus("pending", (target) =>
+      target.status === "banned" && target.approvedAt === null
+        ? null
+        : "Only blocked requests can be unblocked",
+    ),
   },
 ];

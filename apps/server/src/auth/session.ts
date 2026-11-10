@@ -1,5 +1,6 @@
 import type { Me } from "@playden/protocol";
 import type { RequestContext } from "../app";
+import { ASK_AGAIN_AFTER_MS } from "../config";
 import type { User } from "../db/schema";
 import { getSessionUser } from "../db/sessions";
 import { errorJson } from "../http";
@@ -25,7 +26,14 @@ export function toMe(user: User, adminEmails: string | undefined): Me {
     invitedBy: user.invitedBy,
     status: user.status,
     isAdmin: isAdminEmail(user.email, adminEmails),
+    askAgainAt: askAgainAt(user),
   };
+}
+
+export function askAgainAt(user: User): number | null {
+  return user.status === "declined" && user.declinedAt !== null
+    ? user.declinedAt + ASK_AGAIN_AFTER_MS
+    : null;
 }
 
 type Check = { ok: true } | { ok: false; status: number; reason: string };
@@ -35,6 +43,8 @@ export function checkApproved(user: User, adminEmails: string | undefined): Chec
   if (user.status === "approved") return { ok: true };
   if (user.status === "banned")
     return { ok: false, status: 403, reason: "Your access was removed" };
+  if (user.status === "declined")
+    return { ok: false, status: 403, reason: "Your request wasn't approved" };
   return { ok: false, status: 403, reason: "Waiting for an admin to approve you" };
 }
 

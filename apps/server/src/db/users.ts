@@ -54,14 +54,13 @@ export async function setStatus(
   status: UserStatus,
   now: number,
 ): Promise<void> {
-  const update = db
-    .update(users)
-    .set(
-      status === "approved"
-        ? { status, approvedAt: sql`COALESCE(${users.approvedAt}, ${now})` }
-        : { status },
-    )
-    .where(eq(users.id, id));
+  const changes =
+    status === "approved"
+      ? { status, approvedAt: sql`COALESCE(${users.approvedAt}, ${now})` }
+      : status === "declined"
+        ? { status, declinedAt: now }
+        : { status };
+  const update = db.update(users).set(changes).where(eq(users.id, id));
   if (status === "banned") {
     await db.batch([update, db.delete(sessions).where(eq(sessions.userId, id))]);
   } else {

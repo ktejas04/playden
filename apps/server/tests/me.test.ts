@@ -5,8 +5,9 @@ import { checkApproved } from "../src/auth/session";
 import { eq } from "drizzle-orm";
 import { getDb } from "../src/db/client";
 import { type User, users } from "../src/db/schema";
+import { ASK_AGAIN_AFTER_MS } from "../src/config";
 import { createSession } from "../src/db/sessions";
-import { upsertGoogleUser } from "../src/db/users";
+import { getUser, setStatus, upsertGoogleUser } from "../src/db/users";
 
 const NOW = 1_700_000_000_000;
 const db = getDb(env.DB);
@@ -50,8 +51,61 @@ function user(status: User["status"], email = "x@example.com"): User {
     status,
     createdAt: NOW,
     approvedAt: null,
+    declinedAt: null,
   };
 }
+
+function askAgain(cookie: string, now: number) {
+  const appAt = createApp({
+    google: () => {
+      throw new Error("unused");
+    },
+    now: () => now,
+  });
+  return appAt.fetch(
+    new Request("https://playden.test/api/me/ask-again", { method: "POST", headers: { cookie } }),
+    testEnv,
+  );
+}
+
+describe("POST /api/me/ask-again", () => {
+  it("is refused until the wait is over, then puts the request back in the queue", async () => {
+    const { user: asker, cookie } = await sessionFor("ask-1");
+    await setStatus(db, asker.id, "declined", NOW);
+
+    const early = await askAgain(cookie, NOW + ASK_AGAIN_AFTER_MS - 1);
+    expect(early.status).toBe(429);
+
+    const onTime = await askAgain(cookie, NOW + ASK_AGAIN_AFTER_MS);
+    expect(onTime.status).toBe(200);
+    expect(await onTime.json()).toMatchObject({ status: "pending", askAgainAt: null });
+    expect((await getUser(db, asker.id))?.declinedAt).toBe(NOW);
+  });
+
+  it("tells a declined user when they can ask again", async () => {
+    const { user: asker, cookie } = await sessionFor("ask-2");
+    await setStatus(db, asker.id, "declined", NOW);
+    const me = await app.fetch(
+      new Request("https://playden.test/api/me", { headers: { cookie } }),
+      testEnv,
+    );
+    expect(await me.json()).toMatchObject({
+      status: "declined",
+      askAgainAt: NOW + ASK_AGAIN_AFTER_MS,
+    });
+  });
+
+  it("is refused for anyone who wasn't declined", async () => {
+    const { cookie } = await sessionFor("ask-3");
+    expect((await askAgain(cookie, NOW)).status).toBe(400);
+  });
+
+  it("is refused for banned users", async () => {
+    const { user: banned, cookie } = await sessionFor("ask-4");
+    await db.update(users).set({ status: "banned" }).where(eq(users.id, banned.id));
+    expect((await askAgain(cookie, NOW + ASK_AGAIN_AFTER_MS)).status).toBe(403);
+  });
+});
 
 describe("PUT /api/me/profile", () => {
   it("saves the display name and who invited them", async () => {
@@ -95,6 +149,14 @@ describe("PUT /api/me/profile", () => {
 });
 
 describe("checkApproved", () => {
+  it("blocks declined users", () => {
+    expect(checkApproved(user("declined"), "")).toEqual({
+      ok: false,
+      status: 403,
+      reason: "Your request wasn't approved",
+    });
+  });
+
   it("blocks pending and banned users", () => {
     expect(checkApproved(user("pending"), "")).toEqual({
       ok: false,

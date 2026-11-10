@@ -59,6 +59,22 @@ export function approveUser(id: string): Promise<AdminUser> {
   });
 }
 
+export function declineUser(id: string): Promise<AdminUser> {
+  return request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}/decline`, {
+    method: "POST",
+  });
+}
+
+export function unblockUser(id: string): Promise<AdminUser> {
+  return request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}/unblock`, {
+    method: "POST",
+  });
+}
+
+export function askAgain(): Promise<Me> {
+  return request<Me>("/api/me/ask-again", { method: "POST" });
+}
+
 export function banUser(id: string): Promise<AdminUser> {
   return request<AdminUser>(`/api/admin/users/${encodeURIComponent(id)}/ban`, { method: "POST" });
 }

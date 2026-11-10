@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export type AccountStatus = "pending" | "approved" | "banned";
+export type AccountStatus = "pending" | "approved" | "declined" | "banned";
 
 export interface Me {
   id: string;
@@ -9,6 +9,8 @@ export interface Me {
   invitedBy: string | null;
   status: AccountStatus;
   isAdmin: boolean;
+  /** When a declined person may ask again (ms since epoch); null unless declined. */
+  askAgainAt: number | null;
 }
 
 export const DISPLAY_NAME_MIN = 2;
@@ -38,6 +40,10 @@ export interface AdminUser {
   status: AccountStatus;
   createdAt: number;
   isAdmin: boolean;
+  /** Was approved at some point; tells a banned former member from a blocked request. */
+  wasMember: boolean;
+  /** Waiting again after being declined before. */
+  askedAgain: boolean;
 }
 
 export interface ApiError {

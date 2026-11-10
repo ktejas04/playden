@@ -1,7 +1,7 @@
 import { profileSchema } from "@playden/protocol";
 import type { Route } from "../app";
-import { getCurrentUser, requireUser, toMe } from "../auth/session";
-import { getUser, setProfile } from "../db/users";
+import { askAgainAt, getCurrentUser, requireUser, toMe } from "../auth/session";
+import { getUser, setProfile, setStatus } from "../db/users";
 import { errorJson, json, readJson } from "../http";
 
 export const meRoutes: Route[] = [
@@ -27,6 +27,26 @@ export const meRoutes: Route[] = [
       }
 
       await setProfile(ctx.db, user.id, parsed.data);
+      const updated = await getUser(ctx.db, user.id);
+      return updated ? json(toMe(updated, ctx.env.ADMIN_EMAILS)) : errorJson(404, "Not found");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/me/ask-again",
+    handler: async (ctx) => {
+      const { user, response } = await requireUser(ctx);
+      if (response) return response;
+
+      const allowedAt = askAgainAt(user);
+      if (allowedAt === null) return errorJson(400, "There's no declined request to repeat");
+      if (ctx.now < allowedAt) {
+        const seconds = Math.ceil((allowedAt - ctx.now) / 1000);
+        const wait = seconds < 120 ? `${seconds} seconds` : `${Math.ceil(seconds / 60)} minutes`;
+        return errorJson(429, `You can ask again in ${wait}`);
+      }
+
+      await setStatus(ctx.db, user.id, "pending", ctx.now);
       const updated = await getUser(ctx.db, user.id);
       return updated ? json(toMe(updated, ctx.env.ADMIN_EMAILS)) : errorJson(404, "Not found");
     },

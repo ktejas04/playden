@@ -7,6 +7,7 @@ import { signOut } from "./api";
 import { type Route, navigate, useRoute } from "./router";
 import { Admin } from "./screens/Admin";
 import { Banned } from "./screens/Banned";
+import { Declined } from "./screens/Declined";
 import { Home } from "./screens/Home";
 import { Profile } from "./screens/Profile";
 import { Room } from "./screens/Room";
@@ -86,6 +87,7 @@ function Gate() {
 function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => Promise<void>) {
   if (!me.displayName) return <Profile me={me} onSaved={setMe} />;
   if (!me.isAdmin && me.status === "banned") return <Banned />;
+  if (!me.isAdmin && me.status === "declined") return <Declined me={me} onUpdated={setMe} />;
   if (!me.isAdmin && me.status === "pending") return <Waiting onCheckAgain={() => void reload()} />;
 
   switch (route.name) {

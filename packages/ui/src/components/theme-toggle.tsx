@@ -20,15 +20,15 @@ export function ThemeToggle() {
           <MoonIcon className="absolute scale-0 dark:scale-100" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-48">
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light">
+          <DropdownMenuRadioItem className="h-10" value="light">
             <SunIcon /> Light
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
+          <DropdownMenuRadioItem className="h-10" value="dark">
             <MoonIcon /> Dark
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">
+          <DropdownMenuRadioItem className="h-10" value="system">
             <MonitorIcon /> Phone setting
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
