@@ -214,7 +214,7 @@ interface GameDefinition<State, Move, View, Config> {
   defaultConfig: Config;         // timers, points, caps
 
   setup(players: Player[], config: Config, seed: number): State;
-  validate(state: State, playerId: string, move: Move, now: number): Ok | { reason: string };
+  validate(state: State, playerId: string, move: Move, now: number): { ok: true } | { ok: false; reason: string };
   apply(state: State, playerId: string, move: Move, now: number): { state: State; events: GameEvent[] };
   view(state: State, playerId: string | "spectator"): View;
   nextDeadline(state: State): number | null;   // when the server should wake up

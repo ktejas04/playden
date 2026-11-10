@@ -17,6 +17,9 @@ Spec: docs/PROJECT.md#game-engine-contract, #rooms-lobby-and-realtime-protocol, 
 5. Module-boundary lint rules from the PROJECT.md table via `no-restricted-imports`, one block per package folder.
 
 ## Done when
-- [ ] Protocol tests pass
-- [ ] Importing `apps/*` from a package fails lint (checked by hand once)
-- [ ] pnpm typecheck, lint, test pass
+- [x] Protocol tests pass
+- [x] Importing `apps/*` from a package fails lint (checked by hand once)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- `validate` returns `{ ok: true } | { ok: false; reason }` (a discriminant makes callers simpler); the PROJECT.md snippet was updated to match.
