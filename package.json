@@ -7,6 +7,8 @@
     "node": ">=20"
   },
   "scripts": {
+    "start": "node scripts/start-local.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",

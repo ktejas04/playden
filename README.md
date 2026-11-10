@@ -46,16 +46,14 @@ Phase 2 (Setup) is in progress. See [`docs/plans/02-setup.md`](docs/plans/02-set
 Needs Node 20+ and pnpm. In PowerShell, from `D:\Projects\PlayDen`:
 
 ```powershell
-pnpm install
-pnpm --filter @playden/web build      # the server serves this folder; build once
-Copy-Item apps/server/.dev.vars.example apps/server/.dev.vars   # then fill in the values
-pnpm --filter @playden/server db:migrate:local                   # after every new migration
-pnpm dev
+pnpm start
 ```
+
+That one command installs packages, creates `apps/server/.dev.vars` from the example if it's missing (and warns about empty values), builds the web app once if needed, applies any new database migrations to the local database, and starts the site. Every step is safe to repeat and never deletes local data. Stop it with Ctrl+C.
 
 Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production. Everything runs on your machine: the Worker, rooms and the database (in `apps/server/.wrangler`), with secrets from `.dev.vars`. Nothing local touches production.
 
-Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`.
+Before pushing: `pnpm check` runs typecheck, lint, format check and tests in one go. `pnpm dev` alone starts the site without the setup steps.
 
 ## Deploying
 

@@ -29,6 +29,10 @@ export default tseslint.config(
       "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true }],
     },
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly" } },
+  },
   restrictImports(["packages/engine/**"], ["@playden/*", ...appPaths, "**/packages/**"]),
   restrictImports(
     ["packages/protocol/**"],
