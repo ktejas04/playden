@@ -4,3 +4,4 @@ coverage
 .wrangler
 *.md
 worker-configuration.d.ts
+apps/server/migrations

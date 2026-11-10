@@ -82,6 +82,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D27 | Local dev | Vite (5173) proxies `/api` and `/auth`, WebSockets included, to Wrangler dev (8787) so the browser sees one origin, as in production | 2026-11-10 |
 | D28 | Process | The agent commits on its own when a task or a meaningful part of one is done and passing; messages are short `[ADD] …`, `[FIX] …` or `[UPDATE] …` | 2026-11-10 |
 | D29 | Stack | Pinned: TypeScript ~6.0 (typescript-eslint doesn't support 7 yet), Vitest ^4.1; ESLint 10, Prettier 3, Node 20+, pnpm 11. Workers tests use `@cloudflare/vitest-plugin` (the renamed vitest-pool-workers) | 2026-11-10 |
+| D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 
 ## Scope: v1 vs later
@@ -172,7 +173,7 @@ One TypeScript monorepo, all deployed to Cloudflare. TypeScript end to end means
 | Frontend | React + Vite + Tailwind | Fast to build, mobile-friendly, best AI support |
 | App shell | Installable PWA | "Add to home screen" on phones |
 | Hosting + realtime server | One Cloudflare Worker with static assets + Durable Objects | Site, API and sockets on one origin; one object per room; WebSockets with hibernation |
-| Database | Cloudflare D1 (SQLite) | Users, approvals, sessions; stats later |
+| Database | Cloudflare D1 (SQLite) + Drizzle ORM | Users, approvals, sessions; stats later. One schema file drives types and migrations |
 | Auth | Google OAuth (free) via a small OAuth library + our own session cookie | No auth service to pay for or depend on |
 | Voice (v2) | Cloudflare Realtime SFU | 1,000 GB/month free |
 | Package manager | pnpm workspaces | Monorepo with shared packages |

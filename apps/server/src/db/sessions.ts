@@ -1,5 +1,7 @@
+import { and, eq, gt } from "drizzle-orm";
 import { DAY_MS, SESSION_DAYS } from "../config";
-import { type User, type UserRow, toUser } from "./users";
+import type { Db } from "./client";
+import { type User, sessions, users } from "./schema";
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -13,37 +15,25 @@ export async function hashToken(token: string): Promise<string> {
 }
 
 export async function createSession(
-  db: D1Database,
+  db: Db,
   userId: string,
   now: number,
 ): Promise<{ token: string; expiresAt: number }> {
   const token = toBase64Url(crypto.getRandomValues(new Uint8Array(32)));
   const expiresAt = now + SESSION_DAYS * DAY_MS;
-  await db
-    .prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
-    .bind(await hashToken(token), userId, expiresAt)
-    .run();
+  await db.insert(sessions).values({ tokenHash: await hashToken(token), userId, expiresAt });
   return { token, expiresAt };
 }
 
-export async function getSessionUser(
-  db: D1Database,
-  token: string,
-  now: number,
-): Promise<User | null> {
-  const row = await db
-    .prepare(
-      `SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id
-       WHERE sessions.token_hash = ? AND sessions.expires_at > ?`,
-    )
-    .bind(await hashToken(token), now)
-    .first<UserRow>();
-  return row ? toUser(row) : null;
+export async function getSessionUser(db: Db, token: string, now: number): Promise<User | null> {
+  const [row] = await db
+    .select({ user: users })
+    .from(sessions)
+    .innerJoin(users, eq(users.id, sessions.userId))
+    .where(and(eq(sessions.tokenHash, await hashToken(token)), gt(sessions.expiresAt, now)));
+  return row?.user ?? null;
 }
 
-export async function deleteSession(db: D1Database, token: string): Promise<void> {
-  await db
-    .prepare("DELETE FROM sessions WHERE token_hash = ?")
-    .bind(await hashToken(token))
-    .run();
+export async function deleteSession(db: Db, token: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.tokenHash, await hashToken(token)));
 }

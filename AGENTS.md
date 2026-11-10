@@ -19,6 +19,8 @@ Everything lives in this folder: code, docs, plans, tasks, local setup.
 - Game engines are pure: no `Date.now()`, `Math.random()`, network or storage. Time and seed come in as arguments.
 - Hidden information never leaves the server. Clients get only `view(state, playerId)`.
 - Every tunable number lives in the game's `config.ts`.
+- The database is defined only in `apps/server/src/db/schema.ts` (Drizzle). Change the schema, then run `pnpm --filter @playden/server db:generate`; never hand-write or edit migrations. Queries and DB types come from the schema, never raw SQL strings.
+- UI uses shadcn/ui components from `packages/ui`; don't hand-build widgets or animations.
 - Strict TypeScript, no `any`. Validate incoming messages with Zod.
 - Comments only where the code cannot explain itself (a formula, a non-obvious rule, a platform workaround).
 - Tests first for any rule or formula. Never delete or weaken a test to make it pass.
