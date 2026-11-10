@@ -14,6 +14,11 @@ Spec: docs/PROJECT.md#system-architecture, #deployment-and-environments
 7. README "Running locally": install, copy `.dev.vars.example`, `pnpm dev`, open `http://localhost:5173`.
 
 ## Done when
-- [ ] Health tests pass in the Workers test pool
-- [ ] `pnpm dev`: `http://localhost:5173/api/health` answers through the proxy
-- [ ] pnpm typecheck, lint, test pass
+- [x] Health tests pass in the Workers test pool
+- [x] `pnpm dev`: `http://localhost:5173/api/health` answers through the proxy
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Test pool is `@cloudflare/vitest-plugin` (vitest-pool-workers was renamed); env types come from `wrangler types --include-runtime=false` into `worker-configuration.d.ts`, runtime types from `@cloudflare/workers-types`.
+- Extra file: `.claude/launch.json` so the agent's browser pane can start `pnpm dev`.
+- The Worker needs `apps/web/dist` to exist; build the web app once before `pnpm dev` or tests.

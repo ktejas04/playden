@@ -26,6 +26,7 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true }],
     },
   },
   restrictImports(["packages/engine/**"], ["@playden/*", ...appPaths, "**/packages/**"]),

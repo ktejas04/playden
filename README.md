@@ -43,4 +43,15 @@ Phase 2 (Setup) is in progress. See [`docs/plans/02-setup.md`](docs/plans/02-set
 
 ## Running locally
 
-Added in task 004 (server skeleton), once the code exists.
+Needs Node 20+ and pnpm. In PowerShell, from `D:\Projects\PlayDen`:
+
+```powershell
+pnpm install
+pnpm --filter @playden/web build      # the server serves this folder; build once
+Copy-Item apps/server/.dev.vars.example apps/server/.dev.vars   # then fill in the values
+pnpm dev
+```
+
+Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production.
+
+Checks: `pnpm typecheck`, `pnpm lint`, `pnpm test`.

@@ -81,7 +81,8 @@ Every agreed decision in one place. Sections below explain the details.
 | D26 | Docs | `README.md` explains the project in plain language; `docs/PROJECT.md` stays the technical design and decisions doc | 2026-11-10 |
 | D27 | Local dev | Vite (5173) proxies `/api` and `/auth`, WebSockets included, to Wrangler dev (8787) so the browser sees one origin, as in production | 2026-11-10 |
 | D28 | Process | The agent commits on its own when a task or a meaningful part of one is done and passing; messages are short `[ADD] …`, `[FIX] …` or `[UPDATE] …` | 2026-11-10 |
-| D29 | Stack | Pinned: TypeScript ~6.0 (typescript-eslint doesn't support 7 yet), Vitest ^4.1 (needed by the Workers test pool); ESLint 10, Prettier 3, Node 20+, pnpm 11 | 2026-11-10 |
+| D29 | Stack | Pinned: TypeScript ~6.0 (typescript-eslint doesn't support 7 yet), Vitest ^4.1; ESLint 10, Prettier 3, Node 20+, pnpm 11. Workers tests use `@cloudflare/vitest-plugin` (the renamed vitest-pool-workers) | 2026-11-10 |
+| D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 
 ## Scope: v1 vs later
 
