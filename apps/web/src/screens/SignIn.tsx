@@ -46,7 +46,11 @@ export function SignIn() {
             </a>
           </Button>
           <p className="text-sm text-muted-foreground">
-            New here? After you sign in, an admin lets you in.
+            New here? After you sign in, an admin lets you in. Read how we handle your data in our{" "}
+            <a href="/privacy" className="text-foreground">
+              privacy note
+            </a>
+            .
           </p>
         </div>
       </div>

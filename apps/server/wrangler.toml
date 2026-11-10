@@ -18,5 +18,5 @@ new_sqlite_classes = ["Room"]
 [[d1_databases]]
 binding = "DB"
 database_name = "playden"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d5e5c1ce-9733-4dc4-9198-f406f7d925a7"
 migrations_dir = "migrations"

@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { roomCodeSchema } from "@playden/protocol";
 
 export type Route =
-  { name: "home" } | { name: "room"; code: string } | { name: "admin" } | { name: "notFound" };
+  | { name: "home" }
+  | { name: "room"; code: string }
+  | { name: "admin" }
+  | { name: "privacy" }
+  | { name: "notFound" };
 
 export function parseRoute(pathname: string): Route {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   if (path === "/") return { name: "home" };
   if (path === "/admin") return { name: "admin" };
+  if (path === "/privacy") return { name: "privacy" };
 
   const roomMatch = /^\/r\/([^/]+)$/.exec(path);
   if (roomMatch?.[1]) {

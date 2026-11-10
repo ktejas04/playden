@@ -21,6 +21,10 @@ describe("parseRoute", () => {
     expect(parseRoute("/admin")).toEqual({ name: "admin" });
   });
 
+  it("maps /privacy to the privacy page", () => {
+    expect(parseRoute("/privacy")).toEqual({ name: "privacy" });
+  });
+
   it("maps anything else to notFound", () => {
     expect(parseRoute("/nope")).toEqual({ name: "notFound" });
   });

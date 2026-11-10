@@ -9,6 +9,7 @@ import { Admin } from "./screens/Admin";
 import { Banned } from "./screens/Banned";
 import { Declined } from "./screens/Declined";
 import { Home } from "./screens/Home";
+import { Privacy } from "./screens/Privacy";
 import { Profile } from "./screens/Profile";
 import { Room } from "./screens/Room";
 import { SignIn } from "./screens/SignIn";
@@ -28,6 +29,14 @@ export function App() {
 function Gate() {
   const route = useRoute();
   const { state, reload, setMe } = useMe();
+
+  if (route.name === "privacy") {
+    return (
+      <Shell back>
+        <Privacy />
+      </Shell>
+    );
+  }
 
   if (state.status === "loading") {
     return (
@@ -97,6 +106,8 @@ function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => 
       return <Room key={route.code} me={me} code={route.code} />;
     case "admin":
       return me.isAdmin ? <Admin /> : <NotFound />;
+    case "privacy":
+      return <Privacy />;
     case "notFound":
       return <NotFound />;
   }
