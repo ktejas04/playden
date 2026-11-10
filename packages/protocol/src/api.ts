@@ -13,6 +13,16 @@ export interface Me {
   askAgainAt: number | null;
 }
 
+export const meSchema = z.strictObject({
+  id: z.string().min(1),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  invitedBy: z.string().nullable(),
+  status: z.enum(["pending", "approved", "declined", "banned"]),
+  isAdmin: z.boolean(),
+  askAgainAt: z.number().nullable(),
+}) satisfies z.ZodType<Me>;
+
 export const DISPLAY_NAME_MIN = 2;
 export const DISPLAY_NAME_MAX = 20;
 export const INVITED_BY_MAX = 40;

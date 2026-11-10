@@ -93,6 +93,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D38 | Brand | Logo: ivory "P" letter tile on a felt-green rounded square (`apps/web/public/favicon.svg`), used as favicon and header mark. No logo on the Google consent screen until we own a domain (a logo triggers Google review). PNG app icons come with the PWA in phase 3 | 2026-11-11 |
 | D39 | Hosting | `wrangler.toml` top level is local dev (placeholder D1 id, secrets from `.dev.vars`); production is `[env.production]` (real D1 id, secrets via `wrangler secret put --env production`). Remote commands pass `--env production`, so local work never touches the production database | 2026-11-11 |
 | D40 | Rooms | The room's creator is host (or the first player in, if the creator never joins). When the host is not in the room, host passes at once to the longest-seated player and stays with them if the old host returns. The 60 s away grace comes with reconnect seats in Platform v1. In a room, admins open Members in a side sheet so the room stays connected | 2026-11-11 |
+| D41 | Rooms | Joining a room is one WebSocket: the Worker reads the session once and forwards to the room, which answers with a snapshot or refuses with a close code (4401 signed out, 4403 not allowed, 4404 not found), since browsers can't read a failed upgrade's HTTP status. A room link starts its socket before React loads, the last known account is kept in localStorage so screens draw at once while `/api/me` revalidates, and hashed assets are cached for a year (`_headers`) | 2026-11-11 |
 
 ## Scope: v1 vs later
 

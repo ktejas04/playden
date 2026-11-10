@@ -1,0 +1,4 @@
+# Built files have content hashes in their names, so a browser may keep them forever;
+# a new deploy ships new names. index.html is not listed, so it is always revalidated.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

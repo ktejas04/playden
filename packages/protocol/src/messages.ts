@@ -54,3 +54,13 @@ export function parseClientMessage(raw: string): ParseResult<ClientMessage> {
 export function parseServerMessage(raw: string): ParseResult<ServerMessage> {
   return parseWith(serverMessageSchema, raw);
 }
+
+/**
+ * Close codes a room socket can end with. Browsers can't read the HTTP status of a
+ * failed WebSocket, so the server accepts the socket and closes it with one of these.
+ */
+export const ROOM_CLOSE = {
+  signedOut: 4401,
+  notAllowed: 4403,
+  notFound: 4404,
+} as const;

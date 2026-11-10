@@ -1,17 +1,28 @@
 import { type RoomPlayer, parseServerMessage } from "@playden/protocol";
-import { useEffect, useState } from "react";
-import { roomExists } from "../api";
+import { useEffect, useRef, useState } from "react";
 import { backoffDelay } from "./backoff";
+import { closeOutcome } from "./closeOutcome";
+import { earlyRoomSocket } from "./earlySocket";
 import { socketUrl } from "./socketUrl";
 
 const PING_EVERY_MS = 25_000;
 
 export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing";
 
-export function useRoomSocket(code: string) {
+/**
+ * The room's live connection. Joining is a single socket: the server answers with the
+ * member list, or closes with a code saying the room is gone or the account can't play.
+ * `onRefused` runs on the latter so the app can recheck the account.
+ */
+export function useRoomSocket(code: string, onRefused: () => void) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [hostId, setHostId] = useState<string | null>(null);
+  const onRefusedRef = useRef(onRefused);
+
+  useEffect(() => {
+    onRefusedRef.current = onRefused;
+  }, [onRefused]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -19,47 +30,43 @@ export function useRoomSocket(code: string) {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
 
-    function retry() {
-      setStatus("reconnecting");
-      retryTimer = setTimeout(() => void connect(), backoffDelay(attempt++));
+    function receive(data: string) {
+      const parsed = parseServerMessage(data);
+      if (!parsed.ok || parsed.message.type !== "snapshot") return;
+      attempt = 0;
+      setPlayers(parsed.message.room.players);
+      setHostId(parsed.message.room.hostId);
+      setStatus("live");
     }
 
-    // Each (re)connect first asks whether the room still exists, so a closed room
-    // shows "Room not found" instead of reconnecting forever.
-    async function connect() {
-      clearTimeout(retryTimer);
-      let exists: boolean;
-      try {
-        exists = await roomExists(code);
-      } catch {
-        if (!stopped) retry();
+    function closed(ws: WebSocket, closeCode: number) {
+      if (stopped || socket !== ws) return;
+      const outcome = closeOutcome(closeCode);
+      if (outcome === "retry") {
+        setStatus("reconnecting");
+        retryTimer = setTimeout(connect, backoffDelay(attempt++));
         return;
       }
-      if (stopped) return;
-      if (!exists) {
-        stopped = true;
-        setStatus("missing");
-        return;
-      }
+      stopped = true;
+      if (outcome === "missing") setStatus("missing");
+      else onRefusedRef.current();
+    }
 
-      const ws = new WebSocket(socketUrl(window.location, code));
+    function connect() {
+      clearTimeout(retryTimer);
+      const early = earlyRoomSocket.take(code);
+      const ws = early?.ws ?? new WebSocket(socketUrl(window.location, code));
       socket = ws;
-      ws.onopen = () => {
-        attempt = 0;
-        setStatus("live");
-      };
-      ws.onmessage = (event) => {
-        if (typeof event.data !== "string") return;
-        const parsed = parseServerMessage(event.data);
-        if (parsed.ok && parsed.message.type === "snapshot") {
-          setPlayers(parsed.message.room.players);
-          setHostId(parsed.message.room.hostId);
-        }
-      };
-      ws.onclose = () => {
-        if (stopped || socket !== ws) return;
-        retry();
-      };
+      ws.addEventListener("message", (event) => {
+        if (typeof event.data === "string") receive(event.data);
+      });
+      ws.addEventListener("close", (event) => closed(ws, event.code));
+
+      if (early) {
+        const { messages, closeCode } = early.drain();
+        for (const message of messages) receive(message);
+        if (closeCode !== null) closed(ws, closeCode);
+      }
     }
 
     // Phones drop sockets when the screen locks; reconnect at once when the tab is visible again.
@@ -67,7 +74,7 @@ export function useRoomSocket(code: string) {
       if (stopped || document.visibilityState !== "visible") return;
       if (socket && socket.readyState <= WebSocket.OPEN) return;
       attempt = 0;
-      void connect();
+      connect();
     }
 
     const pingTimer = setInterval(() => {
@@ -76,7 +83,7 @@ export function useRoomSocket(code: string) {
       }
     }, PING_EVERY_MS);
 
-    void connect();
+    connect();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;

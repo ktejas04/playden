@@ -16,3 +16,12 @@ export async function readJson(request: Request): Promise<unknown> {
     return undefined;
   }
 }
+
+/** Accepts a WebSocket only to close it at once with `code`, which the browser can read. */
+export function refuseSocket(code: number, reason: string): Response {
+  const pair = new WebSocketPair();
+  const server = pair[1];
+  server.accept();
+  server.close(code, reason);
+  return new Response(null, { status: 101, webSocket: pair[0] });
+}

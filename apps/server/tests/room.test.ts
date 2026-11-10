@@ -1,6 +1,6 @@
 import { SELF, env, runDurableObjectAlarm } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import type { ServerMessage } from "@playden/protocol";
+import { ROOM_CLOSE, type ServerMessage } from "@playden/protocol";
 import { createApp } from "../src/app";
 import { getDb } from "../src/db/client";
 import { createSession } from "../src/db/sessions";
@@ -63,6 +63,19 @@ async function connect(code: string, cookie: string) {
   }
 
   return { ws, next };
+}
+
+/** Opens a socket that the server is expected to refuse; returns its close code. */
+async function refusedWith(code: string, cookie: string): Promise<number> {
+  const response = await wsRequest(code, cookie);
+  expect(response.status).toBe(101);
+  const ws = response.webSocket;
+  if (!ws) throw new Error("No WebSocket");
+  const closed = new Promise<number>((resolve) => {
+    ws.addEventListener("close", (event) => resolve(event.code));
+  });
+  ws.accept();
+  return closed;
 }
 
 function playerNames(message: ServerMessage): string[] {
@@ -128,19 +141,21 @@ describe("GET /api/rooms/:code", () => {
 });
 
 describe("room WebSocket", () => {
-  it("rejects signed-out, pending, bad codes and non-upgrade requests", async () => {
+  // A browser can't read the HTTP status of a failed WebSocket, so refusals arrive as
+  // close codes on an accepted socket; that lets the client skip a separate existence check.
+  it("refuses signed-out, pending and bad codes with close codes", async () => {
     const pending = await member("r-pending", "Pen", "pending");
     const ok = await member("r-ok", "Okay");
     const code = await createRoom(ok.cookie);
-    expect((await wsRequest(code, "")).status).toBe(401);
-    expect((await wsRequest(code, pending.cookie)).status).toBe(403);
-    expect((await wsRequest("OOOO", ok.cookie)).status).toBe(400);
+    expect(await refusedWith(code, "")).toBe(ROOM_CLOSE.signedOut);
+    expect(await refusedWith(code, pending.cookie)).toBe(ROOM_CLOSE.notAllowed);
+    expect(await refusedWith("OOOO", ok.cookie)).toBe(ROOM_CLOSE.notFound);
     expect((await wsRequest(code, ok.cookie, false)).status).toBe(426);
   });
 
-  it("returns 404 for a room that was never created", async () => {
+  it("refuses a room that was never created as not found", async () => {
     const ok = await member("r-ws-missing", "Okay");
-    expect((await wsRequest("ZZZZ", ok.cookie)).status).toBe(404);
+    expect(await refusedWith("ZZZZ", ok.cookie)).toBe(ROOM_CLOSE.notFound);
   });
 
   it("two members see each other join, then leave", async () => {
@@ -271,7 +286,7 @@ describe("room lifetime", () => {
 
     expect(await runDurableObjectAlarm(roomStub(code))).toBe(true);
     expect((await getRoom(code, asha.cookie)).status).toBe(404);
-    expect((await wsRequest(code, asha.cookie)).status).toBe(404);
+    expect(await refusedWith(code, asha.cookie)).toBe(ROOM_CLOSE.notFound);
   });
 
   it("joining cancels the close timer", async () => {

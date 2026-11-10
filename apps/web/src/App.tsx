@@ -169,7 +169,7 @@ function screenFor(
     case "home":
       return <Home me={me} waiting={waiting.count} />;
     case "room":
-      return <Room key={route.code} me={me} code={route.code} />;
+      return <Room key={route.code} me={me} code={route.code} onRefused={() => void reload()} />;
     case "admin":
       return me.isAdmin ? <Admin onChanged={() => void waiting.refresh()} /> : <NotFound />;
     case "privacy":

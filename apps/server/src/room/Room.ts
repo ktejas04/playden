@@ -1,7 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
-import { type RoomPlayer, type ServerMessage, parseClientMessage } from "@playden/protocol";
+import {
+  ROOM_CLOSE,
+  type RoomPlayer,
+  type ServerMessage,
+  parseClientMessage,
+} from "@playden/protocol";
 import { roomEmptyCloseMs } from "../config";
 import type { Env } from "../env";
+import { refuseSocket } from "../http";
 
 export const ROOM_HEADERS = {
   userId: "x-playden-user-id",
@@ -45,7 +51,7 @@ export class Room extends DurableObject<Env> {
 
   override async fetch(request: Request): Promise<Response> {
     const info = await this.info();
-    if (!info) return new Response("Room not found", { status: 404 });
+    if (!info) return refuseSocket(ROOM_CLOSE.notFound, "Room not found");
 
     const userId = request.headers.get(ROOM_HEADERS.userId);
     const encodedName = request.headers.get(ROOM_HEADERS.userName);

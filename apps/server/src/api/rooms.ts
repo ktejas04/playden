@@ -1,8 +1,8 @@
-import { ROOM_CODE_LENGTH, roomCodeSchema } from "@playden/protocol";
+import { ROOM_CLOSE, ROOM_CODE_LENGTH, roomCodeSchema } from "@playden/protocol";
 import type { RequestContext, Route } from "../app";
-import { requireApproved } from "../auth/session";
+import { checkApproved, getCurrentUser, requireApproved } from "../auth/session";
 import { ROOM_CODE_ATTEMPTS } from "../config";
-import { errorJson, json } from "../http";
+import { errorJson, json, refuseSocket } from "../http";
 import { ROOM_HEADERS } from "../room/Room";
 import { generateRoomCode } from "../room/roomCode";
 
@@ -47,18 +47,20 @@ export const roomRoutes: Route[] = [
   {
     method: "GET",
     path: /^\/api\/rooms\/(?<code>[^/]+)\/ws$/,
+    // One database read and one hop to the room: the room itself refuses a code that
+    // doesn't exist, so joining needs no separate existence check.
     handler: async (ctx) => {
-      const { user, response } = await requireApproved(ctx);
-      if (response) return response;
-
-      const code = validCode(ctx);
-      if (!code) return errorJson(400, "Not a valid room code");
       if (ctx.request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
         return errorJson(426, "Expected a WebSocket");
       }
+      const user = await getCurrentUser(ctx);
+      if (!user) return refuseSocket(ROOM_CLOSE.signedOut, "Signed out");
+      const check = checkApproved(user, ctx.env.ADMIN_EMAILS);
+      if (!check.ok) return refuseSocket(ROOM_CLOSE.notAllowed, check.reason);
 
+      const code = validCode(ctx);
+      if (!code) return refuseSocket(ROOM_CLOSE.notFound, "Not a valid room code");
       const room = roomFor(ctx, code);
-      if (!(await room.exists())) return errorJson(404, "Room not found");
 
       // Identity headers are always overwritten here, so a client can't spoof them.
       const headers = new Headers(ctx.request.headers);

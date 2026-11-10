@@ -1,6 +1,7 @@
 import type { Me, RoomPlayer } from "@playden/protocol";
 import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
+import { Skeleton } from "@playden/ui/components/skeleton";
 import { toast } from "@playden/ui/components/sonner";
 import { cn } from "@playden/ui/lib/utils";
 import { CopyIcon, CrownIcon, LogOutIcon, Share2Icon } from "lucide-react";
@@ -85,9 +86,49 @@ function useHostChangeToast(hostId: string | null, players: RoomPlayer[], myId: 
   }, [hostId, players, myId]);
 }
 
-export function Room({ me, code }: { me: Me; code: string }) {
-  const { status, players, hostId } = useRoomSocket(code);
+function PlayerRow({ player, me, hostId }: { player: RoomPlayer; me: Me; hostId: string | null }) {
+  const isMe = player.id === me.id;
+  return (
+    <li
+      className={cn(
+        "flex items-center gap-3 py-3",
+        isMe && "-mx-3 my-1 rounded-xl border-none bg-primary/15 px-3 first:mt-0",
+      )}
+    >
+      <PlayerAvatar id={player.id} name={player.name} />
+      <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
+        {player.name}
+      </span>
+      {player.id === hostId && (
+        <Badge variant="outline" className="h-6 gap-1 px-2 text-sm">
+          <CrownIcon className="size-3.5! text-warning" /> Host
+        </Badge>
+      )}
+      {isMe && <Badge className="h-6 px-2 text-sm">You</Badge>}
+    </li>
+  );
+}
+
+/** Until the room answers, show yourself (you're joining) and placeholder rows, never "0 players". */
+function JoiningRows({ me }: { me: Me }) {
+  const self: RoomPlayer = { id: me.id, name: me.displayName ?? "You", connected: true };
+  return (
+    <>
+      <PlayerRow player={self} me={me} hostId={null} />
+      {[0, 1].map((row) => (
+        <li key={row} className="flex items-center gap-3 py-3" aria-hidden>
+          <Skeleton className="size-8 rounded-full" />
+          <Skeleton className="h-4 w-32" />
+        </li>
+      ))}
+    </>
+  );
+}
+
+export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused: () => void }) {
+  const { status, players, hostId } = useRoomSocket(code, onRefused);
   const { label, dot } = STATUS[status];
+  const joining = hostId === null;
   const alone = players.length <= 1;
   useHostChangeToast(hostId, players, me.id);
 
@@ -119,34 +160,22 @@ export function Room({ me, code }: { me: Me; code: string }) {
       <Panel className="mt-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Players</h2>
-          <span className="text-sm text-muted-foreground">
-            {players.length} {players.length === 1 ? "player" : "players"}
-          </span>
+          {joining ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              {players.length} {players.length === 1 ? "player" : "players"}
+            </span>
+          )}
         </div>
         <ul className="mt-3 divide-y">
-          {orderPlayers(players, me.id).map((player) => {
-            const isMe = player.id === me.id;
-            return (
-              <li
-                key={player.id}
-                className={cn(
-                  "flex items-center gap-3 py-3",
-                  isMe && "-mx-3 my-1 rounded-xl border-none bg-primary/15 px-3 first:mt-0",
-                )}
-              >
-                <PlayerAvatar id={player.id} name={player.name} />
-                <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
-                  {player.name}
-                </span>
-                {player.id === hostId && (
-                  <Badge variant="outline" className="h-6 gap-1 px-2 text-sm">
-                    <CrownIcon className="size-3.5! text-warning" /> Host
-                  </Badge>
-                )}
-                {isMe && <Badge className="h-6 px-2 text-sm">You</Badge>}
-              </li>
-            );
-          })}
+          {joining ? (
+            <JoiningRows me={me} />
+          ) : (
+            orderPlayers(players, me.id).map((player) => (
+              <PlayerRow key={player.id} player={player} me={me} hostId={hostId} />
+            ))
+          )}
         </ul>
         {alone && status === "live" && (
           <p className="mt-3 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
