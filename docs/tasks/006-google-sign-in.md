@@ -24,7 +24,7 @@ Spec: docs/PROJECT.md#access-control-and-admin, D10, D20, D22, D24, D25
 
 ## Done when
 - [x] Every test above passes
-- [ ] Manual: sign in with Google on `localhost:5173`, `/api/me` shows your account as admin (waiting on the owner's OAuth client)
+- [x] Manual: sign in with Google on `localhost:5173`; the admin account reaches home with the Admin button, a test account reaches "You're on the list" (owner, 2026-11-10)
 - [x] pnpm typecheck, lint, test pass
 
 ## Notes
