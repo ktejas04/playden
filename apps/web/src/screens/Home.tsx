@@ -3,8 +3,8 @@ import { Button } from "@playden/ui/components/button";
 import { Label } from "@playden/ui/components/label";
 import { toast } from "@playden/ui/components/sonner";
 import { ChevronRightIcon, PlusIcon, UsersIcon } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
-import { createRoom, listUsers, roomExists } from "../api";
+import { type FormEvent, useState } from "react";
+import { createRoom, roomExists } from "../api";
 import { JoinCodeInput } from "../components/JoinCodeInput";
 import { normalizeJoinCode } from "../room/joinCode";
 import { navigate } from "../router";
@@ -18,15 +18,7 @@ function greeting(hour: number): string {
 }
 
 /** Admins see who is waiting right on the lobby, so approvals don't get missed. */
-function AdminShortcut() {
-  const [waiting, setWaiting] = useState<number | null>(null);
-
-  useEffect(() => {
-    listUsers("pending")
-      .then((users) => setWaiting(users.length))
-      .catch(() => setWaiting(null));
-  }, []);
-
+function AdminShortcut({ waiting }: { waiting: number | null }) {
   const text =
     waiting === null || waiting === 0
       ? "Members"
@@ -55,7 +47,7 @@ function AdminShortcut() {
   );
 }
 
-export function Home({ me }: { me: Me }) {
+export function Home({ me, waiting }: { me: Me; waiting: number | null }) {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -102,7 +94,7 @@ export function Home({ me }: { me: Me }) {
         subtitle="Start a room for tonight, or join the one your friends made."
       />
 
-      {me.isAdmin && <AdminShortcut />}
+      {me.isAdmin && <AdminShortcut waiting={waiting} />}
 
       <Panel className="mt-6">
         <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-4">

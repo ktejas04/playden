@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "@playden/ui/components/sheet";
 import { ThemeProvider } from "@playden/ui/components/theme-provider";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { AccountMenu } from "./AccountMenu";
 import { signOut } from "./api";
 import { type Route, navigate, useRoute } from "./router";
@@ -24,6 +24,11 @@ import { SignIn } from "./screens/SignIn";
 import { Waiting } from "./screens/Waiting";
 import { Centered, Shell } from "./Shell";
 import { useMe } from "./useMe";
+import { useWaitingList } from "./useWaitingList";
+import { waitingToast } from "./waiting";
+
+/** Long enough to tap "Review" mid-game; it never blocks the screen. */
+const WAITING_TOAST_MS = 8000;
 
 export function App() {
   return (
@@ -38,6 +43,27 @@ function Gate() {
   const route = useRoute();
   const { state, reload, setMe } = useMe();
   const [membersOpen, setMembersOpen] = useState(false);
+  const isAdmin = state.status === "ready" && Boolean(state.me?.isAdmin);
+
+  // Leaving a room page drops its socket, so in a room Members opens over it instead.
+  const openMembers = useCallback(() => {
+    if (route.name === "room") setMembersOpen(true);
+    else navigate("/admin");
+  }, [route.name]);
+
+  const waiting = useWaitingList(
+    isAdmin,
+    useCallback(
+      (arrivals) => {
+        if (route.name === "admin" || membersOpen) return;
+        toast.info(waitingToast(arrivals), {
+          duration: WAITING_TOAST_MS,
+          action: { label: "Review", onClick: openMembers },
+        });
+      },
+      [route.name, membersOpen, openMembers],
+    ),
+  );
 
   if (route.name === "privacy") {
     return (
@@ -91,21 +117,20 @@ function Gate() {
     }
   }
 
-  // Leaving a room page drops its socket, so in a room Members opens over it instead.
-  function openMembers() {
-    if (route.name === "room") setMembersOpen(true);
-    else navigate("/admin");
-  }
-
   const canPlay = Boolean(me.displayName) && (me.isAdmin || me.status === "approved");
   return (
     <Shell
       back={canPlay && route.name !== "home"}
       headerRight={
-        <AccountMenu me={me} onOpenMembers={openMembers} onSignOut={() => void handleSignOut()} />
+        <AccountMenu
+          me={me}
+          waiting={waiting.count ?? 0}
+          onOpenMembers={openMembers}
+          onSignOut={() => void handleSignOut()}
+        />
       }
     >
-      {screenFor(me, route, setMe, reload)}
+      {screenFor(me, route, setMe, reload, waiting)}
       {me.isAdmin && (
         <Sheet open={membersOpen && route.name === "room"} onOpenChange={setMembersOpen}>
           <SheetContent className="w-full gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg">
@@ -114,7 +139,7 @@ function Gate() {
               <SheetDescription className="text-base">{MEMBERS_SUBTITLE}</SheetDescription>
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-5 pt-3 pb-8">
-              <MembersManager />
+              <MembersManager onChanged={() => void waiting.refresh()} />
             </div>
           </SheetContent>
         </Sheet>
@@ -123,7 +148,18 @@ function Gate() {
   );
 }
 
-function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => Promise<void>) {
+interface Waiting {
+  count: number | null;
+  refresh: () => Promise<void>;
+}
+
+function screenFor(
+  me: Me,
+  route: Route,
+  setMe: (me: Me) => void,
+  reload: () => Promise<void>,
+  waiting: Waiting,
+) {
   if (!me.displayName) return <Profile me={me} onSaved={setMe} />;
   if (!me.isAdmin && me.status === "banned") return <Banned />;
   if (!me.isAdmin && me.status === "declined") return <Declined me={me} onUpdated={setMe} />;
@@ -131,11 +167,11 @@ function screenFor(me: Me, route: Route, setMe: (me: Me) => void, reload: () => 
 
   switch (route.name) {
     case "home":
-      return <Home me={me} />;
+      return <Home me={me} waiting={waiting.count} />;
     case "room":
       return <Room key={route.code} me={me} code={route.code} />;
     case "admin":
-      return me.isAdmin ? <Admin /> : <NotFound />;
+      return me.isAdmin ? <Admin onChanged={() => void waiting.refresh()} /> : <NotFound />;
     case "privacy":
       return <Privacy />;
     case "notFound":

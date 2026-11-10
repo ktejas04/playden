@@ -32,17 +32,22 @@ const TABS: { status: AccountStatus; label: string; empty: string }[] = [
 
 export const MEMBERS_SUBTITLE = "Let new people in, or take access away.";
 
-export function Admin() {
+interface MembersProps {
+  /** Runs after an admin changes someone's status, e.g. to refresh waiting counts. */
+  onChanged?: () => void;
+}
+
+export function Admin({ onChanged }: MembersProps) {
   return (
     <div className="pb-10">
       <PageTitle title="Members" subtitle={MEMBERS_SUBTITLE} />
-      <MembersManager className="mt-6" />
+      <MembersManager className="mt-6" onChanged={onChanged} />
     </div>
   );
 }
 
 /** The member tabs on their own, so they can also open in a sheet over a room. */
-export function MembersManager({ className }: { className?: string }) {
+export function MembersManager({ className, onChanged }: MembersProps & { className?: string }) {
   const [tab, setTab] = useState<AccountStatus>("pending");
 
   return (
@@ -60,14 +65,18 @@ export function MembersManager({ className }: { className?: string }) {
       </TabsList>
       {TABS.map((t) => (
         <TabsContent key={t.status} value={t.status} className="pt-3">
-          {tab === t.status && <UserList status={t.status} empty={t.empty} />}
+          {tab === t.status && <UserList status={t.status} empty={t.empty} onChanged={onChanged} />}
         </TabsContent>
       ))}
     </Tabs>
   );
 }
 
-function UserList({ status, empty }: { status: AccountStatus; empty: string }) {
+function UserList({
+  status,
+  empty,
+  onChanged,
+}: MembersProps & { status: AccountStatus; empty: string }) {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ user: AdminUser; kind: "ban" | "block" } | null>(null);
@@ -89,6 +98,7 @@ function UserList({ status, empty }: { status: AccountStatus; empty: string }) {
     try {
       await action();
       toast.success(done);
+      onChanged?.();
       await load();
     } catch (failure) {
       toast.error(failure instanceof Error ? failure.message : "Something went wrong");
