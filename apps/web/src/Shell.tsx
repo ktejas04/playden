@@ -12,16 +12,11 @@ interface ShellProps {
   headerRight?: ReactNode;
 }
 
-export function Wordmark({ large = false }: { large?: boolean }) {
+export function Wordmark() {
   return (
-    <span className="flex items-center gap-2">
-      <span
-        aria-hidden
-        className={`rounded-full bg-primary shadow-[0_2px_0_0_var(--primary-edge)] ${large ? "size-6" : "size-4"}`}
-      />
-      <span className={`font-heading font-bold tracking-tight ${large ? "text-4xl" : "text-xl"}`}>
-        PlayDen
-      </span>
+    <span className="flex items-center gap-1">
+      <img src="/favicon.svg" alt="" className="size-8 rounded-[9px]" />
+      <span className="font-heading text-xl font-bold tracking-tight">PlayDen</span>
     </span>
   );
 }

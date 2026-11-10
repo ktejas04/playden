@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>PlayDen</title>
+  <rect width="64" height="64" rx="15" fill="#0f211b"/>
+  <rect x="12" y="14" width="40" height="40" rx="10" fill="#b9a46f"/>
+  <rect x="12" y="10" width="40" height="40" rx="10" fill="#f2e9cf"/>
+  <path fill="#1c1606" fill-rule="evenodd" transform="translate(32 30) scale(0.72) translate(-32 -30)" d="M20 14h13a11 11 0 0 1 0 22h-4v10h-9z M29 22v6h4a3 3 0 0 0 0-6z"/>
+</svg>
