@@ -85,6 +85,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
+| D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Draw Battle fits the free tier comfortably | 2026-11-10 |
 
 ## Scope: v1 vs later
 
@@ -469,7 +470,7 @@ v1 costs ₹0. The one limit to watch is Durable Object messages during Draw Bat
 
 Over a free limit, Cloudflare fails the request instead of charging; limits reset daily at 00:00 UTC (05:30 IST).
 
-**The one hot spot: Draw Battle strokes.** Two drawers sending 10 batches/s for 15 rounds plus the relay comes to roughly 10,000–15,000 messages per game. If every message counts as a full request, that's 6–10 full games per day on the free plan. Mitigations, in order: batch strokes every 150–200 ms, use WebSocket hibernation so idle rooms cost nothing, and if needed move to the paid plan. Check Cloudflare's current message-counting rules during setup.
+**The one hot spot: Draw Battle strokes.** Two drawers sending 10 batches/s for 15 rounds plus the relay comes to roughly 10,000–15,000 incoming messages per game. Checked during setup (D33): incoming WebSocket messages count 20:1 toward requests, outgoing messages are free, and each connection costs one request, so a game costs roughly 500–750 requests, about 130+ full games per day on the free plan. Keep batching strokes (100–200 ms) and hibernation on; the paid plan is only a fallback.
 
 **Where money may be needed**
 

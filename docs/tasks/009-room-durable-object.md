@@ -20,5 +20,9 @@ Spec: docs/PROJECT.md#rooms-lobby-and-realtime-protocol, D7
 6. Check Cloudflare's current rules for how WebSocket messages count toward free-tier requests. Note the result in the Decisions log if it changes the budget section.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- Names travel to the Room URL-encoded in a header, because headers can't carry non-Latin text (test: a Hindi name survives).
+- Billing check done and logged as D33; the budget section in PROJECT.md is updated.
