@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-nova",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@playden/ui/components",
+    "utils": "@playden/ui/lib/utils",
+    "hooks": "@playden/ui/hooks",
+    "lib": "@playden/ui/lib",
+    "ui": "@playden/ui/components"
+  }
+}

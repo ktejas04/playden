@@ -36,7 +36,14 @@ export default tseslint.config(
   ),
   restrictImports(
     ["packages/ui/**"],
-    ["@playden/*", "!@playden/engine", "!@playden/protocol", ...appPaths, "**/games/**"],
+    [
+      "@playden/*",
+      "!@playden/engine",
+      "!@playden/protocol",
+      "!@playden/ui",
+      ...appPaths,
+      "**/games/**",
+    ],
   ),
   restrictImports(
     ["packages/games/**"],

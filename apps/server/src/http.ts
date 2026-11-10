@@ -8,3 +8,11 @@ export function json(body: unknown, init: ResponseInit = {}): Response {
 export function errorJson(status: number, reason: string): Response {
   return json({ error: reason }, { status });
 }
+
+export async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}

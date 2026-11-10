@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "@playden/ui/globals.css";
 
 html,
 body,
@@ -7,7 +7,5 @@ body,
 }
 
 body {
-  background: #0f0d24;
-  color: #f4f4f5;
   -webkit-tap-highlight-color: transparent;
 }

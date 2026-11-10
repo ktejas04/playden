@@ -20,6 +20,12 @@ Spec: docs/PROJECT.md#access-control-and-admin
 5. Sign-out button in the shell.
 
 ## Done when
-- [ ] Every test above passes
-- [ ] Manual on localhost: a non-admin account lands on Profile, then Waiting
-- [ ] pnpm typecheck, lint, test pass
+- [x] Every test above passes
+- [ ] Manual on localhost: a non-admin account lands on Profile, then Waiting (waiting on the owner's OAuth client)
+- [x] pnpm typecheck, lint, test pass
+
+## Notes
+- shadcn/ui set up in `packages/ui` (D30): `components.json`, theme in `src/styles/globals.css`, components in `src/components/`. Add more with `pnpm --filter @playden/ui exec shadcn add <name>`. The CLI can't `init` a plain package, so the Nova theme CSS was generated once on a scratch Vite app and copied in.
+- Light/dark themes with a header switch (D32): `theme-provider.tsx`, `theme-toggle.tsx`.
+- Extra files: `apps/server/src/http.ts` gained `readJson`; guards (`requireUser`, `requireApproved`, `checkApproved`) live in `auth/session.ts`.
+- Checked in the browser at 375 px: sign-in screen in light and dark.

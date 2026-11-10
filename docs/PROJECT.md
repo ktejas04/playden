@@ -84,6 +84,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D29 | Stack | Pinned: TypeScript ~6.0 (typescript-eslint doesn't support 7 yet), Vitest ^4.1; ESLint 10, Prettier 3, Node 20+, pnpm 11. Workers tests use `@cloudflare/vitest-plugin` (the renamed vitest-pool-workers) | 2026-11-10 |
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
+| D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
 
 ## Scope: v1 vs later
 
@@ -341,6 +342,7 @@ Phones are the default device. A first-timer should go from a WhatsApp link to p
 **Mobile rules (v1)**
 
 - Portrait-first layouts; PC gets a wider version of the same screen, not a different app.
+- Light and dark themes, following the phone's setting unless the player picks one (D32).
 - Touch targets at least 44 px; the main actions sit in a bottom bar within thumb reach.
 - No hover-only controls; everything works by tap.
 - Screen stays awake during play (Wake Lock API).
