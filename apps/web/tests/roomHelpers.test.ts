@@ -3,6 +3,7 @@ import { backoffDelay } from "../src/room/backoff";
 import { initials } from "../src/initials";
 import { PLAYER_COLOR_COUNT, playerColor } from "../src/playerColor";
 import { cleanJoinInput, normalizeJoinCode } from "../src/room/joinCode";
+import { orderPlayers } from "../src/room/orderPlayers";
 import { socketUrl } from "../src/room/socketUrl";
 
 describe("socketUrl", () => {
@@ -51,6 +52,19 @@ describe("cleanJoinInput", () => {
 
   it("keeps only letters, in capitals, up to 4", () => {
     expect(cleanJoinInput("ab-c d9e")).toBe("ABCD");
+  });
+});
+
+describe("orderPlayers", () => {
+  const player = (id: string) => ({ id, name: id, connected: true });
+
+  it("puts you first and keeps everyone else in join order", () => {
+    const joined = [player("asha"), player("ravi"), player("me"), player("meera")];
+    expect(orderPlayers(joined, "me").map((p) => p.id)).toEqual(["me", "asha", "ravi", "meera"]);
+  });
+
+  it("leaves the list alone when you're not in it yet", () => {
+    expect(orderPlayers([player("asha")], "me").map((p) => p.id)).toEqual(["asha"]);
   });
 });
 

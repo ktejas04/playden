@@ -4,6 +4,7 @@ import { toast } from "@playden/ui/components/sonner";
 import { CopyIcon, LogOutIcon, Share2Icon } from "lucide-react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
+import { orderPlayers } from "../room/orderPlayers";
 import { type ConnectionStatus, useRoomSocket } from "../room/useRoomSocket";
 import { navigate } from "../router";
 import { BottomBar, Centered, Panel } from "../Shell";
@@ -102,7 +103,7 @@ export function Room({ me, code }: { me: Me; code: string }) {
           </span>
         </div>
         <ul className="mt-3 divide-y">
-          {players.map((player) => (
+          {orderPlayers(players, me.id).map((player) => (
             <li key={player.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
               <PlayerAvatar id={player.id} name={player.name} />
               <span className="flex-1 truncate font-medium">{player.name}</span>
