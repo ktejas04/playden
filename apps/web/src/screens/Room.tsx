@@ -168,7 +168,7 @@ function PlayerRow({
   );
 }
 
-const PLACEHOLDER_ROWS = 2;
+const PLACEHOLDER_ROWS = 3;
 
 function PlaceholderRow() {
   return (
@@ -198,11 +198,9 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
   const { label, dot } = STATUS[status];
   const joining = hostId === null;
   const alone = players.length <= 1;
-  // Until the room answers, show yourself (you're joining) and placeholders, never "0 players".
-  // Rows are keyed by player, so your own row stays put when the real list replaces this.
-  const rows = joining
-    ? [{ id: me.id, name: me.displayName ?? "You", connected: true, isAdmin: me.isAdmin }]
-    : orderPlayers(players, me.id);
+  // Until the room answers, placeholders hold the list's place (never "0 players"); the whole
+  // list, you included, then fades in as one step rather than you first and the rest later.
+  const rows = joining ? [] : orderPlayers(players, me.id);
   useHostChangeToast(hostId, players, me.id);
 
   if (status === "missing") {
