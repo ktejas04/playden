@@ -1,0 +1,22 @@
+# 005 — D1 schema: users and sessions
+Phase: 2 (Setup)
+Depends on: 004
+Touches: apps/server/migrations/0001_users_sessions.sql, apps/server/src/db/users.ts, apps/server/src/db/sessions.ts, apps/server/src/config.ts, apps/server/tests/users.test.ts, apps/server/tests/sessions.test.ts, apps/server/vitest.config.ts
+Spec: docs/PROJECT.md#access-control-and-admin, D22, D25
+
+## Steps
+1. Migration:
+   - `users(id TEXT PK, google_sub TEXT UNIQUE, email TEXT, display_name TEXT NULL, invited_by TEXT NULL, status TEXT CHECK IN ('pending','approved','banned'), created_at INTEGER, approved_at INTEGER NULL)`
+   - `sessions(token_hash TEXT PK, user_id TEXT REFERENCES users, expires_at INTEGER)` + index on `user_id`.
+2. `src/config.ts`: `SESSION_DAYS = 30`, display name and "invited by" length limits.
+3. Tests first (migrations applied in the test pool; time passed in as `now`):
+   - new Google user is created `pending`; signing in again keeps their status and profile
+   - `setStatus` approve and ban; ban deletes the user's sessions
+   - a session resolves to its user; an expired or unknown token resolves to nothing
+   - only the token's SHA-256 hash is stored
+4. `users.ts`: `upsertGoogleUser`, `getUser`, `setProfile`, `setStatus`, `listUsers(status?)`.
+5. `sessions.ts`: `createSession` (returns raw token), `getSessionUser`, `deleteSession`.
+
+## Done when
+- [ ] Every test above passes
+- [ ] pnpm typecheck, lint, test pass
