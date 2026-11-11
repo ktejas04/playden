@@ -17,5 +17,5 @@ Spec: docs/PROJECT.md "Game engine contract" (seeded randomness)
 3. Export from `packages/engine`.
 
 ## Done when
-- [ ] Tests above pass, with fixed seeds and no flakiness
-- [ ] pnpm typecheck, lint, test pass
+- [x] Tests above pass, with fixed seeds and no flakiness, plus pinned outputs checked against the reference mulberry32
+- [x] pnpm typecheck, lint, test pass

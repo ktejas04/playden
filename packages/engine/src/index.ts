@@ -8,3 +8,4 @@ export type {
   Transition,
   Validation,
 } from "./GameDefinition";
+export { type Drawn, type Rng, createRng, nextFloat, nextInt, pick, shuffle } from "./random";
