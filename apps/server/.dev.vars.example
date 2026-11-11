@@ -3,3 +3,6 @@ GOOGLE_CLIENT_SECRET=
 ADMIN_EMAILS=you@example.com
 # Optional: empty rooms close after this many ms (default 60000). Handy for testing.
 # ROOM_EMPTY_CLOSE_MS=20000
+# Optional, local only: "true" adds a "Test player" sign-in for localhost and your
+# Wi-Fi addresses, so phones and several players on one PC can test without Google (D48).
+# DEV_LOGIN=true

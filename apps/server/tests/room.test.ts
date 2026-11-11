@@ -202,7 +202,6 @@ describe("room WebSocket", () => {
     await first.next(snapshotWith(1));
     const second = await connect(code, asha.cookie);
     expect(playerNames(await second.next(snapshotWith(1)))).toEqual(["Asha"]);
-    first.ws.close(1000);
     second.ws.close(1000);
   });
 
@@ -288,6 +287,78 @@ describe("room host", () => {
   });
 });
 
+describe("one device per player (Play here)", () => {
+  it("a second device takes the seat and the first is told, then closed as replaced", async () => {
+    const asha = await member("p-takeover", "Asha");
+    const code = await createRoom(asha.cookie);
+    const phone = await connect(code, asha.cookie);
+    await phone.next(snapshotWith(1));
+
+    const pc = await connect(code, asha.cookie);
+    expect(playerNames(await pc.next(snapshotWith(1)))).toEqual(["Asha"]);
+    expect(await phone.next((m) => m.type === "replaced")).toEqual({ type: "replaced" });
+    expect(await phone.closed).toBe(ROOM_CLOSE.replaced);
+    pc.ws.close(1000);
+  });
+
+  it("taking over keeps the host and the seating order", async () => {
+    const asha = await member("p-order-a", "Asha");
+    const ravi = await member("p-order-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a1 = await connect(code, asha.cookie);
+    await a1.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie);
+    await r.next(snapshotWith(2));
+
+    const a2 = await connect(code, asha.cookie);
+    const seen = await a2.next(snapshotWith(2));
+    expect(seen.type === "snapshot" && seen.room.hostId).toBe(asha.user.id);
+    expect(seen.type === "snapshot" && seen.room.players.map((p) => p.name)).toEqual([
+      "Asha",
+      "Ravi",
+    ]);
+    expect(await a1.closed).toBe(ROOM_CLOSE.replaced);
+
+    await settle();
+    const fresh = await connect(code, ravi.cookie);
+    const now = await fresh.next(snapshotWith(2));
+    expect(now.type === "snapshot" && now.room.hostId).toBe(asha.user.id);
+    expect(await r.closed).toBe(ROOM_CLOSE.replaced);
+    fresh.ws.close(1000);
+    a2.ws.close(1000);
+  });
+
+  it("Play here on the first device takes the seat back", async () => {
+    const asha = await member("p-back", "Asha");
+    const code = await createRoom(asha.cookie);
+    const phone = await connect(code, asha.cookie);
+    await phone.next(snapshotWith(1));
+    const pc = await connect(code, asha.cookie);
+    expect(await phone.closed).toBe(ROOM_CLOSE.replaced);
+
+    const phoneAgain = await connect(code, asha.cookie);
+    await phoneAgain.next(snapshotWith(1));
+    expect(await pc.next((m) => m.type === "replaced")).toEqual({ type: "replaced" });
+    expect(await pc.closed).toBe(ROOM_CLOSE.replaced);
+    phoneAgain.ws.close(1000);
+  });
+
+  it("a replaced device closing doesn't start the room's close timer", async () => {
+    const asha = await member("p-timer", "Asha");
+    const code = await createRoom(asha.cookie);
+    const phone = await connect(code, asha.cookie);
+    await phone.next(snapshotWith(1));
+    const pc = await connect(code, asha.cookie);
+    await pc.next(snapshotWith(1));
+    expect(await phone.closed).toBe(ROOM_CLOSE.replaced);
+    await settle();
+
+    expect(await runDurableObjectAlarm(roomStub(code))).toBe(false);
+    expect((await getRoom(code, asha.cookie)).status).toBe(200);
+    pc.ws.close(1000);
+  });
+});
+
 describe("room lifetime", () => {
   it("a room nobody joins closes when its timer runs out", async () => {
     const asha = await member("r-unused", "Asha");
@@ -346,19 +417,19 @@ describe("removing a player", () => {
     a.ws.close(1000);
   });
 
-  it("closes every tab the removed player has open", async () => {
+  it("a removed player is refused on every device", async () => {
     const asha = await member("k-tabs-host", "Asha");
     const ravi = await member("k-tabs-target", "Ravi");
     const code = await createRoom(asha.cookie);
     const a = await connect(code, asha.cookie);
     await a.next(snapshotWith(1));
-    const first = await connect(code, ravi.cookie);
-    const second = await connect(code, ravi.cookie);
-    await second.next(snapshotWith(2));
+    const r = await connect(code, ravi.cookie);
+    await r.next(snapshotWith(2));
 
     remove(a.ws, ravi.user.id);
-    expect(await first.closed).toBe(ROOM_CLOSE.removed);
-    expect(await second.closed).toBe(ROOM_CLOSE.removed);
+    expect(await r.closed).toBe(ROOM_CLOSE.removed);
+    expect(await refusedWith(code, ravi.cookie)).toBe(ROOM_CLOSE.removed);
+    expect(await refusedWith(code, ravi.cookie)).toBe(ROOM_CLOSE.removed);
     a.ws.close(1000);
   });
 

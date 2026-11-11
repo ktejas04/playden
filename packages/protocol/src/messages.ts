@@ -33,6 +33,8 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
     name: z.string().min(1).max(40),
   }),
   z.strictObject({ type: z.literal("error"), reason: z.string() }),
+  /** Sent to a connection just before another device of the same player takes its seat. */
+  z.strictObject({ type: z.literal("replaced") }),
 ]);
 
 export type RoomPlayer = z.infer<typeof roomPlayerSchema>;
@@ -70,6 +72,8 @@ export const ROOM_CLOSE = {
   signedOut: 4401,
   notAllowed: 4403,
   notFound: 4404,
+  /** The same player opened the room on another device or tab, which took the seat (D49). */
+  replaced: 4409,
   /** Removed by the host or an admin; refused on rejoin until the room closes. */
   removed: 4410,
 } as const;

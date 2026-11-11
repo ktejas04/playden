@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { earlyRoomSocket } from "./room/earlySocket";
+import { replacedHere } from "./room/replacedHere";
 import { socketBase } from "./room/socketUrl";
 import "./index.css";
 
@@ -9,7 +10,9 @@ import "./index.css";
 const EARLY_SOCKET_GRACE_MS = 10_000;
 
 // Opening a room link starts joining before React and the sign-in check have run.
-earlyRoomSocket.start(window.location.pathname, socketBase(window.location));
+earlyRoomSocket.start(window.location.pathname, socketBase(window.location), (code) =>
+  replacedHere.has(code),
+);
 setTimeout(() => earlyRoomSocket.abandon(), EARLY_SOCKET_GRACE_MS);
 
 const root = document.getElementById("root");

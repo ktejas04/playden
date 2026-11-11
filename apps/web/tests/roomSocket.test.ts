@@ -8,6 +8,7 @@ import {
   wasCreatedHere,
   waitForAnswer,
 } from "../src/room/earlySocket";
+import { createReplacedMemory } from "../src/room/replacedHere";
 
 describe("closeOutcome", () => {
   it("stops on a room that doesn't exist", () => {
@@ -21,6 +22,10 @@ describe("closeOutcome", () => {
 
   it("stops for good when the host or an admin removed you", () => {
     expect(closeOutcome(ROOM_CLOSE.removed)).toBe("removed");
+  });
+
+  it("stops without reconnecting when you're playing on another device", () => {
+    expect(closeOutcome(ROOM_CLOSE.replaced)).toBe("replaced");
   });
 
   it("retries anything else, such as a dropped network", () => {
@@ -55,6 +60,14 @@ describe("early room socket", () => {
     expect(made).toHaveLength(0);
     early.start("/r/abcd", "ws://x");
     expect(made.map((s) => s.url)).toEqual(["ws://x/api/rooms/ABCD/ws"]);
+  });
+
+  it("doesn't open for a room this tab handed to another device", () => {
+    const { early, made } = setup();
+    early.start("/r/ABCD", "ws://x", (code) => code === "ABCD");
+    expect(made).toHaveLength(0);
+    early.start("/r/WXYZ", "ws://x", (code) => code === "ABCD");
+    expect(made.map((s) => s.url)).toEqual(["ws://x/api/rooms/WXYZ/ws"]);
   });
 
   it("hands the socket over once, to the same room", () => {
@@ -128,5 +141,56 @@ describe("waitForAnswer", () => {
 
   it("gives up waiting after the timeout", async () => {
     expect(await waitForAnswer(new EventTarget(), 5)).toEqual({ kind: "slow" });
+  });
+});
+
+class MemoryStore {
+  readonly items = new Map<string, string>();
+  getItem(key: string) {
+    return this.items.get(key) ?? null;
+  }
+  setItem(key: string, value: string) {
+    this.items.set(key, value);
+  }
+  removeItem(key: string) {
+    this.items.delete(key);
+  }
+}
+
+describe("rooms this tab handed to another device", () => {
+  it("are remembered per room until Play here clears them", () => {
+    const store = new MemoryStore();
+    const memory = createReplacedMemory(() => store);
+    expect(memory.has("ABCD")).toBe(false);
+    memory.mark("ABCD");
+    expect(memory.has("ABCD")).toBe(true);
+    expect(memory.has("WXYZ")).toBe(false);
+    memory.clear("ABCD");
+    expect(memory.has("ABCD")).toBe(false);
+  });
+
+  it("survives a reload of the same tab (same store)", () => {
+    const store = new MemoryStore();
+    createReplacedMemory(() => store).mark("ABCD");
+    expect(createReplacedMemory(() => store).has("ABCD")).toBe(true);
+  });
+
+  it("treats blocked or missing storage as never replaced", () => {
+    const throwing = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    };
+    for (const memory of [createReplacedMemory(() => throwing), createReplacedMemory(() => null)]) {
+      expect(() => memory.mark("ABCD")).not.toThrow();
+      expect(memory.has("ABCD")).toBe(false);
+      expect(() => memory.clear("ABCD")).not.toThrow();
+    }
   });
 });

@@ -31,6 +31,20 @@ export async function fetchMe(): Promise<Me | null> {
   }
 }
 
+/** True only on a local dev server with DEV_LOGIN on (D48); production answers 404. */
+export async function devSignInEnabled(): Promise<boolean> {
+  try {
+    const response = await fetch("/auth/dev");
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function devSignIn(name: string): Promise<void> {
+  await request<undefined>("/auth/dev", { method: "POST", body: JSON.stringify({ name }) });
+}
+
 export function saveProfile(profile: Profile): Promise<Me> {
   return request<Me>("/api/me/profile", { method: "PUT", body: JSON.stringify(profile) });
 }

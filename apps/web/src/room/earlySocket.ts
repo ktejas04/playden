@@ -21,9 +21,10 @@ export function createEarlySocket<T extends Closable>(open: (url: string) => T) 
   return {
     join,
 
-    start(pathname: string, socketBase: string) {
+    /** `skip` leaves out a room this tab handed to another device (D49). */
+    start(pathname: string, socketBase: string, skip?: (code: string) => boolean) {
       const route = parseRoute(pathname);
-      if (route.name === "room") join(route.code, socketBase);
+      if (route.name === "room" && !skip?.(route.code)) join(route.code, socketBase);
     },
 
     /** The waiting socket for this room, left in place for the room screen to take. */

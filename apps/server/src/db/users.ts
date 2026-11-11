@@ -36,6 +36,36 @@ export async function upsertGoogleUser(db: Db, signIn: GoogleSignIn): Promise<Us
   return user;
 }
 
+interface DevSignIn {
+  slug: string;
+  email: string;
+  displayName: string;
+  now: number;
+}
+
+/** A local test player (D48): approved at once, and reused when the same name signs in again. */
+export async function upsertDevUser(db: Db, signIn: DevSignIn): Promise<User> {
+  const [user] = await db
+    .insert(users)
+    .values({
+      id: crypto.randomUUID(),
+      googleSub: `dev:${signIn.slug}`,
+      email: signIn.email,
+      displayName: signIn.displayName,
+      invitedBy: "test",
+      status: "approved",
+      createdAt: signIn.now,
+      approvedAt: signIn.now,
+    })
+    .onConflictDoUpdate({
+      target: users.googleSub,
+      set: { displayName: signIn.displayName },
+    })
+    .returning();
+  if (!user) throw new Error("Dev user upsert returned no row");
+  return user;
+}
+
 export async function getUser(db: Db, id: string): Promise<User | null> {
   return (await db.query.users.findFirst({ where: eq(users.id, id) })) ?? null;
 }

@@ -84,6 +84,11 @@ describe("parseServerMessage", () => {
     expect(parseServerMessage(JSON.stringify({ type: "error", reason: "Nope" })).ok).toBe(true);
   });
 
+  it("accepts a replaced notice", () => {
+    const notice = { type: "replaced" };
+    expect(parseServerMessage(JSON.stringify(notice))).toEqual({ ok: true, message: notice });
+  });
+
   it("accepts a removed notice", () => {
     const notice = { type: "removed", playerId: "u2", name: "Ravi" };
     expect(parseServerMessage(JSON.stringify(notice))).toEqual({ ok: true, message: notice });

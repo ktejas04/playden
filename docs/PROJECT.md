@@ -69,7 +69,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D14 | Sketch Battle | First team to guess 200, second team a flat 100 however late, no guess 0 (replaces the time-ratio formula) | 2026-11-11 |
 | D15 | Sketch Battle | Winner's drawer stays; the losing team rotates to its next connected player, who picks the word. No streak points: a streak of 2+ gives the challenger a head start of `3 + (streak − 2)` s, uncapped by default (cap in `config.ts`) | 2026-11-11 |
 | D16 | Sketch Battle | Final round "the showdown": all round words in one shared shuffled order, drawers rotate per word, no timer, ends when one team finishes; 100 per word guessed, +100 for finishing (replaces the 2000 bonus) | 2026-11-11 |
-| D17 | Copyright | Kept private to our community and free. Sketch Battle's rules follow drawbattle.io so it feels familiar; its name, look, animations and word list are our own, and we copy none of its code or assets | 2026-11-11 |
+| D17 | Copyright | PlayDen stays private to our WhatsApp community (about 100, never more than 200) and free, so games based on existing titles keep their real names (Codenames, Secret Hitler, Flip 7, Trio…) so players recognise them. Conditions: brand names appear only behind sign-in, never in the domain, the public sign-in page or page titles; search engines are blocked (`robots.txt` disallow-all plus a `noindex` meta, not added yet); we copy rules only, never a publisher's art, card text, word lists, code or assets. Secret Hitler is CC BY-NC-SA 4.0, so we credit its creators and stay non-commercial. Sketch Battle's rules follow drawbattle.io; its name, look, animations and word list are our own. If PlayDen ever opens to strangers or takes money (ads, paid tiers, donations tied to games), brand-named games get original names first | 2026-11-12 |
 | D18 | Workspace | Everything lives in `D:/Projects/PlayDen`; `AGENTS.md` holds agent rules, `CLAUDE.md` points to it | 2026-11-10 |
 | D19 | Access | Site, API and WebSockets share one origin so the login cookie is first-party (Safari blocks third-party cookies) | 2026-11-10 |
 | D20 | Access | Google OAuth app published to production (testing mode needs a tester list and caps at 100 users); basic scopes only, no logo (a logo forces Google review). Publishing needs a homepage and `/privacy` page, so it happens after the first deploy; until then, Testing mode with test users | 2026-11-10 |
@@ -80,7 +80,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D25 | Access | Session = random token in an HttpOnly, Secure, SameSite=Lax cookie; only its SHA-256 hash is stored in D1; 30-day expiry | 2026-11-10 |
 | D26 | Docs | `README.md` explains the project in plain language; `docs/PROJECT.md` stays the technical design and decisions doc | 2026-11-10 |
 | D27 | Local dev | Vite (5173) proxies `/api` and `/auth`, WebSockets included, to Wrangler dev (8787) so the browser sees one origin, as in production | 2026-11-10 |
-| D28 | Process | The agent commits on its own when a task or a meaningful part of one is done and passing; messages are short `[ADD] …`, `[FIX] …` or `[UPDATE] …` | 2026-11-10 |
+| D28 | Process | The agent decides when to commit, but anything the owner can try (a feature, screen or flow) is committed only after the owner has tested it and confirmed. Pure docs can be committed when done. Messages are short `[ADD] …`, `[FIX] …` or `[UPDATE] …` | 2026-11-11 |
 | D29 | Stack | Pinned: TypeScript ~6.0 (typescript-eslint doesn't support 7 yet), Vitest ^4.1; ESLint 10, Prettier 3, Node 20+, pnpm 11. Workers tests use `@cloudflare/vitest-plugin` (the renamed vitest-pool-workers) | 2026-11-10 |
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
@@ -100,6 +100,8 @@ Every agreed decision in one place. Sections below explain the details.
 | D45 | Sketch Battle | Words come from our own strict English list. Hindi or Hinglish packs come later, only if asked for | 2026-11-11 |
 | D46 | Rooms | Anyone not on a team when a game starts, or who joins mid-game, is a spectator: they see the word, both canvases and both guess logs, and can't guess. They join a team in the next game; no moving onto teams between rounds for now | 2026-11-11 |
 | D47 | Fairness | The other team's canvas reaches players only as a coarse block preview the server builds, never as strokes, until their own team has guessed the word. Hidden information never leaves the server | 2026-11-11 |
+| D48 | Local dev | Test-player sign-in for local testing: on only with `DEV_LOGIN=true` in `.dev.vars` and only for localhost or private network addresses (404 everywhere else). A test player is an approved account `<slug>@dev.playden.invalid`, admin only if listed in `ADMIN_EMAILS`. For those requests over plain http the session cookie drops `Secure`, so phones on the Wi-Fi keep it; every other cookie stays Secure. Kept out of production three ways: `[env.production.vars]` pins `DEV_LOGIN = "false"`, production hosts are never local, and the sign-in card exists only in Vite dev builds | 2026-11-11 |
+| D49 | Rooms | One connection per player in a room: opening the room on another device or tab moves the seat there (keeping its place in the seating order, no host change), and the old one shows "You're playing on another device" with Play here, like Meet's "Switch here". Close code `ROOM_CLOSE.replaced` (4409). A replaced tab remembers it per room until Play here or a deliberate Join, so a reload doesn't take the seat back. Accounts stay signed in on every device | 2026-11-12 |
 
 ## Scope: v1 vs later
 
@@ -447,7 +449,7 @@ Pushing to `main` deploys to production automatically after tests pass. There ar
 
 | Environment | How it runs | Used for |
 | --- | --- | --- |
-| Local | `pnpm dev` (Vite proxying to Wrangler dev, D27) | Building and testing on your machine. Google sign-in works on `localhost` only, so phone testing happens on production |
+| Local | `pnpm dev` (Vite proxying to Wrangler dev, D27) | Building and testing on your machine and on phones on the same Wi-Fi. Google sign-in works on `localhost` only; test players cover phones and multi-player testing (D48) |
 | Production | One Cloudflare Worker (site + API + sockets) from `main` | Game nights |
 
 **CI pipeline (GitHub Actions, on every push and pull request)**
@@ -551,7 +553,7 @@ Spec: docs/games/sketch-battle.md#round-points
 4. Write or update tests first for any rule or formula, then the code.
 5. Run `pnpm typecheck && pnpm lint && pnpm test`. Fix until all pass.
 6. Tick the task's "Done when" boxes; write a 3–5 line summary of what changed.
-7. Commit when the task (or a meaningful part of a big one) is done and passing, message `[ADD] second-team scoring` (D28).
+7. Hand the work to the owner to test (what to try and where). Commit once they confirm, message `[ADD] second-team scoring` (D28). Pure docs can be committed when done.
 
 **Guardrails**
 
@@ -568,8 +570,8 @@ Work happens in focused sessions, one doc or one build step per session, so each
 
 1. **Planning:** this doc (done).
 2. **Setup:** monorepo, Google sign-in + approval queue + admin page, one Room object, Worker deploy via GitHub Actions; a deployed "hello room" where two phones on different networks see each other join. Plan: `docs/plans/02-setup.md`. Then write the Sketch Battle spec (D21).
-3. **Platform v1:** lobby, room codes and caps, teams, chat, reconnects, host handover, ban kicks from live rooms, PWA.
-4. **Sketch Battle v1:** in five game phases (D43), each playable on its own: core round, full match, showdown, settings and words, polish. Engine + tests from the spec first in each, then the UI.
+3. **Game platform:** dev test-player sign-in, seeded randomness, game registry with the dev-only Tap Race, rooms that run games, teams and spectators, away seats. Plan: `docs/plans/03-game-platform.md`. Caps, kill switch, live room list, ban kicks from live rooms and PWA move to "Platform extras" before the first full community release.
+4. **Sketch Battle v1:** plan `docs/plans/04-sketch-battle.md`, in five game phases (D43), each playable on its own: core round, full match, showdown, settings and words, polish. Engine + tests from the spec first in each, then the UI.
 5. **Game night 1:** play with 8–12 people; collect feedback; tune `config.ts`.
 6. **v2:** voice, Codenames and Secret Hitler specs and builds, learn controls tour, admin caps + kill switch.
 7. **v3:** Trio, Flip 7, stats and leaderboards.

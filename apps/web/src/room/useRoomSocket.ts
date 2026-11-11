@@ -8,11 +8,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { backoffDelay } from "./backoff";
 import { closeOutcome } from "./closeOutcome";
 import { earlyRoomSocket } from "./earlySocket";
+import { replacedHere } from "./replacedHere";
 import { socketUrl } from "./socketUrl";
 
 const PING_EVERY_MS = 25_000;
 
-export type ConnectionStatus = "connecting" | "live" | "reconnecting" | "missing" | "removed";
+export type ConnectionStatus =
+  "connecting" | "live" | "reconnecting" | "missing" | "removed" | "replaced";
 
 /** Server messages the screen shows as toasts: someone was removed, or a request was refused. */
 export type RoomNotice = Extract<ServerMessage, { type: "removed" | "error" }>;
@@ -35,7 +37,11 @@ export function useRoomSocket(
   /** What the room is known to look like before it answers, e.g. a room you just created. */
   initial?: { players: RoomPlayer[]; hostId: string },
 ) {
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [status, setStatus] = useState<ConnectionStatus>(() =>
+    replacedHere.has(code) ? "replaced" : "connecting",
+  );
+  // Bumped by Play here to open a fresh connection after this tab was replaced.
+  const [generation, setGeneration] = useState(0);
   const [players, setPlayers] = useState<RoomPlayer[]>(initial?.players ?? []);
   const [hostId, setHostId] = useState<string | null>(initial?.hostId ?? null);
   const handlersRef = useRef(handlers);
@@ -46,6 +52,8 @@ export function useRoomSocket(
   }, [handlers]);
 
   useEffect(() => {
+    // A tab that handed its seat to another device stays put until Play here (D49).
+    if (replacedHere.has(code)) return;
     let socket: WebSocket | null = null;
     let attempt = 0;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -59,6 +67,13 @@ export function useRoomSocket(
         stopped = true;
         setStatus("removed");
         socket?.close(1000, "removed");
+        return;
+      }
+      if (message.type === "replaced") {
+        stopped = true;
+        replacedHere.mark(code);
+        setStatus("replaced");
+        socket?.close(1000, "replaced");
         return;
       }
       if (message.type === "removed" || message.type === "error") {
@@ -81,6 +96,7 @@ export function useRoomSocket(
         return;
       }
       stopped = true;
+      if (outcome === "replaced") replacedHere.mark(code);
       if (outcome === "refused") handlersRef.current.onRefused();
       else setStatus(outcome);
     }
@@ -126,7 +142,7 @@ export function useRoomSocket(
       document.removeEventListener("visibilitychange", onVisible);
       socket?.close(1000, "left");
     };
-  }, [code, myId]);
+  }, [code, myId, generation]);
 
   const removePlayer = useCallback((playerId: string) => {
     const ws = socketRef.current;
@@ -134,5 +150,12 @@ export function useRoomSocket(
       ws.send(JSON.stringify({ type: "remove", playerId } satisfies ClientMessage));
   }, []);
 
-  return { status, players, hostId, removePlayer };
+  /** Takes the seat back from the other device. */
+  const playHere = useCallback(() => {
+    replacedHere.clear(code);
+    setStatus("connecting");
+    setGeneration((g) => g + 1);
+  }, [code]);
+
+  return { status, players, hostId, removePlayer, playHere };
 }

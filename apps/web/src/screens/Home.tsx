@@ -8,6 +8,7 @@ import { createRoom } from "../api";
 import { JoinCodeInput } from "../components/JoinCodeInput";
 import { ROOM_CLOSE } from "@playden/protocol";
 import { earlyRoomSocket, markCreatedHere } from "../room/earlySocket";
+import { replacedHere } from "../room/replacedHere";
 import { normalizeJoinCode } from "../room/joinCode";
 import { socketBase } from "../room/socketUrl";
 import { navigate } from "../router";
@@ -82,6 +83,8 @@ export function Home({ me, waiting }: { me: Me; waiting: number | null }) {
     // Joining is the check: the room answers the socket with its member list, or closes it
     // as not found. Either way the room screen opens with the answer already in hand.
     setChecking(true);
+    // Joining on purpose plays here, even if this tab once handed the room to another device.
+    replacedHere.clear(code);
     earlyRoomSocket.join(code, socketBase(window.location));
     const answer = await earlyRoomSocket.peek(code)?.answer(JOIN_WAIT_MS);
     setChecking(false);

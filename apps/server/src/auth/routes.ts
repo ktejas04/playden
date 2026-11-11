@@ -1,11 +1,14 @@
+import { profileSchema } from "@playden/protocol";
 import { generateCodeVerifier, generateState } from "arctic";
+import { z } from "zod";
 import type { Route } from "../app";
 import { SESSION_DAYS } from "../config";
 import { createSession, deleteSession } from "../db/sessions";
-import { upsertGoogleUser } from "../db/users";
-import { errorJson } from "../http";
+import { upsertDevUser, upsertGoogleUser } from "../db/users";
+import { errorJson, json, readJson } from "../http";
 import { isAdminEmail } from "./admins";
 import { clearCookie, parseCookies, serializeCookie } from "./cookies";
+import { cookieIsSecure, devUserEmail, devUserSlug, isDevLoginAllowed } from "./devLogin";
 import { SESSION_COOKIE, sessionToken } from "./session";
 
 const STATE_COOKIE = "pd_oauth_state";
@@ -13,6 +16,9 @@ const VERIFIER_COOKIE = "pd_oauth_verifier";
 const NEXT_COOKIE = "pd_oauth_next";
 const OAUTH_COOKIE_PATH = "/auth";
 const OAUTH_COOKIE_SECONDS = 600;
+const SESSION_SECONDS = SESSION_DAYS * 24 * 60 * 60;
+
+const devSignInSchema = z.strictObject({ name: profileSchema.shape.displayName });
 
 function callbackUrl(url: URL): string {
   return new URL("/auth/callback", url.origin).toString();
@@ -71,7 +77,7 @@ export const authRoutes: Route[] = [
       const headers = new Headers({ location: returnPath(cookies.get(NEXT_COOKIE)) });
       headers.append(
         "set-cookie",
-        serializeCookie(SESSION_COOKIE, token, { maxAge: SESSION_DAYS * 24 * 60 * 60 }),
+        serializeCookie(SESSION_COOKIE, token, { maxAge: SESSION_SECONDS }),
       );
       headers.append("set-cookie", clearCookie(STATE_COOKIE, OAUTH_COOKIE_PATH));
       headers.append("set-cookie", clearCookie(VERIFIER_COOKIE, OAUTH_COOKIE_PATH));
@@ -80,14 +86,47 @@ export const authRoutes: Route[] = [
     },
   },
   {
+    method: "GET",
+    path: "/auth/dev",
+    handler: ({ env, url }) =>
+      isDevLoginAllowed(env, url) ? json({ enabled: true }) : errorJson(404, "Not found"),
+  },
+  {
+    method: "POST",
+    path: "/auth/dev",
+    handler: async ({ request, env, url, db, now }) => {
+      if (!isDevLoginAllowed(env, url)) return errorJson(404, "Not found");
+      const parsed = devSignInSchema.safeParse(await readJson(request));
+      if (!parsed.success) {
+        return errorJson(400, parsed.error.issues[0]?.message ?? "Enter a name");
+      }
+      const displayName = parsed.data.name;
+      const slug = devUserSlug(displayName);
+      if (!slug) return errorJson(400, "Use at least one letter or number");
+
+      const user = await upsertDevUser(db, {
+        slug,
+        email: devUserEmail(slug),
+        displayName,
+        now,
+      });
+      const { token } = await createSession(db, user.id, now);
+      const cookie = serializeCookie(SESSION_COOKIE, token, {
+        maxAge: SESSION_SECONDS,
+        secure: cookieIsSecure(env, url),
+      });
+      return new Response(null, { status: 204, headers: { "set-cookie": cookie } });
+    },
+  },
+  {
     method: "POST",
     path: "/auth/logout",
-    handler: async ({ request, db }) => {
+    handler: async ({ request, env, url, db }) => {
       const token = sessionToken(request);
       if (token) await deleteSession(db, token);
       return new Response(null, {
         status: 204,
-        headers: { "set-cookie": clearCookie(SESSION_COOKIE) },
+        headers: { "set-cookie": clearCookie(SESSION_COOKIE, "/", cookieIsSecure(env, url)) },
       });
     },
   },

@@ -24,6 +24,7 @@ import {
   CopyIcon,
   CrownIcon,
   LogOutIcon,
+  MonitorSmartphoneIcon,
   MoreHorizontalIcon,
   Share2Icon,
   UserMinusIcon,
@@ -31,6 +32,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
+import { copyText } from "../copyText";
 import { forgetCreatedHere, wasCreatedHere } from "../room/earlySocket";
 import { orderPlayers } from "../room/orderPlayers";
 import { type ConnectionStatus, type RoomNotice, useRoomSocket } from "../room/useRoomSocket";
@@ -43,6 +45,7 @@ const STATUS: Record<ConnectionStatus, { label: string; dot: string }> = {
   reconnecting: { label: "Reconnecting", dot: "bg-warning animate-pulse" },
   missing: { label: "Closed", dot: "bg-muted-foreground" },
   removed: { label: "Removed", dot: "bg-muted-foreground" },
+  replaced: { label: "Elsewhere", dot: "bg-muted-foreground" },
 };
 
 function roomLink(code: string) {
@@ -50,10 +53,9 @@ function roomLink(code: string) {
 }
 
 async function copyLink(code: string) {
-  try {
-    await navigator.clipboard.writeText(roomLink(code));
+  if (await copyText(roomLink(code))) {
     toast.success("Link copied. Paste it in the group.");
-  } catch {
+  } else {
     toast.info(roomLink(code));
   }
 }
@@ -86,6 +88,34 @@ function RoomEnded({ code, title, children }: { code: string; title: string; chi
         <Button size="lg" className="self-start" onClick={() => navigate("/")}>
           Back to the lobby
         </Button>
+      </div>
+    </Centered>
+  );
+}
+
+/** This tab handed the seat to another device of the same player (D49). */
+function PlayingElsewhere({ code, onPlayHere }: { code: string; onPlayHere: () => void }) {
+  return (
+    <Centered>
+      <div className="flex flex-col gap-6">
+        <RoomCodeTiles code={code} decorative className="opacity-60" />
+        <div>
+          <h1 className="text-[2rem] leading-tight font-bold tracking-tight">
+            You're playing on another device
+          </h1>
+          <p className="mt-1.5 max-w-prose text-muted-foreground">
+            This room is open on another phone, tab or computer signed in as you, so your seat moved
+            there. Nothing is lost: your place in the room stays the same.
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button size="lg" onClick={onPlayHere}>
+            <MonitorSmartphoneIcon /> Play here
+          </Button>
+          <Button size="lg" variant="outline" onClick={() => navigate("/")}>
+            Back to the lobby
+          </Button>
+        </div>
       </div>
     </Centered>
   );
@@ -193,7 +223,12 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
       : undefined,
   );
   useEffect(() => forgetCreatedHere(code), [code]);
-  const { status, players, hostId, removePlayer } = useRoomSocket(code, me.id, handlers, initial);
+  const { status, players, hostId, removePlayer, playHere } = useRoomSocket(
+    code,
+    me.id,
+    handlers,
+    initial,
+  );
   const [removing, setRemoving] = useState<RoomPlayer | null>(null);
   const { label, dot } = STATUS[status];
   const joining = hostId === null;
@@ -211,6 +246,7 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
       </RoomEnded>
     );
   }
+  if (status === "replaced") return <PlayingElsewhere code={code} onPlayHere={playHere} />;
   if (status === "removed") {
     return (
       <RoomEnded code={code} title="You were removed from this room">

@@ -53,6 +53,22 @@ That one command installs packages, creates `apps/server/.dev.vars` from the exa
 
 Open http://localhost:5173. The site runs on Vite and forwards `/api` and `/auth` to the local Worker on port 8787, so both share one address, as in production. Everything runs on your machine: the Worker, rooms and the database (in `apps/server/.wrangler`), with secrets from `.dev.vars`. Nothing local touches production.
 
+### Testing on phones and with several players
+
+Google sign-in only works on `localhost`, so local testing uses **test players** instead. Add `DEV_LOGIN=true` to `apps/server/.dev.vars` and restart. The sign-in screen then shows a "Test player" card: tap a name (Asha, Ben, …) or type one, and you're an approved member. It only works on this computer and your home network, never in production.
+
+- **On a phone:** connect it to the same Wi-Fi as the PC and open `http://<pc-ip>:5173` (Vite prints it under "Network" when it starts). If the phone says the site can't be reached, Windows Firewall is blocking Node on your private Wi-Fi. Allow just this port, on private networks only, from an **administrator** PowerShell:
+
+  ```powershell
+  New-NetFirewallRule -DisplayName "PlayDen dev server (5173, private Wi-Fi)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5173 -Profile Private -Program "C:\Program Files\nodejs\node.exe"
+  ```
+
+  Undo it any time with `Remove-NetFirewallRule -DisplayName "PlayDen dev server (5173, private Wi-Fi)"`.
+
+  If another browser on the phone loads the page but Chrome shows `ERR_TOO_MANY_RETRIES`, it's Chrome, not the network: try a Chrome incognito tab, clear the site's data, or turn off Settings → Privacy and security → Always use secure connections. Or just test in another browser (Brave works). For the closest-to-production check, the USB route also works: `chrome://inspect/#devices` → Port forwarding `5173` → `localhost:5173`, then open `http://localhost:5173` on the phone.
+- **Several players on one PC:** each address keeps its own sign-in, so `http://localhost:5173`, `http://127.0.0.1:5173` and `http://<pc-ip>:5173` can be three different players. Private windows add more.
+- **Admin as a test player:** add the test player's email, e.g. `asha@dev.playden.invalid`, to `ADMIN_EMAILS` in `.dev.vars`.
+
 Before pushing: `pnpm check` runs typecheck, lint, format check and tests in one go. `pnpm dev` alone starts the site without the setup steps.
 
 ## Deploying

@@ -13,15 +13,19 @@ export function parseCookies(header: string | null): Map<string, string> {
 interface CookieOptions {
   maxAge?: number;
   path?: string;
+  /** Defaults to true; only local dev over plain http turns it off (D48). */
+  secure?: boolean;
 }
 
 export function serializeCookie(name: string, value: string, options: CookieOptions = {}): string {
   const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${options.path ?? "/"}`];
   if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`);
-  parts.push("HttpOnly", "Secure", "SameSite=Lax");
+  parts.push("HttpOnly");
+  if (options.secure ?? true) parts.push("Secure");
+  parts.push("SameSite=Lax");
   return parts.join("; ");
 }
 
-export function clearCookie(name: string, path = "/"): string {
-  return serializeCookie(name, "", { maxAge: 0, path });
+export function clearCookie(name: string, path = "/", secure = true): string {
+  return serializeCookie(name, "", { maxAge: 0, path, secure });
 }

@@ -1,6 +1,14 @@
+import { profileSchema } from "@playden/protocol";
+import { Badge } from "@playden/ui/components/badge";
 import { Button } from "@playden/ui/components/button";
+import { Input } from "@playden/ui/components/input";
+import { Label } from "@playden/ui/components/label";
+import { type FormEvent, useEffect, useState } from "react";
+import { devSignIn, devSignInEnabled } from "../api";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
-import { Centered } from "../Shell";
+import { Centered, Panel } from "../Shell";
+
+const TEST_PLAYERS = ["Asha", "Ben", "Chi", "Dev", "Esha", "Faiz"];
 
 function GoogleMark() {
   return (
@@ -31,7 +39,96 @@ function loginHref(): string {
   return here === "/" ? "/auth/login" : `/auth/login?next=${encodeURIComponent(here)}`;
 }
 
+function TestPlayerSignIn() {
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function signInAs(candidate: string) {
+    const parsed = profileSchema.shape.displayName.safeParse(candidate);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Enter a name");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await devSignIn(parsed.data);
+      window.location.reload();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Something went wrong");
+      setBusy(false);
+    }
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void signInAs(name);
+  }
+
+  return (
+    <Panel className="flex flex-col gap-4 border-dashed">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Test player</h2>
+        <Badge variant="outline">Local only</Badge>
+      </div>
+      <p className="-mt-2 text-sm text-muted-foreground">
+        Sign in without Google to test on this computer or your Wi-Fi. Each address or private
+        window keeps its own player.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {TEST_PLAYERS.map((player) => (
+          <Button
+            key={player}
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => void signInAs(player)}
+          >
+            {player}
+          </Button>
+        ))}
+      </div>
+      <form onSubmit={submit} className="flex flex-col gap-2">
+        <Label htmlFor="testPlayerName">Or any name</Label>
+        <div className="flex gap-2">
+          <Input
+            id="testPlayerName"
+            className="h-11 rounded-xl text-base"
+            autoComplete="off"
+            placeholder="Test name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Button type="submit" variant="secondary" size="lg" className="h-11" disabled={busy}>
+            Sign in
+          </Button>
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </form>
+    </Panel>
+  );
+}
+
 export function SignIn() {
+  const [devEnabled, setDevEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    let active = true;
+    void devSignInEnabled().then((enabled) => {
+      if (active) setDevEnabled(enabled);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <Centered>
       <div className="flex flex-col gap-8">
@@ -59,6 +156,8 @@ export function SignIn() {
             .
           </p>
         </div>
+        {/* Vite drops this from production builds, so the card never ships (D48). */}
+        {import.meta.env.DEV && devEnabled && <TestPlayerSignIn />}
       </div>
     </Centered>
   );

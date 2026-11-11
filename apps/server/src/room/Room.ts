@@ -40,6 +40,7 @@ const REMOVED_KEY = "removed";
  * The creator is host; when the host is not in the room, host passes to the player who
  * has been seated longest, and stays with them even if the old host comes back.
  * The host or an admin can remove a player, who then can't rejoin this room.
+ * Each player holds their seat from one connection; opening the room elsewhere moves it there.
  */
 export class Room extends DurableObject<Env> {
   /** Returns false when the code is already taken by a live room. */
@@ -68,18 +69,34 @@ export class Room extends DurableObject<Env> {
 
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
+    // One connection per player (D49): a new device or tab takes the seat from the old one,
+    // keeping its place in the seating order.
+    const previous = this.openSockets().filter((ws) => attachmentOf(ws).userId === userId);
     this.ctx.acceptWebSocket(server);
     const attachment: Attachment = {
       userId,
       name: decodeURIComponent(encodedName),
       isAdmin: request.headers.get(ROOM_HEADERS.isAdmin) === "1",
-      joinedAt: Date.now(),
+      joinedAt: Math.min(Date.now(), ...previous.map((ws) => attachmentOf(ws).joinedAt)),
     };
     server.serializeAttachment(attachment);
+    this.replace(previous);
 
     await this.ctx.storage.deleteAlarm();
-    await this.broadcastSnapshot(info);
+    await this.broadcastSnapshot(info, previous);
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private replace(sockets: WebSocket[]): void {
+    for (const ws of sockets) {
+      // As with removal, the notice arrives at once; the close can be reported seconds later.
+      this.send(ws, { type: "replaced" });
+      try {
+        ws.close(ROOM_CLOSE.replaced, "Playing on another device");
+      } catch {
+        // Already closing.
+      }
+    }
   }
 
   override async alarm(): Promise<void> {
@@ -188,7 +205,7 @@ export class Room extends DurableObject<Env> {
       .filter((ws) => !exclude.includes(ws) && ws.readyState === WebSocket.OPEN);
   }
 
-  /** One entry per player (a player may have several tabs open), longest-seated first. */
+  /** One entry per player, longest-seated first. */
   private seatedPlayers(sockets: WebSocket[]): (RoomPlayer & { joinedAt: number })[] {
     const players = new Map<string, RoomPlayer & { joinedAt: number }>();
     for (const ws of sockets) {
