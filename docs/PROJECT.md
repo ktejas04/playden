@@ -54,8 +54,8 @@ Every agreed decision in one place. Sections below explain the details.
 | # | Area | Decision | Date |
 | --- | --- | --- | --- |
 | D1 | Product | Private, invite-only site for our WhatsApp community; no paywall | 2026-11-10 |
-| D2 | Product | v1 = platform basics + Draw Battle only; ship in hours, iterate | 2026-11-10 |
-| D3 | Product | Game order: Draw Battle (v1); Codenames, Secret Hitler (v2); Trio, Flip 7 (v3) | 2026-11-10 |
+| D2 | Product | v1 = platform basics + Sketch Battle only; ship in hours, iterate | 2026-11-10 |
+| D3 | Product | Game order: Sketch Battle (v1); Codenames, Secret Hitler (v2); Trio, Flip 7 (v3) | 2026-11-10 |
 | D4 | Hosting | Everything on Cloudflare free tier: one Worker (static assets + API + WebSockets), Durable Objects, D1, Realtime SFU | 2026-11-10 |
 | D5 | Hosting | One free `*.workers.dev` address for site and server; no domain until needed | 2026-11-10 |
 | D6 | Stack | TypeScript monorepo, pnpm, React + Vite + Tailwind, Vitest | 2026-11-10 |
@@ -66,14 +66,14 @@ Every agreed decision in one place. Sections below explain the details.
 | D11 | Voice | v2, Cloudflare Realtime SFU (raw, not RealtimeKit); phase-based muting by game | 2026-11-10 |
 | D12 | UX | Mobile-first portrait layouts; learn controls tour via `data-tour` tags | 2026-11-10 |
 | D13 | Code | Modular: games never import each other or server code; comments only where non-obvious | 2026-11-10 |
-| D14 | Draw Battle | First team 200; second team `200 × (left2 ÷ left1)^0.65` | 2026-11-10 |
-| D15 | Draw Battle | Winner's drawer stays; streak +50 per extra win (max +200); headstart = opponent streak in s (max 6) | 2026-11-10 |
-| D16 | Draw Battle | Relay showdown, ends when one team finishes; bonus `2000 × (words left ÷ 15)`; no pass, no cap | 2026-11-10 |
-| D17 | Copyright | Kept private and free; original names/art if it ever goes public or paid | 2026-11-10 |
+| D14 | Sketch Battle | First team to guess 200, second team a flat 100 however late, no guess 0 (replaces the time-ratio formula) | 2026-11-11 |
+| D15 | Sketch Battle | Winner's drawer stays; the losing team rotates to its next connected player, who picks the word. No streak points: a streak of 2+ gives the challenger a head start of `3 + (streak − 2)` s, uncapped by default (cap in `config.ts`) | 2026-11-11 |
+| D16 | Sketch Battle | Final round "the showdown": all round words in one shared shuffled order, drawers rotate per word, no timer, ends when one team finishes; 100 per word guessed, +100 for finishing (replaces the 2000 bonus) | 2026-11-11 |
+| D17 | Copyright | Kept private to our community and free. Sketch Battle's rules follow drawbattle.io so it feels familiar; its name, look, animations and word list are our own, and we copy none of its code or assets | 2026-11-11 |
 | D18 | Workspace | Everything lives in `D:/Projects/PlayDen`; `AGENTS.md` holds agent rules, `CLAUDE.md` points to it | 2026-11-10 |
 | D19 | Access | Site, API and WebSockets share one origin so the login cookie is first-party (Safari blocks third-party cookies) | 2026-11-10 |
 | D20 | Access | Google OAuth app published to production (testing mode needs a tester list and caps at 100 users); basic scopes only, no logo (a logo forces Google review). Publishing needs a homepage and `/privacy` page, so it happens after the first deploy; until then, Testing mode with test users | 2026-11-10 |
-| D21 | Process | Phase 2 (Setup) includes Google sign-in, the approval queue and the admin page; the Draw Battle spec is written right after Setup, before phase 4 | 2026-11-10 |
+| D21 | Process | Phase 2 (Setup) includes Google sign-in, the approval queue and the admin page; the Sketch Battle spec is written right after Setup, before phase 4 | 2026-11-10 |
 | D22 | Access | Admins are the emails in the `ADMIN_EMAILS` secret, auto-approved on sign-in and never bannable; every other account is `pending`, `approved` or `banned` in D1 | 2026-11-10 |
 | D23 | Hosting | No per-PR preview deploys in v1 (Worker preview URLs don't support Durable Objects); pushes to `main` deploy production; try changes locally first | 2026-11-10 |
 | D24 | Stack | Google OAuth via `arctic`; plain fetch handler on the server and a tiny path router on the web (no Hono, no React Router); git hooks via `core.hooksPath`, no hook package | 2026-11-10 |
@@ -85,7 +85,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
-| D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Draw Battle fits the free tier comfortably | 2026-11-10 |
+| D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Sketch Battle fits the free tier comfortably | 2026-11-10 |
 | D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
 | D35 | Rooms | A room exists only once created (`POST /api/rooms` picks a free code); unknown or closed codes return "Room not found". A room closes 60 s after it becomes empty (`ROOM_EMPTY_CLOSE_MS`), replacing "30 minutes". Joining needs the Join button; no auto-join on the 4th letter | 2026-11-10 |
 | D36 | Access | Statuses: pending, approved, declined, banned. Decline (waiting only) lets the person ask again after `ASK_AGAIN_AFTER_MS` (5 s while testing; raise before launch). Block = ban for someone never approved; Unblock returns them to Waiting, Let back in restores a former member. Sign out lives in the avatar menu | 2026-11-10 |
@@ -95,6 +95,11 @@ Every agreed decision in one place. Sections below explain the details.
 | D40 | Rooms | The room's creator is host (or the first player in, if the creator never joins). When the host is not in the room, host passes at once to the longest-seated player and stays with them if the old host returns. The 60 s away grace comes with reconnect seats in Platform v1. In a room, admins open Members in a side sheet so the room stays connected | 2026-11-11 |
 | D41 | Rooms | Joining a room is one WebSocket: the Worker reads the session once and forwards to the room, which answers with a snapshot or refuses with a close code (4401 signed out, 4403 not allowed, 4404 not found), since browsers can't read a failed upgrade's HTTP status. A room link starts its socket before React loads, the last known account is kept in localStorage so screens draw at once while `/api/me` revalidates, and hashed assets are cached for a year (`_headers`) | 2026-11-11 |
 | D42 | Rooms | The host or an admin can remove a player from a room, in the lobby or mid-game. Nobody can remove themselves or an admin (admins are never bannable, D22), so a host can't remove an admin but an admin can remove the host, and host then passes on as usual. The removed player's tabs all close with `ROOM_CLOSE.removed` (4410) and they can't rejoin that room until it closes; the list lives only in the room's storage. Removing is not banning: the account is untouched | 2026-11-11 |
+| D43 | Product | The first game is **Sketch Battle** (id `sketch-battle`, replacing the "Draw Battle" working name), built in five game phases: core round, full match, showdown, settings and words, polish. Spec: `docs/games/sketch-battle.md` | 2026-11-11 |
+| D44 | Sketch Battle | In round 1, and after a round nobody guessed, a random team (from the game seed) picks the word, with no head start. Teams are 2–8 players each and differ by at most 1 | 2026-11-11 |
+| D45 | Sketch Battle | Words come from our own strict English list. Hindi or Hinglish packs come later, only if asked for | 2026-11-11 |
+| D46 | Rooms | Anyone not on a team when a game starts, or who joins mid-game, is a spectator: they see the word, both canvases and both guess logs, and can't guess. They join a team in the next game; no moving onto teams between rounds for now | 2026-11-11 |
+| D47 | Fairness | The other team's canvas reaches players only as a coarse block preview the server builds, never as strokes, until their own team has guessed the word. Hidden information never leaves the server | 2026-11-11 |
 
 ## Scope: v1 vs later
 
@@ -107,9 +112,10 @@ v1 is one game, room codes and Google sign-in with approval: enough to run a rea
 | Display name | v1 | Chosen at first sign-in; used in every room |
 | Admin page: approve, ban | v1 | Minimal list with buttons |
 | Reconnect after drop | v1 | Rejoin the same seat within 60 s |
-| Draw Battle | v1 | Full rules incl. streaks, headstarts, relay showdown |
+| Sketch Battle | v1 | Full rules incl. streaks, head starts, the showdown; built in five game phases (D43) |
+| Spectators | v1 | Watch both teams; join a team in the next game (D46) |
 | Mobile-friendly layout | v1 | Portrait-first |
-| In-room text chat | v1 | Also used for guesses in Draw Battle |
+| In-room text chat | v1 | Also used for guesses in Sketch Battle |
 | Codenames | v2 | Text clues; voice later |
 | Secret Hitler | v2 | Needs voice |
 | Voice chat | v2 | Cloudflare SFU, phase-based muting |
@@ -204,7 +210,7 @@ PlayDen/              D:/Projects/PlayDen
     protocol/         WebSocket message types shared by web + server
     ui/               Shared components (timer, scoreboard, canvas, tour)
     games/
-      draw-battle/    same layout for every game (see Code practices)
+      sketch-battle/    same layout for every game (see Code practices)
       codenames/
       secret-hitler/
   docs/               PROJECT.md, games/, plans/, tasks/, explanations/
@@ -221,7 +227,7 @@ Every game implements the same small interface, as pure deterministic functions 
 
 ```ts
 interface GameDefinition<State, Move, View, Config> {
-  id: string;                    // "draw-battle"
+  id: string;                    // "sketch-battle"
   minPlayers: number;
   maxPlayers: number;
   defaultConfig: Config;         // timers, points, caps
@@ -262,7 +268,7 @@ Each room is one Durable Object holding one WebSocket per player; a single Lobby
 **Reconnects and leaving**
 
 - The browser stores a `playerToken` per room. Reopening the link or regaining network rejoins the same seat silently.
-- A dropped player is marked away. After 60 s away, the game's `onPlayerLeft` decides what happens (e.g. Draw Battle rotates to the next drawer).
+- A dropped player is marked away. After 60 s away, the game's `onPlayerLeft` decides what happens (e.g. Sketch Battle rotates to the next drawer).
 - If the host leaves, host passes to the longest-seated player.
 - Late joiners can join as spectators mid-game; they join teams in the next game.
 
@@ -273,7 +279,7 @@ Each room is one Durable Object holding one WebSocket per player; a single Lobby
 | Client → server | `join` | Seat + token (name comes from the account) |
 | Client → server | `lobby.*` | Ready, change team, change settings (host) |
 | Client → server | `move` | A game move, e.g. `{type:"guess", text:"elephant"}` |
-| Client → server | `stroke` | A batch of drawing points (Draw Battle) |
+| Client → server | `stroke` | A batch of drawing points (Sketch Battle) |
 | Client → server | `chat` | Room chat message |
 | Server → client | `snapshot` | Full view for this player (on join and reconnect) |
 | Server → client | `patch` | Changed parts of the view after a move |
@@ -290,16 +296,16 @@ All timing is decided on the server; phones only display it. This is what makes 
 
 - The server sends a deadline as a timestamp, not a countdown. Each client counts down to it after correcting for its clock offset (measured with a ping on join).
 - When the deadline passes, a Durable Object alarm fires `onDeadline` even if nobody sends anything.
-- Every scored action (a correct guess, a finished relay word) is timed by when the server received it.
+- Every scored action (a correct guess, a finished showdown word) is timed by when the server received it.
 
 **Fairness limits.** Network delay between players is typically 50–150 ms. That's fine for guessing games where gaps are seconds long. Reflex games like Dobble would need extra handling and are out of scope.
 
-**Drawing data (Draw Battle)**
+**Drawing data (Sketch Battle)**
 
 - Strokes are sent as point batches about every 100 ms, not point by point, to keep message counts low on the free tier.
 - Points are stored relative to the canvas (0–1 on each axis), so a drawing looks the same on a phone and a PC.
 - The server keeps each round's stroke list, so a reconnecting or late player sees the full drawing replayed.
-- A team's canvas is only sent to that team's guessers (and spectators after the round), so the other team can't peek.
+- A team's strokes go only to that team and to spectators. The other team gets a coarse block preview built on the server until they've guessed the word themselves, so nobody can peek with dev tools (D47).
 
 ## Access control and admin
 
@@ -321,7 +327,7 @@ Phone/OTP login is avoided because SMS and WhatsApp messages cost money per mess
 | Cap | Starting value |
 | --- | --- |
 | Live rooms at once | 25 |
-| Players per room | Per game (e.g. Draw Battle 4–16) |
+| Players per room | Per game (e.g. Sketch Battle 4–16) |
 | Active rooms per user | 1 |
 | Players in voice at once (v2) | 100 |
 | New rooms per user per hour | 10 |
@@ -461,7 +467,7 @@ Pushing to `main` deploys to production automatically after tests pass. There ar
 
 ## Hosting, free-tier budget and costs
 
-v1 costs ₹0. The one limit to watch is Durable Object messages during Draw Battle; if we hit it, the fix is Cloudflare's paid plan at about $5/month.
+v1 costs ₹0. The one limit to watch is Durable Object messages during Sketch Battle; if we hit it, the fix is Cloudflare's paid plan at about $5/month.
 
 **Hosting**
 
@@ -480,7 +486,7 @@ v1 costs ₹0. The one limit to watch is Durable Object messages during Draw Bat
 
 Over a free limit, Cloudflare fails the request instead of charging; limits reset daily at 00:00 UTC (05:30 IST).
 
-**The one hot spot: Draw Battle strokes.** Two drawers sending 10 batches/s for 15 rounds plus the relay comes to roughly 10,000–15,000 incoming messages per game. Checked during setup (D33): incoming WebSocket messages count 20:1 toward requests, outgoing messages are free, and each connection costs one request, so a game costs roughly 500–750 requests, about 130+ full games per day on the free plan. Keep batching strokes (100–200 ms) and hibernation on; the paid plan is only a fallback.
+**The one hot spot: Sketch Battle strokes.** Two drawers sending 10 batches/s for 15 rounds plus the relay comes to roughly 10,000–15,000 incoming messages per game. Checked during setup (D33): incoming WebSocket messages count 20:1 toward requests, outgoing messages are free, and each connection costs one request, so a game costs roughly 500–750 requests, about 130+ full games per day on the free plan. Keep batching strokes (100–200 ms) and hibernation on; the paid plan is only a fallback.
 
 **Where money may be needed**
 
@@ -499,24 +505,21 @@ Each game gets its own spec doc in `docs/games/` (rules, edge cases, scoring for
 
 | Game | Version | Players | Voice | Spec doc |
 | --- | --- | --- | --- | --- |
-| Draw Battle | v1 | 4–16, two teams | No | Written right after Setup |
+| Sketch Battle | v1 | 4–16, two teams | No | [`docs/games/sketch-battle.md`](games/sketch-battle.md) |
 | Codenames | v2 | 4–16, two teams | Later | To write |
 | Secret Hitler | v2 | 5–10 | Yes | To write |
 | Trio | v3 | 3–6 | No | To write |
 | Flip 7 | v3 | 3–18 | No | To write |
 
-**Draw Battle decisions already agreed** (the spec doc expands these)
+**Sketch Battle in short** (the spec has every detail)
 
-- Skribbl-style, two teams. Each team has a drawer; one drawer picks the word, both draw it at once, teammates guess.
-- 15 rounds, then the relay showdown.
-- **Round points:** the first team to guess gets 200. The second team gets `200 × (their time left ÷ first team's time left) ^ 0.65`, so a 25 s vs 30 s finish in a 40 s round gives 200 and 154. No guess gives 0.
-- **Drawers:** the round winner's drawer stays; the other team rotates to its next drawer.
-- **Streaks:** a flat bonus of +50 per consecutive win after the first, capped at +200.
-- **Headstarts:** when the opponent is on a streak of 2 or more, the trailing team's drawer starts that many seconds early, capped at 6 s.
-- **Relay showdown:** the 15 words return in one shuffled order, the same for both teams. Each team races through them with drawers rotating per word and no per-word timer. The showdown ends the moment one team finishes.
-- **Showdown bonus** (winner only): `2000 × (words the other team had left ÷ 15)`, about 133 points per word.
-- **No safety valves in v1** (no pass, no overall cap). Add later only if games stall.
-- Every number above lives in `config.ts` and can be tuned after game nights.
+- Two teams. Each round one drawer per team draws the **same word** at once while teammates guess. The rules follow drawbattle.io so players feel at home; the name, look and words are ours (D17).
+- 15 rounds, then **the showdown**.
+- **Round points:** first team to guess 200, second team 100, no guess 0 (D14).
+- **Drawers:** the winning drawer stays; the losing team rotates to its next player, the "challenger", who picks the word (D15).
+- **Head start:** if the staying drawer has won 2+ rounds in a row, the challenger starts drawing `3 + (streak − 2)` seconds early. There are no streak points (D15).
+- **The showdown:** all round words in one shared shuffled order, drawers rotating per word, no timer; 100 per word, +100 for finishing; ends when one team finishes (D16).
+- Every number lives in `config.ts` and can be tuned after game nights.
 
 ## Agent playbook
 
@@ -525,11 +528,11 @@ Any model (Claude, an open-source model, a human) follows the same loop, so work
 **Task file format (`docs/tasks/NNN-<slug>.md`)**
 
 ```md
-# 012 — Draw Battle: second-team scoring
-Phase: 4 (Draw Battle v1)
+# 012 — Sketch Battle: second-team scoring
+Phase: 4 (Sketch Battle v1)
 Depends on: 010, 011
-Touches: packages/games/draw-battle/scoring.ts, tests/scoring.test.ts
-Spec: docs/games/draw-battle.md#round-points
+Touches: packages/games/sketch-battle/scoring.ts, tests/scoring.test.ts
+Spec: docs/games/sketch-battle.md#round-points
 
 ## Steps
 1. ...
@@ -564,9 +567,9 @@ Spec: docs/games/draw-battle.md#round-points
 Work happens in focused sessions, one doc or one build step per session, so each gets full context.
 
 1. **Planning:** this doc (done).
-2. **Setup:** monorepo, Google sign-in + approval queue + admin page, one Room object, Worker deploy via GitHub Actions; a deployed "hello room" where two phones on different networks see each other join. Plan: `docs/plans/02-setup.md`. Then write the Draw Battle spec (D21).
+2. **Setup:** monorepo, Google sign-in + approval queue + admin page, one Room object, Worker deploy via GitHub Actions; a deployed "hello room" where two phones on different networks see each other join. Plan: `docs/plans/02-setup.md`. Then write the Sketch Battle spec (D21).
 3. **Platform v1:** lobby, room codes and caps, teams, chat, reconnects, host handover, ban kicks from live rooms, PWA.
-4. **Draw Battle v1:** engine + tests from the spec, then the UI (canvas, guess box, scoreboard, relay screen).
+4. **Sketch Battle v1:** in five game phases (D43), each playable on its own: core round, full match, showdown, settings and words, polish. Engine + tests from the spec first in each, then the UI.
 5. **Game night 1:** play with 8–12 people; collect feedback; tune `config.ts`.
 6. **v2:** voice, Codenames and Secret Hitler specs and builds, learn controls tour, admin caps + kill switch.
 7. **v3:** Trio, Flip 7, stats and leaderboards.
@@ -575,6 +578,4 @@ Work happens in focused sessions, one doc or one build step per session, so each
 
 **Open questions**
 
-- Word list for Draw Battle: our own English list, Hindi/Hinglish words too, or custom words per room?
-- Team size limits and how to balance uneven teams.
 - Who besides the owner will be an admin?

@@ -5,11 +5,11 @@ One small task per file: `NNN-<slug>.md`, numbered in build order. Format and th
 Template:
 
 ```md
-# 012 — Draw Battle: second-team scoring
-Phase: 4 (Draw Battle v1)
+# 012 — Sketch Battle: second-team scoring
+Phase: 4 (Sketch Battle v1)
 Depends on: 010, 011
-Touches: packages/games/draw-battle/scoring.ts, tests/scoring.test.ts
-Spec: docs/games/draw-battle.md#round-points
+Touches: packages/games/sketch-battle/scoring.ts, tests/scoring.test.ts
+Spec: docs/games/sketch-battle.md#round-points
 
 ## Steps
 1. ...

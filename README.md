@@ -12,7 +12,7 @@ We used to jump between six different game sites, and Board Game Arena puts the 
 
 - **Sign in with Google.** New members pick a display name and say who invited them. An admin approves them before they can play, so a forwarded link is useless to strangers.
 - **Rooms.** Anyone approved can create a room and share its 4-letter code or link (`/r/ABCD`) in WhatsApp. Others tap the link and they're in.
-- **Games.** v1 has one game, **Draw Battle**: two teams draw the same word at once and race their teammates to guess it. More games (Codenames, Secret Hitler, then Trio and Flip 7) come later.
+- **Games.** v1 has one game, **Sketch Battle**: two teams draw the same word at once and race their teammates to guess it. More games (Codenames, Secret Hitler, then Trio and Flip 7) come later.
 - **Phones first.** Every screen works one-handed in portrait. If your phone locks or drops signal, reopening the page puts you back in your seat.
 
 ## How it works

@@ -50,4 +50,4 @@ A deployed "hello room": two approved members on different networks (one on Wi-F
 | 011 | CI and first deploy | 010 |
 | 012 | Two-phone check and explanations | 011 |
 
-After 012: write `docs/games/draw-battle.md` (D21).
+After 012: write `docs/games/sketch-battle.md` (D21).
