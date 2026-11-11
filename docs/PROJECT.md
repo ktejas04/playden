@@ -102,6 +102,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D47 | Fairness | The other team's canvas reaches players only as a coarse block preview the server builds, never as strokes, until their own team has guessed the word. Hidden information never leaves the server | 2026-11-11 |
 | D48 | Local dev | Test-player sign-in for local testing: on only with `DEV_LOGIN=true` in `.dev.vars` and only for localhost or private network addresses (404 everywhere else). A test player is an approved account `<slug>@dev.playden.invalid`, admin only if listed in `ADMIN_EMAILS`. For those requests over plain http the session cookie drops `Secure`, so phones on the Wi-Fi keep it; every other cookie stays Secure. Kept out of production three ways: `[env.production.vars]` pins `DEV_LOGIN = "false"`, production hosts are never local, and the sign-in card exists only in Vite dev builds | 2026-11-11 |
 | D49 | Rooms | One connection per player in a room: opening the room on another device or tab moves the seat there (keeping its place in the seating order, no host change), and the old one shows "You're playing on another device" with Play here, like Meet's "Switch here". Close code `ROOM_CLOSE.replaced` (4409). A replaced tab remembers it per room until Play here or a deliberate Join, so a reload doesn't take the seat back. Accounts stay signed in on every device | 2026-11-12 |
+| D50 | Engine | Each game is a package `@playden/game-<id>` with a rules entry (pure, server-safe) and a `/view` entry (React, web only), created by `pnpm new-game`. The contract gains name, summary, teams, devOnly, configSchema, moveSchema, and `setup(seats, config, seed, now)`. Every game passes the shared contract kit (`@playden/engine/testing`), and `checks/` machine-checks isolation, engine purity, layout and registries in `pnpm test`. Tap Race is a dev-only test game | 2026-11-12 |
 
 ## Scope: v1 vs later
 
@@ -208,33 +209,42 @@ PlayDen/              D:/Projects/PlayDen
     web/              React frontend (lobby, room, game UIs)
     server/           Worker (serves web build, auth, API), Lobby object, Room object
   packages/
-    engine/           Game contract types, seeded RNG, helpers
+    engine/           Game contract, seeded RNG, view props, contract test kit (/testing)
     protocol/         WebSocket message types shared by web + server
     ui/               Shared components (timer, scoreboard, canvas, tour)
     games/
-      sketch-battle/    same layout for every game (see Code practices)
-      codenames/
-      secret-hitler/
+      tap-race/       dev-only test game; same layout for every game (see Code practices)
+      sketch-battle/
+  checks/             architecture checks: game isolation, engine purity, layout, registries
+  scripts/            start-local.mjs (pnpm start), new-game.mjs (pnpm new-game)
   docs/               PROJECT.md, games/, plans/, tasks/, explanations/
   AGENTS.md           rules every AI agent follows
   CLAUDE.md           points to AGENTS.md
   README.md           how to run locally
 ```
 
-Each game folder holds its rules, UI, settings, rules card, controls tour and tests. Adding a game adds one folder plus one registry line on the server and one on the web; nothing else in `apps/` changes.
+Each game folder is its own package, `@playden/game-<id>`, holding its rules, UI, settings, rules card, controls tour and tests. `pnpm new-game <id> "<Name>"` creates it and registers it; nothing else in `apps/` changes (D50).
 
 ## Game engine contract
 
 Every game implements the same small interface, as pure deterministic functions with no networking or UI inside. The Room object calls these; it never knows the rules itself.
 
+The full, commented contract is `packages/engine/src/GameDefinition.ts`; this is its shape.
+
 ```ts
 interface GameDefinition<State, Move, View, Config> {
-  id: string;                    // "sketch-battle"
+  id: string;                    // "sketch-battle", lowercase-hyphenated, never changes
+  name: string;                  // "Sketch Battle"
+  summary: string;               // one line for the game picker
   minPlayers: number;
   maxPlayers: number;
+  teams?: TeamRules;             // count, min/max size, largest allowed size gap
+  devOnly?: boolean;             // listed only on local dev servers
   defaultConfig: Config;         // timers, points, caps
+  configSchema: ZodType<Config>; // the room validates host settings with it
+  moveSchema: ZodType<Move>;     // the room parses every move with it before validate
 
-  setup(players: Player[], config: Config, seed: number): State;
+  setup(seats: Seat[], config: Config, seed: number, now: number): State;
   validate(state: State, playerId: string, move: Move, now: number): { ok: true } | { ok: false; reason: string };
   apply(state: State, playerId: string, move: Move, now: number): { state: State; events: GameEvent[] };
   view(state: State, playerId: string | "spectator"): View;
@@ -253,6 +263,8 @@ interface GameDefinition<State, Move, View, Config> {
 - **Hidden information stays on the server.** `view` strips everything a player may not see (the word for guessers, roles in Secret Hitler, the key card for Codenames operatives). Never send full state to a browser.
 - **Events drive the UI.** `apply` returns events ("team A guessed", "streak 3") that the UI animates and the game log records.
 - **Tests first.** Each game's spec doc lists its edge cases; each becomes a Vitest test against `setup` / `apply`.
+- **Plain JSON, never changed in place.** State, views and events are plain JSON (rooms store and send them as JSON), and every function returns new state instead of editing what it was given.
+- **The contract kit checks all of this.** Every game's tests call `describeGameContract(game, fixture)` from `@playden/engine/testing`. It checks metadata, same-seed setup, plain JSON, no in-place changes, reasons on every rejection, no leaked hidden text, and plays seeded random games to the end.
 
 ## Rooms, lobby and realtime protocol
 
@@ -395,20 +407,32 @@ The codebase is built so a change to one game can never break another, and any m
 | `apps/server` | `engine`, `protocol`, game registry | Game UI files |
 | `apps/web` | Everything above | Server code |
 
-**Adding a game touches exactly two places:** its new folder `packages/games/<id>/`, and one line in each registry (`apps/server/src/games.ts`, `apps/web/src/games.ts`). If a new game seems to need platform changes, stop and update this doc first.
+**Adding a game:** run `pnpm new-game <id> "<Name>"`. It creates `packages/games/<id>/` with the standard layout and a small working game that already passes every check, adds one line to each registry (`apps/server/src/games.ts`, `apps/web/src/games.ts`) and the workspace dependency in each app. Then write the spec and replace the template rules, tests first. **Removing a game:** delete its folder, its registry lines and the two app dependencies; the architecture checks catch anything left behind. If a new game seems to need platform changes, stop and update this doc first.
+
+**Each game is a package with two entry points:** `@playden/game-<id>` (rules: pure TypeScript, imported by the server) and `@playden/game-<id>/view` (React screens, imported only by the web app).
+
+**Machine-checked rules** (`checks/architecture.test.mjs`, part of `pnpm test`):
+
+- a game never imports another game, an app, or anything outside its folder
+- a game's rules import only `@playden/engine` and `zod`; never React, its own `view/`, or the test kit
+- engine code and game rules never use `Date.now`, `new Date`, `Math.random`, `performance.now`, `fetch`, timers, `crypto` or storage
+- every game has the standard files and tests, and its package is named `@playden/game-<id>`
+- the server and web registries list exactly the games that have folders
 
 **Game folder layout (same for every game)**
 
 ```
 packages/games/<id>/
-  config.ts      settings and numbers (timers, points, caps)
-  types.ts       State, Move, View types
+  package.json   @playden/game-<id>, entry points "." and "./view"
+  index.ts       exports the definition and types (the rules entry point)
+  config.ts      settings, numbers and the settings schema (timers, points, caps)
+  types.ts       State, Move, View, Config types
   engine.ts      the GameDefinition (rules only, no I/O)
-  scoring.ts     pure scoring functions
-  view/          React components for this game
-  tour.ts        learn-controls steps
+  scoring.ts     pure scoring functions (when scoring is more than a line)
+  view/index.tsx the screen component (the "./view" entry point)
+  tour.ts        learn-controls steps (v2)
   rules.md       60-second rules card
-  tests/         Vitest tests
+  tests/         Vitest tests, including describeGameContract
 ```
 
 **Practices**

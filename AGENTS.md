@@ -16,6 +16,7 @@ Everything lives in this folder: code, docs, plans, tasks, local setup.
 
 - Follow the task file's steps. Touch only the files it lists, unless a small extra file is unavoidable; then say which and why.
 - Games never import other games, `apps/server` or `apps/web`. The platform never contains game rules.
+- New games start from `pnpm new-game <id> "<Name>"`. Every game's tests call `describeGameContract`, and `checks/` enforces isolation and engine purity; never weaken either to get a game through.
 - Game engines are pure: no `Date.now()`, `Math.random()`, network or storage. Time and seed come in as arguments.
 - Hidden information never leaves the server. Clients get only `view(state, playerId)`.
 - Every tunable number lives in the game's `config.ts`.

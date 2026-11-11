@@ -10,6 +10,8 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@playden/engine": "workspace:*",
+    "@playden/game-tap-race": "workspace:*",
     "@playden/protocol": "workspace:*",
     "@playden/ui": "workspace:*",
     "lucide-react": "^1.70.0",

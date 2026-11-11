@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@playden/engine": "workspace:*",
+    "@playden/game-tap-race": "workspace:*",
     "@playden/protocol": "workspace:*",
     "arctic": "^3.7.0",
     "drizzle-orm": "^0.45.4",

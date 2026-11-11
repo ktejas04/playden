@@ -13,7 +13,7 @@ Spec: docs/PROJECT.md "Game engine contract" (seeded randomness)
    - `shuffle` keeps every item and doesn't mutate its input
    - `pick` returns an item of the list
    - the generator state can be saved and restored, so engine state stays plain JSON
-2. `random.ts`: a small, well-known 32-bit generator (mulberry32 or sfc32; note its source in one comment) as pure functions over a plain `{ seed: number }` state: `createRandom(seed)`, `nextFloat(rng)`, `nextInt(rng, min, max)`, `shuffle(rng, list)`, `pick(rng, list)`. Each returns the value and the new state, so engine state never holds a class instance.
+2. `random.ts`: a small, well-known 32-bit generator (mulberry32 or sfc32; note its source in one comment) as pure functions over a plain `{ state: number }` generator: `createRng(seed)`, `nextFloat(rng)`, `nextInt(rng, min, max)`, `shuffle(rng, list)`, `pick(rng, list)`. Each returns the value and the new state, so engine state never holds a class instance.
 3. Export from `packages/engine`.
 
 ## Done when

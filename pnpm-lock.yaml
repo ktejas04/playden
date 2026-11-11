@@ -32,6 +32,9 @@ importers:
       '@playden/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@playden/game-tap-race':
+        specifier: workspace:*
+        version: link:../../packages/games/tap-race
       '@playden/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -63,6 +66,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@playden/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@playden/game-tap-race':
+        specifier: workspace:*
+        version: link:../../packages/games/tap-race
       '@playden/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -98,7 +107,30 @@ importers:
         specifier: ^8.3.7
         version: 8.3.7(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
 
-  packages/engine: {}
+  packages/engine:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+
+  packages/games/tap-race:
+    dependencies:
+      '@playden/engine':
+        specifier: workspace:*
+        version: link:../../engine
+      '@playden/ui':
+        specifier: workspace:*
+        version: link:../../ui
+      react:
+        specifier: ^19.3.1
+        version: 19.3.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
 
   packages/protocol:
     dependencies:
