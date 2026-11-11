@@ -33,5 +33,5 @@ Everything lives in this folder: code, docs, plans, tasks, local setup.
 - `pnpm typecheck && pnpm lint && pnpm test` all pass.
 - The task's "Done when" boxes are ticked.
 - A 3–5 line summary of what changed.
-- Commit when a task, or a meaningful part of a big one, is done and passing: not after every file, not after days of work.
+- Commit when a task, or a meaningful part of a big one, is done and passing: not after every file, not after days of work. Anything the owner can try (a feature, screen or flow) waits until the owner has tested it and confirmed (D28).
 - Commit messages are short: `[ADD] room screen`, `[FIX] reconnect loop`, `[UPDATE] setup plan`.
