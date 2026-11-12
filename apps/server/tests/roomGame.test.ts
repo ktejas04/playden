@@ -274,7 +274,7 @@ describe("ending", () => {
     expect(session(table)).toMatchObject({
       phase: "results",
       endedEarly: true,
-      result: { winners: [] },
+      result: { scores: { asha: 1, ben: 0 }, winners: [] },
     });
     expect(reason(endGame(setup(ben), tapRace))).toBe("No game is running");
   });

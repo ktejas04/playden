@@ -83,6 +83,12 @@ export const tapRace: GameDefinition<TapRaceState, TapRaceMove, TapRaceView, Tap
 
   onPlayerLeft: (state, playerId) => ({ state, events: [{ type: "left", data: { playerId } }] }),
 
+  /** Scores so far, for a game the host ends early: each player's team count. */
+  standings: (state) =>
+    Object.fromEntries(
+      Object.entries(state.teamOf).map(([id, team]) => [id, state.counts[team] ?? 0]),
+    ),
+
   result: (state) => {
     if (!state.ended) return null;
     const players = Object.entries(state.teamOf);

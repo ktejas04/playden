@@ -5,7 +5,7 @@ export const TEAM_COUNT = 2;
 
 export const DEFAULT_CONFIG: TapRaceConfig = {
   targetTaps: 30,
-  roundSeconds: 20,
+  roundSeconds: 60,
 };
 
 export const configSchema = z.strictObject({

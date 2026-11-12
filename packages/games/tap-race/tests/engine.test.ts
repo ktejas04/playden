@@ -115,6 +115,11 @@ describe("Tap Race", () => {
     expect(after.counts).toEqual([2, 0]);
   });
 
+  it("standings so far give each player their team's count, for a game ended early", () => {
+    const state = tap(tap(start(), "a1"), "b1");
+    expect(tapRace.standings?.(tap(state, "a2"))).toEqual({ a1: 2, a2: 2, b1: 1, b2: 1 });
+  });
+
   it("needs every seat to be on a team", () => {
     expect(() => tapRace.setup([{ id: "x", name: "X" }], config, 1, START)).toThrow(/team/);
   });

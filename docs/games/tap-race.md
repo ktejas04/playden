@@ -10,7 +10,7 @@ A throwaway game that exists only to prove the platform: rooms, teams, moves, pe
 - Every tap adds 1 to your team's count. Spectators can't tap.
 - You see your own team's exact count. The other team's count is hidden: you only see whether your team is **ahead**, **behind** or **level**. Spectators see both counts, and everyone sees both once the race is over.
 - The first team to reach `TARGET_TAPS` (30) wins at once.
-- Otherwise the game ends `ROUND_SECONDS` (20) after it starts. The higher count wins; equal counts are a draw.
+- Otherwise the game ends `ROUND_SECONDS` (60) after it starts. The higher count wins; equal counts are a draw.
 - A player who leaves keeps their team's taps; the game goes on.
 
 ## Result
@@ -23,7 +23,7 @@ A throwaway game that exists only to prove the platform: rooms, teams, moves, pe
 | Name | Default | Host can change |
 | --- | --- | --- |
 | `TARGET_TAPS` | 30 | Yes, 5–200 |
-| `ROUND_SECONDS` | 20 | Yes, 5–120 |
+| `ROUND_SECONDS` | 60 | Yes, 5–120 |
 
 ## Edge cases (each becomes a test)
 
