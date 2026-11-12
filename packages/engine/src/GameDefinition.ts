@@ -32,12 +32,14 @@ export interface Transition<State> {
   events: GameEvent[];
 }
 
+/**
+ * How many teams and how big each may be. Uneven teams are the players' call: joining picks
+ * the smaller team and Shuffle deals even teams, but Start checks only these sizes.
+ */
 export interface TeamRules {
   count: number;
   minSize: number;
   maxSize: number;
-  /** Largest allowed difference between the biggest and smallest team. */
-  maxSizeGap: number;
 }
 
 /**

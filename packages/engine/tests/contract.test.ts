@@ -98,9 +98,9 @@ describe("the contract kit catches broken games", () => {
   it("impossible team rules", () => {
     const problems = checkMetadata({
       ...counter,
-      teams: { count: 1, minSize: 3, maxSize: 2, maxSizeGap: -1 },
+      teams: { count: 1, minSize: 3, maxSize: 2 },
     });
-    expect(problems).toHaveLength(3);
+    expect(problems).toHaveLength(2);
   });
 
   it("setup that ignores the seed", () => {

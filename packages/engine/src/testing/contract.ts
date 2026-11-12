@@ -33,10 +33,9 @@ export function checkMetadata<S, M, V, C>(game: Game<S, M, V, C>): string[] {
     problems.push(`players ${game.minPlayers}–${game.maxPlayers} isn't a valid range`);
   }
   if (game.teams) {
-    const { count, minSize, maxSize, maxSizeGap } = game.teams;
+    const { count, minSize, maxSize } = game.teams;
     if (count < 2) problems.push("teams.count must be at least 2");
     if (!(minSize >= 1 && minSize <= maxSize)) problems.push("team sizes aren't a valid range");
-    if (maxSizeGap < 0) problems.push("teams.maxSizeGap can't be negative");
     if (count * minSize > game.maxPlayers) problems.push("minimum teams need more than maxPlayers");
   }
   if (!game.configSchema.safeParse(game.defaultConfig).success) {

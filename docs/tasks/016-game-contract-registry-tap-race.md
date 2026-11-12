@@ -18,7 +18,7 @@ Adding a game is: run one command, write the rules, and add one line to each reg
 - `name`, `summary`: for the game picker
 - `moveSchema: z.ZodType<Move>`: the room validates moves without knowing the game
 - `configSchema: z.ZodType<Config>`: the room validates host settings
-- optional `teams: { count, minSize, maxSize, maxSizeGap }`
+- optional `teams: { count, minSize, maxSize }` (a `maxSizeGap` was dropped in 018: uneven teams are the players' call)
 - optional `devOnly`: hidden unless dev sign-in is on
 - `setup` gets seats `{ id, name, team? }`
 - `zod` becomes an engine dependency (the only one)

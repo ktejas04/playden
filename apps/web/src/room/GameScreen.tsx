@@ -28,6 +28,7 @@ import {
 import { cn } from "@playden/ui/lib/utils";
 import {
   ArrowLeftIcon,
+  ArrowRightLeftIcon,
   BanIcon,
   EyeIcon,
   FlagIcon,
@@ -36,6 +37,7 @@ import {
   PlayIcon,
   RepeatIcon,
   Share2Icon,
+  ShuffleIcon,
   RotateCcwIcon,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -118,6 +120,8 @@ function Roster({
   me,
   hostId,
   onBan,
+  onSwitchTeam,
+  onShuffle,
 }: {
   session: GameSession;
   game: WebGame;
@@ -125,16 +129,22 @@ function Roster({
   me: string;
   hostId: string | null;
   onBan?: (player: { id: string; name: string }) => void;
+  /** In setup, for a player: move to another team. */
+  onSwitchTeam?: (team: number) => void;
+  /** In setup, for the host: deal everyone into even teams at random. */
+  onShuffle?: () => void;
 }) {
   const present = new Set(members.filter((m) => m.connected).map((m) => m.id));
   const players = activePlayers(session);
   const teams = game.definition.teams;
+  const myTeam = players.find((p) => p.id === me)?.team;
   const groups = teams
     ? Array.from({ length: teams.count }, (_, team) => ({
+        team,
         title: teamName(team),
         players: players.filter((p) => p.team === team),
       }))
-    : [{ title: "Players", players }];
+    : [{ team: null, title: "Players", players }];
   const spectators = session.spectators.flatMap((id) => {
     const member = members.find((m) => m.id === id);
     return member ? [member] : [];
@@ -142,6 +152,13 @@ function Roster({
 
   return (
     <Panel className="mt-4">
+      {teams && onShuffle && (
+        <div className="-mt-1 mb-3 flex justify-end">
+          <Button variant="outline" size="sm" onClick={onShuffle}>
+            <ShuffleIcon /> Shuffle teams
+          </Button>
+        </div>
+      )}
       <div className={cn("grid gap-x-6 gap-y-4", teams && "sm:grid-cols-2")}>
         {groups.map((group) => (
           <div key={group.title}>
@@ -167,6 +184,23 @@ function Roster({
                   />
                 ))}
               </ul>
+            )}
+            {teams && onSwitchTeam && group.team !== null && group.team !== myTeam && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full"
+                disabled={group.players.length >= teams.maxSize}
+                onClick={() => onSwitchTeam(group.team)}
+              >
+                {group.players.length >= teams.maxSize ? (
+                  "Team full"
+                ) : (
+                  <>
+                    <ArrowRightLeftIcon /> Join {group.title}
+                  </>
+                )}
+              </Button>
             )}
           </div>
         ))}
@@ -403,6 +437,14 @@ export function GameScreen({
           me={me}
           hostId={hostId}
           onBan={ban}
+          onSwitchTeam={
+            phase === "setup" && role === "player"
+              ? (team) => send({ type: "game.switchTeam", team })
+              : undefined
+          }
+          onShuffle={
+            phase === "setup" && isHost ? () => send({ type: "game.shuffleTeams" }) : undefined
+          }
         />
       )}
 

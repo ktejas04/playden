@@ -1,8 +1,6 @@
-import { type Plugin, defineConfig } from "vite";
+import { type Plugin, defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-
-const workerUrl = "http://127.0.0.1:8787";
 
 /**
  * The CSS names the fonts, so without this the browser only starts fetching them after
@@ -34,13 +32,17 @@ function preloadLatinFonts(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), tailwindcss(), preloadLatinFonts()],
-  server: {
-    host: true,
-    proxy: {
-      "/api": { target: workerUrl, ws: true },
-      "/auth": { target: workerUrl },
+export default defineConfig(({ mode }) => {
+  /** The local Worker; PLAYDEN_WORKER_URL lets a second local copy run beside the usual one. */
+  const workerUrl = loadEnv(mode, ".", "PLAYDEN_").PLAYDEN_WORKER_URL ?? "http://127.0.0.1:8787";
+  return {
+    plugins: [react(), tailwindcss(), preloadLatinFonts()],
+    server: {
+      host: true,
+      proxy: {
+        "/api": { target: workerUrl, ws: true },
+        "/auth": { target: workerUrl },
+      },
     },
-  },
+  };
 });

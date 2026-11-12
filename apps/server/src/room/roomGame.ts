@@ -3,9 +3,12 @@ import {
   type GameEvent,
   type GameResult,
   type Seat,
+  createRng,
   seatForNewcomer,
   seatInOrder,
   seatProblem,
+  shuffle,
+  teamSizes,
 } from "@playden/engine";
 import { type GameSession, type GameStatus, activePlayers, roleIn } from "@playden/protocol";
 
@@ -140,6 +143,57 @@ export function join(table: TableState, person: Person, game: AnyGame): TableOut
       ...session,
       players: [...session.players, { ...seat, left: false }],
       spectators: without(session.spectators, person.id),
+    }),
+  );
+}
+
+/**
+ * In setup, a player moves to another team. They go to the end of it: a team's order is its
+ * rotation order (e.g. who draws next). Uneven teams are the players' call; Start only checks
+ * each team's minimum and maximum.
+ */
+export function switchTeam(
+  table: TableState,
+  personId: string,
+  team: number,
+  game: AnyGame,
+): TableOutcome {
+  const { session } = table;
+  const problem = notInSetup(session);
+  if (problem || !session) return refuse(problem ?? "No game is being set up");
+  if (!game.teams) return refuse("This game has no teams");
+  if (!Number.isInteger(team) || team < 0 || team >= game.teams.count) {
+    return refuse("That team doesn't exist");
+  }
+  const me = activePlayers(session).find((p) => p.id === personId);
+  if (!me) return refuse("Join the game first");
+  if (me.team === team) return done(table);
+  if ((teamSizes(game.teams, seatsOf(session))[team] ?? 0) >= game.teams.maxSize) {
+    return refuse(`Team ${team + 1} is full`);
+  }
+  return done(
+    withSession(table, {
+      ...session,
+      players: [...session.players.filter((p) => p.id !== personId), { ...me, team }],
+    }),
+  );
+}
+
+/**
+ * Host, in setup: deals every player into even teams at random (sizes differ by at most 1).
+ * The new order is each team's rotation order.
+ */
+export function shuffleTeams(table: TableState, game: AnyGame, seed: number): TableOutcome {
+  const { session } = table;
+  const problem = notInSetup(session);
+  if (problem || !session) return refuse(problem ?? "No game is being set up");
+  if (!game.teams) return refuse("This game has no teams");
+  const { count } = game.teams;
+  const dealt = shuffle(createRng(seed), activePlayers(session)).value;
+  return done(
+    withSession(table, {
+      ...session,
+      players: dealt.map((player, index) => ({ ...player, team: index % count })),
     }),
   );
 }

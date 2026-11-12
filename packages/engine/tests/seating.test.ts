@@ -12,14 +12,14 @@ const solo: SeatRules = { minPlayers: 2, maxPlayers: 3 };
 const teams: SeatRules = {
   minPlayers: 2,
   maxPlayers: 6,
-  teams: { count: 2, minSize: 1, maxSize: 3, maxSizeGap: 1 },
+  teams: { count: 2, minSize: 1, maxSize: 3 },
 };
 const person = (id: string) => ({ id, name: id });
 const seat = (id: string, team?: number): Seat =>
   team === undefined ? { id, name: id } : { id, name: id, team };
 
 describe("teamForNewcomer", () => {
-  const rules = teams.teams ?? { count: 2, minSize: 1, maxSize: 3, maxSizeGap: 1 };
+  const rules = teams.teams ?? { count: 2, minSize: 1, maxSize: 3 };
 
   it("picks the first team on a tie", () => {
     expect(teamForNewcomer(rules, [])).toBe(0);
@@ -76,12 +76,10 @@ describe("seatProblem", () => {
     ).toBe("At most 3 players");
   });
 
-  it("checks each team's size and the gap between teams", () => {
+  it("checks each team's size, and leaves uneven teams to the players", () => {
     expect(seatProblem(teams, [seat("a", 0), seat("b", 0)])).toBe("Team 2 needs 1 more");
     expect(seatProblem(teams, [seat("a", 0), seat("b", 1)])).toBeNull();
-    expect(seatProblem(teams, [seat("a", 0), seat("b", 0), seat("c", 0), seat("d", 1)])).toBe(
-      "Teams are uneven",
-    );
+    expect(seatProblem(teams, [seat("a", 0), seat("b", 0), seat("c", 0), seat("d", 1)])).toBeNull();
     expect(
       seatProblem(teams, [seat("a", 0), seat("b", 0), seat("c", 0), seat("d", 0), seat("e", 1)]),
     ).toBe("Team 1 is over 3");

@@ -34,7 +34,7 @@ Two teams race to guess the same word, each from its own drawer's sketch. The ru
 
 - The room lobby shows two team columns. A player taps **Join** on a team to move there; joining appends them to that team's rotation. The host can also **shuffle** teams.
 - Players not on a team are listed as spectators.
-- **Start** is host-only and enabled when each team has 2–8 players and team sizes differ by at most 1. Otherwise the button is disabled with the reason underneath ("Each team needs at least 2 players", "Teams can differ by 1 player at most").
+- **Start** is host-only and enabled when each team has 2–8 players. Otherwise the button is disabled with the reason ("Team 2 needs 1 more"). Uneven teams (e.g. 3 v 2) are the players' call: joining picks the smaller team and Shuffle deals even teams, but Start doesn't block on it (018).
 - **Settings (host only):** rounds (10 / **15** / 20 / 25), seconds per round (15–120 in 15 s steps, default **60**), show word lengths (**on**). One word list for now (D45).
 - On start, the engine gets the players, teams, settings and a seed. Everything random (word order, word choices, the round-1 chooser) comes from the seed.
 

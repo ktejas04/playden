@@ -147,6 +147,37 @@ describe("game sessions in a room", () => {
     close(a.ws, b.ws);
   });
 
+  it("teams in setup: players switch, only the host shuffles, then Start", async () => {
+    const { people } = await room("s-teams", ["Asha", "Ben", "Chi", "Dev"]);
+    const [a, b, c, d] = people as [Person, Person, Person, Person];
+    await setUp(people, [b, c, d]);
+    const teamOf = (s: GameSession | null, id: string) => s?.players.find((p) => p.id === id)?.team;
+
+    // Chi moves from team 1 to team 2 (1 v 3), at the end of team 2's order.
+    c.ws.send({ type: "game.switchTeam", team: 1 });
+    const switched = sessionOf(await a.ws.next(sessionWhere((s) => teamOf(s, c.id) === 1)));
+    expect(switched.players.filter((p) => p.team === 1).map((p) => p.id)).toEqual([
+      b.id,
+      d.id,
+      c.id,
+    ]);
+
+    b.ws.send({ type: "game.shuffleTeams" });
+    await b.ws.next(errorSaying("Only the host can do that"));
+
+    a.ws.send({ type: "game.shuffleTeams" });
+    const shuffled = sessionOf(
+      await d.ws.next(
+        sessionWhere((s) =>
+          [0, 1].every((t) => s?.players.filter((p) => p.team === t).length === 2),
+        ),
+      ),
+    );
+    expect(shuffled.players).toHaveLength(4);
+    await startGame(people);
+    close(a.ws, b.ws, c.ws, d.ws);
+  });
+
   it("Start explains what's missing", async () => {
     const { people } = await room("s-need", ["Asha", "Ben"]);
     const [a, b] = people as [Person, Person];

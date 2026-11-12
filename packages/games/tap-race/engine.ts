@@ -31,7 +31,7 @@ export const tapRace: GameDefinition<TapRaceState, TapRaceMove, TapRaceView, Tap
   summary: "Two teams race to tap first. A test game for local development.",
   minPlayers: 2,
   maxPlayers: 16,
-  teams: { count: TEAM_COUNT, minSize: 1, maxSize: 8, maxSizeGap: 2 },
+  teams: { count: TEAM_COUNT, minSize: 1, maxSize: 8 },
   devOnly: true,
 
   defaultConfig: DEFAULT_CONFIG,

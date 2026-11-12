@@ -70,6 +70,10 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("game.setConfig"), config: z.unknown() }),
   /** In setup: become a player (or switch from spectating). */
   z.strictObject({ type: z.literal("game.join") }),
+  /** In setup, a player moves to another team (to the end of its rotation order). */
+  z.strictObject({ type: z.literal("game.switchTeam"), team: z.number().int().min(0).max(15) }),
+  /** Host, in setup: deal every player into even teams at random. */
+  z.strictObject({ type: z.literal("game.shuffleTeams") }),
   /** Become a spectator: in setup, or mid-game for anyone not playing. */
   z.strictObject({ type: z.literal("game.spectate") }),
   /** Out of the game, back to just being in the room. Mid-game, a player's seat is freed. */

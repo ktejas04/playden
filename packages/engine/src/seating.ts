@@ -59,12 +59,11 @@ export function seatProblem(rules: SeatRules, seats: readonly Seat[]): string | 
   if (missing > 0) return `Need ${missing} more`;
   if (seats.length > rules.maxPlayers) return `At most ${rules.maxPlayers} players`;
   if (!rules.teams) return null;
-  const { minSize, maxSize, maxSizeGap } = rules.teams;
+  const { minSize, maxSize } = rules.teams;
   const sizes = teamSizes(rules.teams, seats);
   for (const [team, size] of sizes.entries()) {
     if (size < minSize) return `Team ${team + 1} needs ${minSize - size} more`;
     if (size > maxSize) return `Team ${team + 1} is over ${maxSize}`;
   }
-  if (Math.max(...sizes) - Math.min(...sizes) > maxSizeGap) return "Teams are uneven";
   return null;
 }

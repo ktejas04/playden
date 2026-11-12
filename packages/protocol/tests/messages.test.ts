@@ -118,6 +118,8 @@ describe("game messages", () => {
       { type: "game.setConfig", config: { targetTaps: 10 } },
       { type: "game.join" },
       { type: "game.spectate" },
+      { type: "game.switchTeam", team: 1 },
+      { type: "game.shuffleTeams" },
       { type: "game.leave" },
       { type: "game.start" },
       { type: "game.ban", playerId: "u2" },

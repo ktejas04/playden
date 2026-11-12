@@ -21,9 +21,11 @@ import {
   playAgain,
   returnToRoom,
   setConfig,
+  shuffleTeams,
   spectate,
   startGame,
   statusOf,
+  switchTeam,
   viewFor,
 } from "../src/room/roomGame";
 
@@ -149,6 +151,68 @@ describe("joining and spectating in setup", () => {
     const table = playing(ben);
     expect(reason(join(table, chi, tapRace))).toBe("The game has already started");
     expect(reason(spectate(table, ben.id, HOST))).toBe("Leave the game first");
+  });
+});
+
+describe("teams in setup", () => {
+  const teamsOf = (table: TableState) => session(table).players.map((p) => [p.id, p.team] as const);
+
+  it("a player switches team and goes to the end of the new team's order", () => {
+    // Asha 0, Ben 1, Chi 0, Dev 1; Asha moves to team 2, after Ben and Dev.
+    const table = ok(switchTeam(setup(ben, chi, dev), HOST, 1, tapRace));
+    expect(teamsOf(table)).toEqual([
+      ["ben", 1],
+      ["chi", 0],
+      ["dev", 1],
+      ["asha", 1],
+    ]);
+    expect(
+      session(table)
+        .players.filter((p) => p.team === 1)
+        .map((p) => p.id),
+    ).toEqual(["ben", "dev", "asha"]);
+  });
+
+  it("switching to your own team changes nothing", () => {
+    const table = setup(ben);
+    expect(ok(switchTeam(table, ben.id, 1, tapRace))).toBe(table);
+  });
+
+  it("Start needs each team's minimum, nothing about how even they are", () => {
+    const table = ok(switchTeam(setup(ben), ben.id, 0, tapRace));
+    expect(reason(startGame(table, tapRace, 1, NOW))).toBe("Team 2 needs 1 more");
+  });
+
+  it("refuses a full team, a team that doesn't exist, and people not playing", () => {
+    let table = setup();
+    for (let i = 0; i < 15; i++) table = ok(join(table, { id: `p${i}`, name: `P${i}` }, tapRace));
+    expect(reason(switchTeam(table, HOST, 1, tapRace))).toBe("Team 2 is full");
+    expect(reason(switchTeam(setup(ben), ben.id, 2, tapRace))).toBe("That team doesn't exist");
+    const spectating = ok(spectate(setup(ben), chi.id, HOST));
+    expect(reason(switchTeam(spectating, chi.id, 0, tapRace))).toBe("Join the game first");
+  });
+
+  it("switching is refused once the game has started", () => {
+    expect(reason(switchTeam(playing(ben), ben.id, 0, tapRace))).toBe(
+      "The game has already started",
+    );
+  });
+
+  it("shuffle deals everyone into even teams, the same way for the same seed", () => {
+    const table = setup(ben, chi, dev, { id: "eve", name: "Eve" });
+    const shuffled = ok(shuffleTeams(table, tapRace, 2026));
+    const sizes = [0, 1].map((t) => session(shuffled).players.filter((p) => p.team === t).length);
+    expect(sizes.sort()).toEqual([2, 3]);
+    expect(
+      session(shuffled)
+        .players.map((p) => p.id)
+        .sort(),
+    ).toEqual(["asha", "ben", "chi", "dev", "eve"].sort());
+    expect(ok(shuffleTeams(table, tapRace, 2026))).toEqual(shuffled);
+  });
+
+  it("shuffle is refused once the game has started", () => {
+    expect(reason(shuffleTeams(playing(ben), tapRace, 1))).toBe("The game has already started");
   });
 });
 

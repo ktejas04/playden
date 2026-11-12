@@ -18,8 +18,10 @@ import {
   playAgain,
   returnToRoom,
   setConfig,
+  shuffleTeams,
   spectate,
   startGame,
+  switchTeam,
 } from "./roomGame";
 import {
   gameOf,
@@ -52,6 +54,7 @@ export type TableMessage = Exclude<ClientMessage, { type: "ping" | "remove" | "l
 const HOST_ONLY = new Set<TableMessage["type"]>([
   "game.pick",
   "game.setConfig",
+  "game.shuffleTeams",
   "game.start",
   "game.ban",
   "game.end",
@@ -108,6 +111,12 @@ export class RoomTable {
         return run((table, game) => needGame(game, (g) => setConfig(table, message.config, g)));
       case "game.join":
         return run((table, game) => needGame(game, (g) => join(table, person, g)));
+      case "game.switchTeam":
+        return run((table, game) =>
+          needGame(game, (g) => switchTeam(table, person.id, message.team, g)),
+        );
+      case "game.shuffleTeams":
+        return run((table, game) => needGame(game, (g) => shuffleTeams(table, g, randomSeed())));
       case "game.spectate":
         return run((table) => spectate(table, person.id, hostId));
       case "game.leave":

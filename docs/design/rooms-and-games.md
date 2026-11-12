@@ -115,7 +115,7 @@ RESULTS     host: [Play again] [Return to room]
 - **Switching is free until Start:** a player can switch to Spectate and a spectator to Join game, as often as they like, or back out to the room. The host is the only exception, always joined.
 - **Joining is open until Start**, through the popup or the card.
 - **Game full:** Join is disabled with "Game is full", and Spectate still works.
-- **Teams** (games with `teams`, task 018): joining puts you on the smaller team, the first team on a tie. Players can switch teams, and the host can shuffle or move people. Start shows the reason when the team rules aren't met.
+- **Teams** (games with `teams`, task 018): joining puts you on the smaller team, the first team on a tie. Players switch teams themselves (**Join Team N**, to the end of that team's order; not into a full team), and the host can **Shuffle teams** into even teams at random. There's no host "move a player": players can move themselves, and someone who's gone drops out of setup after 60 s. Start shows the reason when the team rules aren't met.
 - **Host changes the game:** the setup session is replaced. Joined players stay joined. If the new game has fewer seats, the last to join move to spectating. Teams are rebalanced.
 - **Host cancels:** back to Idle, and all roles clear.
 - **Leaving the room** during setup removes you from the session.
