@@ -187,10 +187,17 @@ function PlayerRow({
         isMe && "-mx-3 my-1 rounded-xl border-none bg-primary/15 px-3 first:mt-0",
       )}
     >
-      <PlayerAvatar id={player.id} name={player.name} />
-      <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
-        {player.name}
+      <span className={cn("contents", !player.connected && "[&>*]:opacity-60")}>
+        <PlayerAvatar id={player.id} name={player.name} />
+        <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
+          {player.name}
+        </span>
       </span>
+      {!player.connected && (
+        <Badge variant="outline" className="h-6 px-2 text-sm text-muted-foreground">
+          Away
+        </Badge>
+      )}
       {player.id === hostId && <HostBadge />}
       {role && (
         <Badge
@@ -249,12 +256,8 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
       : undefined,
   );
   useEffect(() => forgetCreatedHere(code), [code]);
-  const { status, players, hostId, game, send, serverNow, removePlayer, playHere } = useRoomSocket(
-    code,
-    me.id,
-    handlers,
-    initial,
-  );
+  const { status, players, hostId, game, send, serverNow, removePlayer, playHere, leaveRoom } =
+    useRoomSocket(code, me.id, handlers, initial);
   const [removing, setRemoving] = useState<RoomPlayer | null>(null);
   const { label, dot } = STATUS[status];
   const joining = hostId === null;
@@ -409,7 +412,7 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
       )}
 
       <BottomBar>
-        <Button variant="outline" size="xl" className="px-4" onClick={() => navigate("/")}>
+        <Button variant="outline" size="xl" className="px-4" onClick={leaveRoom}>
           <LogOutIcon className="size-5" />
           Leave
         </Button>

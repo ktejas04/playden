@@ -1,7 +1,7 @@
-import { runDurableObjectAlarm } from "cloudflare:test";
+import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { type GameSession, type ServerMessage, roleIn } from "@playden/protocol";
-import { connect, createRoom, member, roomStub, snapshotWith } from "./roomKit";
+import { awaySnapshot, connect, createRoom, member, roomStub, snapshotWith } from "./roomKit";
 
 /**
  * Real-socket simulations of game sessions in a room (docs/design/rooms-and-games.md),
@@ -33,6 +33,8 @@ function sessionOf(message: ServerMessage): GameSession {
 }
 
 const tap = { type: "move", move: { type: "tap" } };
+/** Longer than the away grace, so a forced alarm ends someone's grace, not the game. */
+const LONG_ROUND = { targetTaps: 50, roundSeconds: 120 };
 const close = (...sockets: Socket[]) => sockets.forEach((s) => s.ws.close(1000));
 
 interface Person {
@@ -281,9 +283,9 @@ describe("game sessions in a room", () => {
   });
 
   it("the host dropping mid-game passes host to a connected player", async () => {
-    const { people } = await room("s-host-drops", ["Asha", "Ben", "Chi"]);
+    const { code, people } = await room("s-host-drops", ["Asha", "Ben", "Chi"]);
     const [a, b, c] = people as [Person, Person, Person];
-    await setUp(people, [c]);
+    await setUp(people, [c], LONG_ROUND);
     b.ws.send({ type: "game.spectate" });
     await allHear(
       people,
@@ -291,17 +293,22 @@ describe("game sessions in a room", () => {
     );
     await startGame(people);
     a.ws.ws.close(1000);
+    // Away, Asha stays host for the grace; then host goes to a player, never the spectator.
+    expect(await b.ws.next(awaySnapshot)).toMatchObject({ room: { hostId: a.id } });
+    await runDurableObjectAlarm(roomStub(code));
     await b.ws.next(hostIs(c.id));
     close(b.ws, c.ws);
   });
 
   it("a new host in setup is seated in the game", async () => {
-    const { people } = await room("s-new-host", ["Asha", "Ben"]);
+    const { code, people } = await room("s-new-host", ["Asha", "Ben"]);
     const [a, b] = people as [Person, Person];
     await setUp(people, []);
     b.ws.send({ type: "game.spectate" });
     await b.ws.next(sessionWhere((s) => roleIn(s, b.id) === "spectator"));
     a.ws.ws.close(1000);
+    await b.ws.next(awaySnapshot);
+    await runDurableObjectAlarm(roomStub(code));
     await b.ws.next(hostIs(b.id));
     await b.ws.next(sessionWhere((s) => roleIn(s, b.id) === "player"));
     close(b.ws);
@@ -380,13 +387,15 @@ describe("game sessions in a room", () => {
   });
 
   it("the host leaving during results passes host to a player, never to someone not in the game", async () => {
-    const { people } = await room("s-results-host", ["Asha", "Ben", "Chi"]);
+    const { code, people } = await room("s-results-host", ["Asha", "Ben", "Chi"]);
     const [a, b, c] = people as [Person, Person, Person];
     await setUp(people, [b]);
     await startGame(people);
     a.ws.send({ type: "game.end" });
     await allHear(people, phaseIs("results"));
     a.ws.ws.close(1000);
+    await c.ws.next(awaySnapshot);
+    await runDurableObjectAlarm(roomStub(code));
     await c.ws.next(hostIs(b.id));
     b.ws.send({ type: "game.playAgain" });
     await c.ws.next(phaseIs("setup"));
@@ -400,11 +409,54 @@ describe("game sessions in a room", () => {
     await startGame(people);
     a.ws.send({ type: "game.end" });
     await allHear(people, phaseIs("results"));
-    b.ws.ws.close(1000);
-    a.ws.ws.close(1000);
+    b.ws.send({ type: "leave" });
+    a.ws.send({ type: "leave" });
     await c.ws.next(phaseIs(null));
     await c.ws.next(hostIs(c.id));
     close(c.ws);
+  });
+
+  it("a player away mid-game keeps their seat past the grace and comes back to it", async () => {
+    const { code, people } = await room("s-seat-held", ["Asha", "Ben"]);
+    const [a, b] = people as [Person, Person];
+    await setUp(people, [b], LONG_ROUND);
+    await startGame(people);
+    b.ws.ws.close(1000);
+    await a.ws.next(awaySnapshot);
+    // No grace runs for a held seat: the only alarm left is the game's deadline.
+    await runInDurableObject(roomStub(code), async (_room, state) => {
+      expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now() + 100_000);
+    });
+
+    const again = await connect(code, b.who.cookie);
+    expect(roleIn(sessionOf(await again.next(phaseIs("playing"))), b.id)).toBe("player");
+    expect(viewOf(await again.next(anyView))).toMatchObject({ role: "player", team: 1 });
+    close(a.ws, again);
+  });
+
+  it("a joined player away past the grace in setup is moved out of the game", async () => {
+    const { code, people } = await room("s-setup-away", ["Asha", "Ben"]);
+    const [a, b] = people as [Person, Person];
+    await setUp(people, [b]);
+    b.ws.ws.close(1000);
+    await a.ws.next(awaySnapshot);
+    await runDurableObjectAlarm(roomStub(code));
+    await a.ws.next(sessionWhere((s) => s?.phase === "setup" && s.players.length === 1));
+    close(a.ws);
+  });
+
+  it("Leave takes someone out of the room and the game at once", async () => {
+    const { people } = await room("s-leave-room", ["Asha", "Ben", "Chi"]);
+    const [a, b, c] = people as [Person, Person, Person];
+    await setUp(people, [b, c]);
+    await startGame(people);
+    c.ws.send({ type: "leave" });
+    await a.ws.next(snapshotWith(2));
+    const after = sessionOf(
+      await b.ws.next(sessionWhere((s) => s?.phase === "playing" && roleIn(s, c.id) === null)),
+    );
+    expect(after.players.find((p) => p.id === c.id)?.left).toBe(true);
+    close(a.ws, b.ws);
   });
 
   it("Return to room makes the room idle again", async () => {

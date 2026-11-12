@@ -9,6 +9,7 @@ import { backoffDelay } from "./backoff";
 import { closeOutcome } from "./closeOutcome";
 import { earlyRoomSocket } from "./earlySocket";
 import { NO_GAME, type RoomGame, clockOffset, isGameMessage, reduceGame } from "./gameState";
+import { navigate } from "../router";
 import { replacedHere } from "./replacedHere";
 import { socketUrl } from "./socketUrl";
 
@@ -184,5 +185,11 @@ export function useRoomSocket(
     setGeneration((g) => g + 1);
   }, [code]);
 
-  return { status, players, hostId, game, send, serverNow, removePlayer, playHere };
+  /** Leaving on purpose: the room drops you at once (no away grace), then off to the Lobby. */
+  const leaveRoom = useCallback(() => {
+    send({ type: "leave" });
+    navigate("/");
+  }, [send]);
+
+  return { status, players, hostId, game, send, serverNow, removePlayer, playHere, leaveRoom };
 }

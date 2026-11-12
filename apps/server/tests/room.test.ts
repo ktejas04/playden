@@ -13,6 +13,7 @@ import {
   refusedWith,
   roomStub,
   settle,
+  awaySnapshot,
   snapshotWith,
   wsRequest,
 } from "./roomKit";
@@ -116,9 +117,53 @@ describe("room WebSocket", () => {
     expect(playerNames(await b.next(snapshotWith(2)))).toEqual(["Asha", "Ravi"]);
     expect(await a.next(snapshotWith(2))).toMatchObject({ type: "snapshot", room: { code } });
 
-    b.ws.close(1000, "bye");
+    b.send({ type: "leave" });
     expect(playerNames(await a.next(snapshotWith(1)))).toEqual(["Asha"]);
     a.ws.close(1000, "bye");
+  });
+
+  it("someone whose connection drops is away for a while, then gone", async () => {
+    const asha = await member("r-away-a", "Asha");
+    const ravi = await member("r-away-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const b = await connect(code, ravi.cookie);
+    await a.next(snapshotWith(2));
+
+    b.ws.close(1000);
+    const away = await a.next(awaySnapshot);
+    expect(away.type === "snapshot" && away.room.players).toEqual([
+      expect.objectContaining({ name: "Asha", connected: true }),
+      expect.objectContaining({ name: "Ravi", connected: false }),
+    ]);
+
+    // The room's alarm is the end of Ravi's grace.
+    expect(await runDurableObjectAlarm(roomStub(code))).toBe(true);
+    expect(playerNames(await a.next(snapshotWith(1)))).toEqual(["Asha"]);
+    a.ws.close(1000);
+  });
+
+  it("someone who drops and comes back within the grace keeps their place", async () => {
+    const asha = await member("r-back-a", "Asha");
+    const ravi = await member("r-back-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const b = await connect(code, ravi.cookie);
+    await a.next(snapshotWith(2));
+    a.ws.close(1000);
+    await b.next(awaySnapshot);
+
+    const again = await connect(code, asha.cookie);
+    const back = await again.next(
+      (m) => m.type === "snapshot" && m.room.players.every((p) => p.connected),
+    );
+    expect(back.type === "snapshot" && back.room).toMatchObject({
+      hostId: asha.user.id,
+      players: [{ name: "Asha" }, { name: "Ravi" }],
+    });
+    for (const socket of [again, b]) socket.ws.close(1000);
   });
 
   it("the same member in two tabs counts as one player", async () => {
@@ -195,12 +240,28 @@ describe("room host", () => {
     await m.next(snapshotWith(3));
     await r.next(snapshotWith(3));
 
-    a.ws.close(1000);
+    a.send({ type: "leave" });
     expect(hostOf(await m.next(snapshotWith(2)))).toBe(ravi.user.id);
 
     const back = await connect(code, asha.cookie);
     expect(hostOf(await back.next(snapshotWith(3)))).toBe(ravi.user.id);
     for (const socket of [back, r, m]) socket.ws.close(1000);
+  });
+
+  it("a host who drops keeps host through the grace, then it passes on", async () => {
+    const asha = await member("h-drop-a", "Asha");
+    const ravi = await member("h-drop-r", "Ravi");
+    const code = await createRoom(asha.cookie);
+    const a = await connect(code, asha.cookie);
+    await a.next(snapshotWith(1));
+    const r = await connect(code, ravi.cookie);
+    await r.next(snapshotWith(2));
+
+    a.ws.close(1000);
+    expect(hostOf(await r.next(awaySnapshot))).toBe(asha.user.id);
+    expect(await runDurableObjectAlarm(roomStub(code))).toBe(true);
+    expect(hostOf(await r.next(snapshotWith(1)))).toBe(ravi.user.id);
+    r.ws.close(1000);
   });
 
   it("if the creator never joins, the first player in becomes host", async () => {

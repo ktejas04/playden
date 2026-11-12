@@ -62,6 +62,8 @@ export const gameEventSchema = z.strictObject({
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("ping"), t: z.number() }),
   z.strictObject({ type: z.literal("remove"), playerId: userIdSchema }),
+  /** Leaving the room on purpose (the Leave button): gone at once, not "away" for a while. */
+  z.strictObject({ type: z.literal("leave") }),
   /** Host: open setup for a game, or switch the game in setup; settings reset to its defaults. */
   z.strictObject({ type: z.literal("game.pick"), gameId: gameIdSchema }),
   /** Host, in setup: change settings; the game's own schema checks them on the server. */

@@ -36,15 +36,17 @@ export interface TableRoom {
   allowDevOnlyGames: boolean;
   openSockets(): WebSocket[];
   personOf(ws: WebSocket): Person;
-  /** Connected members' ids, longest in the room first. */
-  memberIds(): string[];
+  /** Members in the room (connected, or away within their grace), longest there first. */
+  presentIds(): Promise<string[]>;
   hostId(): Promise<string>;
   send(ws: WebSocket, message: ServerMessage): void;
   /** After every saved change: the room re-checks who is host. */
   changed(): Promise<void>;
+  /** Sets the room's one alarm (game deadline, away expiries, empty-room close). */
+  reschedule(): Promise<void>;
 }
 
-export type TableMessage = Exclude<ClientMessage, { type: "ping" | "remove" }>;
+export type TableMessage = Exclude<ClientMessage, { type: "ping" | "remove" | "leave" }>;
 
 /** Messages only the host may send. */
 const HOST_ONLY = new Set<TableMessage["type"]>([
@@ -82,7 +84,6 @@ export class RoomTable {
     for (const message of messagesFor(table, viewer, { statusChanged: true, events: [] })) {
       this.room.send(ws, message);
     }
-    await this.scheduleAlarm(table);
   }
 
   async handle(ws: WebSocket, message: TableMessage): Promise<void> {
@@ -118,7 +119,7 @@ export class RoomTable {
       case "game.end":
         return run((table, game) => needGame(game, (g) => endGame(table, g)));
       case "game.playAgain": {
-        const present = this.room.memberIds();
+        const present = await this.room.presentIds();
         return run((table, game) => needGame(game, (g) => playAgain(table, g, present)));
       }
       case "game.returnToRoom":
@@ -149,7 +150,7 @@ export class RoomTable {
     );
   }
 
-  /** The room's alarm fired with people in it: it's the game's deadline. */
+  /** The room's alarm fired for the game's deadline. */
   async deadlineReached(): Promise<void> {
     const table = await loadTable(this.room.storage);
     const game = gameOf(table);
@@ -194,15 +195,7 @@ export class RoomTable {
         this.room.send(ws, message);
       }
     }
-    await this.scheduleAlarm(table);
     if (statusChanged) await this.room.changed();
-  }
-
-  /** While anyone is in the room, the alarm is the game's next deadline (or none). */
-  private async scheduleAlarm(table: TableState): Promise<void> {
-    if (this.room.openSockets().length === 0) return;
-    const deadline = tableDeadline(table);
-    if (deadline === null) await this.room.storage.deleteAlarm();
-    else await this.room.storage.setAlarm(deadline);
+    await this.room.reschedule();
   }
 }

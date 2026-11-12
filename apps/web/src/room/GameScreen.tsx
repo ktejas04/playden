@@ -126,7 +126,7 @@ function Roster({
   hostId: string | null;
   onBan?: (player: { id: string; name: string }) => void;
 }) {
-  const present = new Set(members.map((m) => m.id));
+  const present = new Set(members.filter((m) => m.connected).map((m) => m.id));
   const players = activePlayers(session);
   const teams = game.definition.teams;
   const groups = teams

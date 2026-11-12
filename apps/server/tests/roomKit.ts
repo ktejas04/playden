@@ -97,3 +97,7 @@ export const snapshotWith = (count: number) => (m: ServerMessage) =>
   m.type === "snapshot" && m.room.players.length === count;
 
 export const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
+
+/** A snapshot in which someone is away (their connection dropped). */
+export const awaySnapshot = (m: ServerMessage) =>
+  m.type === "snapshot" && m.room.players.some((p) => !p.connected);

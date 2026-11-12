@@ -124,6 +124,7 @@ describe("game messages", () => {
       { type: "game.end" },
       { type: "game.playAgain" },
       { type: "game.returnToRoom" },
+      { type: "leave" },
     ]) {
       expect(client(message)).toEqual({ ok: true, message });
     }

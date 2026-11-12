@@ -6,10 +6,11 @@ Spec: docs/design/rooms-and-games.md sections 5 and 6
 
 ## Rules
 - A member whose connection drops is **away**, not gone. They stay in the member list with an away marker for `AWAY_GRACE_MS` (60 s).
-- **Playing:** a player keeps their seat for the whole game, however long they're away, and slides back in on return. The game is told who is away, so it can skip them.
+- **Playing:** a player keeps their seat for the whole game, however long they're away, and slides back in on return. Telling the game who is away (so it can skip them) comes with Sketch Battle, its first user; Tap Race doesn't need it.
 - **Setup:** a joined player away for 60 s is moved out of the session. A Start within those 60 s still seats them.
 - **Host:** passes on only after 60 s away (amends D40). Leaving the game or being removed still passes it at once.
 - After 60 s away, a member who isn't holding a seat in a game leaves the member list.
+- Leaving on purpose (the room screen's Leave) is gone at once: the client sends `leave`.
 - Play here (D49) is never "away".
 
 ## Steps
