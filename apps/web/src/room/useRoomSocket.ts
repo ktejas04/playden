@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { backoffDelay } from "./backoff";
 import { closeOutcome } from "./closeOutcome";
 import { earlyRoomSocket } from "./earlySocket";
+import { NO_GAME, type RoomGame, clockOffset, isGameMessage, reduceGame } from "./gameState";
 import { replacedHere } from "./replacedHere";
 import { socketUrl } from "./socketUrl";
 
@@ -44,8 +45,11 @@ export function useRoomSocket(
   const [generation, setGeneration] = useState(0);
   const [players, setPlayers] = useState<RoomPlayer[]>(initial?.players ?? []);
   const [hostId, setHostId] = useState<string | null>(initial?.hostId ?? null);
+  const [game, setGame] = useState<RoomGame>(NO_GAME);
   const handlersRef = useRef(handlers);
   const socketRef = useRef<WebSocket | null>(null);
+  /** Server clock minus this device's clock, from the latest ping. */
+  const offsetRef = useRef(0);
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -80,6 +84,14 @@ export function useRoomSocket(
         handlersRef.current.onNotice(message);
         return;
       }
+      if (message.type === "pong") {
+        offsetRef.current = clockOffset(message.t, message.serverTime, Date.now());
+        return;
+      }
+      if (isGameMessage(message)) {
+        setGame((current) => reduceGame(current, message));
+        return;
+      }
       if (message.type !== "snapshot") return;
       attempt = 0;
       setPlayers(message.room.players);
@@ -101,6 +113,12 @@ export function useRoomSocket(
       else setStatus(outcome);
     }
 
+    function ping(ws: WebSocket) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping", t: Date.now() } satisfies ClientMessage));
+      }
+    }
+
     function connect() {
       clearTimeout(retryTimer);
       const early = earlyRoomSocket.take(code);
@@ -111,6 +129,9 @@ export function useRoomSocket(
         if (typeof event.data === "string") receive(event.data);
       });
       ws.addEventListener("close", (event) => closed(ws, event.code));
+      // Measure the clock offset at once, so game countdowns are right from the start.
+      ws.addEventListener("open", () => ping(ws));
+      ping(ws);
 
       if (early) {
         const { messages, closeCode } = early.drain();
@@ -128,9 +149,7 @@ export function useRoomSocket(
     }
 
     const pingTimer = setInterval(() => {
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "ping", t: Date.now() }));
-      }
+      if (socket) ping(socket);
     }, PING_EVERY_MS);
 
     connect();
@@ -144,11 +163,19 @@ export function useRoomSocket(
     };
   }, [code, myId, generation]);
 
-  const removePlayer = useCallback((playerId: string) => {
+  /** Sends a message if connected; the room answers with new state or an error. */
+  const send = useCallback((message: ClientMessage) => {
     const ws = socketRef.current;
-    if (ws?.readyState === WebSocket.OPEN)
-      ws.send(JSON.stringify({ type: "remove", playerId } satisfies ClientMessage));
+    if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
   }, []);
+
+  const removePlayer = useCallback(
+    (playerId: string) => send({ type: "remove", playerId }),
+    [send],
+  );
+
+  /** Server time now, for game countdowns. */
+  const serverNow = useCallback(() => Date.now() + offsetRef.current, []);
 
   /** Takes the seat back from the other device. */
   const playHere = useCallback(() => {
@@ -157,5 +184,5 @@ export function useRoomSocket(
     setGeneration((g) => g + 1);
   }, [code]);
 
-  return { status, players, hostId, removePlayer, playHere };
+  return { status, players, hostId, game, send, serverNow, removePlayer, playHere };
 }

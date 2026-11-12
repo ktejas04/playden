@@ -1,4 +1,10 @@
-import { type Me, type RoomPlayer, canRemovePlayer } from "@playden/protocol";
+import {
+  type Me,
+  type RoomPlayer,
+  type SessionRole,
+  canRemovePlayer,
+  roleIn,
+} from "@playden/protocol";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +28,6 @@ import { toast } from "@playden/ui/components/sonner";
 import { cn } from "@playden/ui/lib/utils";
 import {
   CopyIcon,
-  CrownIcon,
   LogOutIcon,
   MonitorSmartphoneIcon,
   MoreHorizontalIcon,
@@ -30,9 +35,16 @@ import {
   UserMinusIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { HostBadge } from "../components/HostBadge";
 import { PlayerAvatar } from "../components/PlayerAvatar";
+import { PlayerColorsProvider } from "../components/PlayerColors";
 import { RoomCodeTiles } from "../components/RoomCodeTiles";
 import { copyText } from "../copyText";
+import { findWebGame } from "../games";
+import { GamePicker } from "../room/GamePicker";
+import { GameScreen } from "../room/GameScreen";
+import { SessionCard, SessionPrompt, isFull, joinBlocker } from "../room/SessionCards";
+import { setupPrompt } from "../room/setupPrompt";
 import { forgetCreatedHere, wasCreatedHere } from "../room/earlySocket";
 import { orderPlayers } from "../room/orderPlayers";
 import { type ConnectionStatus, type RoomNotice, useRoomSocket } from "../room/useRoomSocket";
@@ -138,6 +150,17 @@ function useHostChangeToast(hostId: string | null, players: RoomPlayer[], myId: 
   }, [hostId, players, myId]);
 }
 
+/** Tells a player the host took them out of this game; it lasts for this game only. */
+function useBannedNotice(banned: boolean) {
+  const before = useRef(false);
+  useEffect(() => {
+    if (banned && !before.current) {
+      toast.info("The host took you out of this game. You can spectate, and play in the next one.");
+    }
+    before.current = banned;
+  }, [banned]);
+}
+
 function showNotice(notice: RoomNotice) {
   if (notice.type === "removed") toast.info(`${notice.name} was removed from the room.`);
   else toast.error(notice.reason);
@@ -147,11 +170,13 @@ function PlayerRow({
   player,
   me,
   hostId,
+  role,
   onRemove,
 }: {
   player: RoomPlayer;
   me: Me;
   hostId: string | null;
+  role: SessionRole;
   onRemove?: () => void;
 }) {
   const isMe = player.id === me.id;
@@ -166,12 +191,13 @@ function PlayerRow({
       <span className={cn("flex-1 truncate", isMe ? "font-semibold" : "font-medium")}>
         {player.name}
       </span>
-      {player.id === hostId && (
+      {player.id === hostId && <HostBadge />}
+      {role && (
         <Badge
-          variant="outline"
-          className="h-6 gap-1 px-2 text-sm duration-300 animate-in fade-in-0 zoom-in-90"
+          variant={role === "player" ? "secondary" : "outline"}
+          className="h-6 px-2 text-sm duration-300 animate-in fade-in-0"
         >
-          <CrownIcon className="size-3.5! text-warning" /> Host
+          {role === "player" ? "Playing" : "Spectating"}
         </Badge>
       )}
       {isMe && <Badge className="h-6 px-2 text-sm">You</Badge>}
@@ -223,7 +249,7 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
       : undefined,
   );
   useEffect(() => forgetCreatedHere(code), [code]);
-  const { status, players, hostId, removePlayer, playHere } = useRoomSocket(
+  const { status, players, hostId, game, send, serverNow, removePlayer, playHere } = useRoomSocket(
     code,
     me.id,
     handlers,
@@ -237,6 +263,31 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
   // list, you included, then fades in as one step rather than you first and the rest later.
   const rows = joining ? [] : orderPlayers(players, me.id);
   useHostChangeToast(hostId, players, me.id);
+
+  const session = game.status?.session ?? null;
+  const myRole = roleIn(session, me.id);
+  const isHost = hostId === me.id;
+  const picked = session ? findWebGame(session.gameId) : undefined;
+  const [dismissedId, setDismissedId] = useState<number | null>(null);
+  useBannedNotice(session?.banned.includes(me.id) ?? false);
+  // Once someone has joined or spectated a session, its popup never comes back for them.
+  useEffect(() => {
+    if (session && myRole !== null) setupPrompt.dismiss(code, session.id);
+  }, [code, session, myRole]);
+  const prompting =
+    status === "live" &&
+    (session?.phase === "setup" || session?.phase === "playing") &&
+    myRole === null &&
+    dismissedId !== session.id &&
+    !setupPrompt.dismissed(code, session.id);
+
+  // Everyone in the room gets their own colour, longest there first; game players who are
+  // away keep theirs too.
+  const colorIds = [
+    ...players.map((p) => p.id),
+    ...(session?.players.map((p) => p.id) ?? []),
+    ...(session?.spectators ?? []),
+  ];
 
   if (status === "missing") {
     return (
@@ -256,13 +307,37 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
     );
   }
 
+  if (session && picked && myRole !== null) {
+    return (
+      <PlayerColorsProvider ids={colorIds}>
+        <GameScreen
+          code={code}
+          me={me.id}
+          role={myRole}
+          session={session}
+          game={picked}
+          view={game.view}
+          members={players}
+          hostId={hostId}
+          live={status === "live"}
+          send={send}
+          serverNow={serverNow}
+          onInvite={() => void shareRoom(code)}
+        />
+      </PlayerColorsProvider>
+    );
+  }
+
+  const blocker = session && picked ? joinBlocker(session, me.id, isFull(picked, session)) : null;
+  const hostName = players.find((p) => p.id === hostId)?.name ?? "The host";
+
   const canRemove = (player: RoomPlayer) =>
     hostId !== null &&
     status === "live" &&
     canRemovePlayer({ id: me.id, isAdmin: me.isAdmin }, player, hostId);
 
   return (
-    <>
+    <PlayerColorsProvider ids={colorIds}>
       <div className="flex flex-col gap-4 pt-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -284,6 +359,16 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
         <RoomCodeTiles code={code} />
       </div>
 
+      {session && picked && (
+        <SessionCard
+          session={session}
+          game={picked}
+          blocker={blocker}
+          onJoin={() => send({ type: "game.join" })}
+          onSpectate={() => send({ type: "game.spectate" })}
+        />
+      )}
+
       <Panel className="mt-6">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Players</h2>
@@ -302,6 +387,7 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
               player={player}
               me={me}
               hostId={hostId}
+              role={roleIn(session, player.id)}
               onRemove={canRemove(player) ? () => setRemoving(player) : undefined}
             />
           ))}
@@ -318,6 +404,10 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
         )}
       </Panel>
 
+      {!session && (
+        <GamePicker isHost={isHost} onPick={(gameId) => send({ type: "game.pick", gameId })} />
+      )}
+
       <BottomBar>
         <Button variant="outline" size="xl" className="px-4" onClick={() => navigate("/")}>
           <LogOutIcon className="size-5" />
@@ -327,6 +417,22 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
           <Share2Icon className="size-5" /> Invite players
         </Button>
       </BottomBar>
+
+      {session && picked && (
+        <SessionPrompt
+          open={prompting}
+          started={session.phase === "playing"}
+          game={picked}
+          hostName={hostName}
+          blocker={blocker}
+          onJoin={() => send({ type: "game.join" })}
+          onSpectate={() => send({ type: "game.spectate" })}
+          onClose={() => {
+            setupPrompt.dismiss(code, session.id);
+            setDismissedId(session.id);
+          }}
+        />
+      )}
 
       <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
         <AlertDialogContent>
@@ -350,6 +456,6 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </PlayerColorsProvider>
   );
 }

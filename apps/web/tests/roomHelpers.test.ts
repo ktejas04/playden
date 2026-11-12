@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backoffDelay } from "../src/room/backoff";
 import { initials } from "../src/initials";
-import { PLAYER_COLOR_COUNT, playerColor } from "../src/playerColor";
+import { PLAYER_COLOR_COUNT, assignPlayerColors, playerColor } from "../src/playerColor";
 import { cleanJoinInput, normalizeJoinCode } from "../src/room/joinCode";
 import { orderPlayers } from "../src/room/orderPlayers";
 import { socketUrl } from "../src/room/socketUrl";
@@ -88,5 +88,26 @@ describe("initials", () => {
 
   it("handles non-Latin names", () => {
     expect(initials("मीरा")).toBe("म");
+  });
+});
+
+describe("assignPlayerColors", () => {
+  it("gives everyone in a room a different colour while there are colours left", () => {
+    const ids = Array.from({ length: PLAYER_COLOR_COUNT }, (_, i) => `user-${i}`);
+    const colors = assignPlayerColors(ids);
+    expect(new Set(colors.values()).size).toBe(PLAYER_COLOR_COUNT);
+  });
+
+  it("keeps the first person's usual colour and moves a later clash on", () => {
+    const [a, b] = ["a", "h"];
+    expect(playerColor(a)).toBe(playerColor(b));
+    const colors = assignPlayerColors([a, b]);
+    expect(colors.get(a)).toBe(playerColor(a));
+    expect(colors.get(b)).not.toBe(colors.get(a));
+  });
+
+  it("shares colours only once the room has more people than colours", () => {
+    const ids = Array.from({ length: PLAYER_COLOR_COUNT + 2 }, (_, i) => `p${i}`);
+    expect(assignPlayerColors(ids).size).toBe(PLAYER_COLOR_COUNT + 2);
   });
 });

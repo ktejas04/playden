@@ -134,6 +134,9 @@ importers:
 
   packages/protocol:
     dependencies:
+      '@playden/engine':
+        specifier: workspace:*
+        version: link:../engine
       zod:
         specifier: ^4.6.7
         version: 4.6.7

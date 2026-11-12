@@ -47,7 +47,7 @@ Everything in the spec. Each game phase's task files are written when that phase
 | --- | --- |
 | 030 | Engine: showdown |
 | 031 | Showdown screens |
-| 032 | Results, highlights and rematch |
+| 032 | Results, highlights and Play again |
 
 **4.4 Settings and words:** the host can tune games.
 

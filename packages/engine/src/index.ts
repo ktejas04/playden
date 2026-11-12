@@ -11,5 +11,13 @@ export {
   type Transition,
   type Validation,
 } from "./GameDefinition";
+export {
+  type SeatRules,
+  seatForNewcomer,
+  seatInOrder,
+  seatProblem,
+  teamForNewcomer,
+  teamSizes,
+} from "./seating";
 export type { GameViewProps } from "./view";
 export { type Drawn, type Rng, createRng, nextFloat, nextInt, pick, shuffle } from "./random";

@@ -67,7 +67,7 @@ function Gate() {
 
   if (route.name === "privacy") {
     return (
-      <Shell back>
+      <Shell header="back">
         <Privacy />
       </Shell>
     );
@@ -120,7 +120,9 @@ function Gate() {
   const canPlay = Boolean(me.displayName) && (me.isAdmin || me.status === "approved");
   return (
     <Shell
-      back={canPlay && route.name !== "home"}
+      // A room has its own exits (Leave, Cancel, ⋯ → Leave game), one per screen, so its header
+      // has neither a back button nor a logo link.
+      header={!canPlay || route.name === "home" ? "logo" : route.name === "room" ? "plain" : "back"}
       headerRight={
         <AccountMenu
           me={me}

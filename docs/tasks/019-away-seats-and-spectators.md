@@ -1,39 +1,32 @@
-# 019 — Away seats and mid-game spectators
+# 019 — Away players and host grace
 Phase: 3 (Game platform)
-Depends on: 017, 018
-Touches: packages/protocol/src/{messages.ts, room.ts}, packages/protocol/tests/*, apps/server/src/room/{Room.ts, roomGame.ts}, apps/server/src/config.ts, apps/server/tests/room*.test.ts, apps/web/src/room/{closeOutcome.ts, useRoomSocket.ts}, apps/web/src/screens/Room.tsx, apps/web/src/components/PlayerAvatar.tsx, apps/web/tests/{roomSocket.test.ts, roomHelpers.test.ts}, docs/PROJECT.md
-Spec: docs/PROJECT.md "Reconnects and leaving", D40, D46
+Depends on: 017, 014b
+Touches: apps/server/src/room/{Room.ts, host.ts, roomGame.ts, RoomTable.ts}, apps/server/src/config.ts, apps/server/tests/*, packages/protocol/src/messages.ts, apps/web/src/components/PlayerAvatar.tsx, apps/web/src/screens/Room.tsx, docs/PROJECT.md
+Spec: docs/design/rooms-and-games.md sections 5 and 6
 
 ## Rules
-
-**Away seats**
-- A player whose connection drops mid-game is marked **away** (shown on their avatar). Their seat and team place stay.
-- They get the same seat back silently if they reconnect within `AWAY_GRACE_MS` (60 s). The game is not told.
-- After 60 s away, the room calls the game's `onPlayerLeft`. The player keeps their team place (so they can come back later), and games skip away players where their spec says so.
-- The game sees each player's `connected` flag through state the room maintains, not through clocks, so engines can skip away players.
-- The 60 s away grace also applies to host handover (D40): the host passes on only after 60 s away. Note this in D40.
-
-One device per player ("Play here") was built early in 014b (D49). Away seats must work with it: a takeover is never "away".
-
-**Mid-game joiners**
-- Anyone who joins while a game is playing is a spectator until the game ends (D46).
+- A member whose connection drops is **away**, not gone. They stay in the member list with an away marker for `AWAY_GRACE_MS` (60 s).
+- **Playing:** a player keeps their seat for the whole game, however long they're away, and slides back in on return. The game is told who is away, so it can skip them.
+- **Setup:** a joined player away for 60 s is moved out of the session. A Start within those 60 s still seats them.
+- **Host:** passes on only after 60 s away (amends D40). Leaving the game or being removed still passes it at once.
+- After 60 s away, a member who isn't holding a seat in a game leaves the member list.
+- Play here (D49) is never "away".
 
 ## Steps
 1. Tests first:
-   - away marking
-   - return within grace (no `onPlayerLeft`)
-   - grace expiry calls `onPlayerLeft` once
-   - a mid-game joiner becomes a spectator
-   - host handover after grace
-   - a takeover (D49) never marks the player away
+   - away marking and return within the grace
+   - a seat held for 5 minutes
+   - Setup expiry
+   - host handover after the grace
+   - a takeover never marks the player away
 2. Server:
-   - away timestamps in storage, with grace expiry folded into the room's alarm
-   - the connection map passed to the game
-3. Web:
-   - an away badge on avatars, and a "watching" label for spectators
+   - away timestamps in storage
+   - grace expiries folded into the room's one alarm
+   - presence passed to the game
+3. Web: away markers on avatars and in the setup list.
 4. Update D40 in PROJECT.md.
 
 ## Done when
 - [ ] Tests above pass
-- [ ] Manual: turn a phone's Wi-Fi off mid-Tap-Race and back on within 60 s → same seat; leave it off for 70 s → the game is told
+- [ ] Manual: turn a phone's Wi-Fi off mid-Tap-Race for 10 s and for 2 minutes; both come back to the same seat. A host who drops passes host after 60 s
 - [ ] pnpm typecheck, lint, test pass

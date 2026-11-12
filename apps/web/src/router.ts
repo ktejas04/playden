@@ -24,7 +24,22 @@ export function parseRoute(pathname: string): Route {
 
 const ROUTE_CHANGE = "playden:route";
 
-export function navigate(path: string): void {
+type NavigationGuard = (path: string) => boolean;
+let guard: NavigationGuard | null = null;
+
+/**
+ * While a guard is set, navigate() asks it first; returning false keeps the current page
+ * (the guard shows its own confirm and calls navigate again with `force`). Returns a cleanup.
+ */
+export function setNavigationGuard(next: NavigationGuard): () => void {
+  guard = next;
+  return () => {
+    if (guard === next) guard = null;
+  };
+}
+
+export function navigate(path: string, { force = false }: { force?: boolean } = {}): void {
+  if (!force && guard && !guard(path)) return;
   window.history.pushState(null, "", path);
   window.dispatchEvent(new Event(ROUTE_CHANGE));
 }

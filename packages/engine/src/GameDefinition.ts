@@ -72,6 +72,11 @@ export interface GameDefinition<State, Move, View, Config> {
   onPlayerLeft(state: State, playerId: string): Transition<State>;
   /** Null while the game is in progress. */
   result(state: State): GameResult | null;
+  /**
+   * Scores so far, for a game the host ends early. Optional: without it, an early end
+   * shows every player on 0. There is never a winner when a game ends early.
+   */
+  standings?(state: State): Record<string, number>;
 }
 
 /** Any game, for registries. Method syntax above keeps concrete games assignable to this. */

@@ -134,7 +134,7 @@ There are no streak points. A streak only shows as a badge ("3 in a row") and fe
 ## 9. Results
 
 - Final totals, the winning team (or "It's a draw"), and highlights **(ours)**: fastest guess, longest streak, most rounds won as drawer.
-- The host gets **Rematch** (same teams, back to the lobby with settings kept) and **Back to lobby** (teams cleared). Spectators can join a team in the lobby before the next game.
+- The host gets **Play again** (a new game with the same teams and settings, started at once) and **Back to lobby** (teams cleared). Spectators can join a team in the lobby before the next game.
 
 ## 10. Round summary screen
 
@@ -177,7 +177,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S8 | Round summary | Section 10. Scrollable on phone: scores and handoff on top, Continue in the bottom bar, replays below |
 | S9 | Showdown intro | Title card animation, lineups, countdown |
 | S10 | Showdown | Like S5/S6, plus both word tracks and the running score |
-| S11 | Results | Totals, winner celebration, highlights, Rematch / Back to lobby for the host |
+| S11 | Results | Totals, winner celebration, highlights, Play again / Back to lobby for the host |
 | S12 | Spectator | PC: both canvases side by side with the word and both feeds. Phone: the two teams as tabs or stacked, no guess box |
 
 **Our own animations (to design in the mockup pass)**
@@ -248,7 +248,7 @@ Each phase ends playable with the community.
 | --- | --- | --- |
 | 1. Core round | Lobby teams and Start; choose → countdown → draw → guess → 200/100 → result; block preview; simple drawer rotation; a fixed set of rounds then plain results | Two teams can play rounds end to end |
 | 2. Full match | Winner-stays rotation, streaks, head starts, round summary with replays, ready-up, spectators, disconnect rules | A full 15-round match plays like the original |
-| 3. Showdown | Intro, per-word rotation, word tracks, finish bonus, results with highlights, rematch | Complete game |
+| 3. Showdown | Intro, per-word rotation, word tracks, finish bonus, results with highlights, Play again | Complete game |
 | 4. Settings and words | Host settings, the full English list, word-length toggle | Host can tune games |
 | 5. Polish | Our animations, sounds and mute, Home game card animation, PC layout tuning | Feels finished |
 

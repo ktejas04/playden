@@ -1,4 +1,6 @@
 @import "@playden/ui/globals.css";
+/* Game screens live in their own packages; Tailwind needs to see their class names too. */
+@source "../../../packages/games";
 
 html,
 body,

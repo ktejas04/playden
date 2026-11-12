@@ -14,6 +14,7 @@ This is the single source of truth for PlayDen. Everything (code, docs, plans, t
 | `CLAUDE.md` | Points Claude to `AGENTS.md` | Never |
 | `README.md` | Plain-language explanation of the project for humans, plus how to run it | When features or setup change |
 | `docs/PROJECT.md` | This doc: the technical design: decisions, architecture, practices, phases | Owner, or an agent when a decision changes |
+| `docs/design/<topic>.md` | System designs too big for this doc, e.g. `rooms-and-games.md` | When the design changes, with a decision here |
 | `docs/games/<game-id>.md` | One spec per game: rules, scoring, edge cases, UI flow, tests | Written before the game is built |
 | `docs/plans/<phase>.md` | Plan for one build phase, broken into tasks | Before each phase starts |
 | `docs/tasks/NNN-<slug>.md` | One small task each, with steps and done criteria | Created per phase; ticked when done |
@@ -23,8 +24,9 @@ This is the single source of truth for PlayDen. Everything (code, docs, plans, t
 
 1. `AGENTS.md`
 2. This doc: Decisions log, System architecture, Code practices, Agent playbook
-3. The spec of the game you are touching, if any
-4. The task file you were given
+3. `docs/design/rooms-and-games.md` if you touch rooms, the lobby or how games run in a room
+4. The spec of the game you are touching, if any
+5. The task file you were given
 
 **Rules**
 
@@ -86,7 +88,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D32 | UX | Light and dark themes; follows the phone's setting by default, with a Light / Dark / Phone setting switch in the header, remembered per device (`next-themes`) | 2026-11-10 |
 | D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Sketch Battle fits the free tier comfortably | 2026-11-10 |
-| D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
+| D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" (except on room pages, which have one exit per screen instead: D51) and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
 | D35 | Rooms | A room exists only once created (`POST /api/rooms` picks a free code); unknown or closed codes return "Room not found". A room closes 60 s after it becomes empty (`ROOM_EMPTY_CLOSE_MS`), replacing "30 minutes". Joining needs the Join button; no auto-join on the 4th letter | 2026-11-10 |
 | D36 | Access | Statuses: pending, approved, declined, banned. Decline (waiting only) lets the person ask again after `ASK_AGAIN_AFTER_MS` (5 s while testing; raise before launch). Block = ban for someone never approved; Unblock returns them to Waiting, Let back in restores a former member. Sign out lives in the avatar menu | 2026-11-10 |
 | D37 | Database | Drizzle rebuilds a SQLite table to change a CHECK constraint; on D1 that drops the old table, which cascades and deletes all sessions (everyone is signed out once). Avoid CHECK changes on `users` after launch, or accept a one-time sign-out. Generate column additions and constraint changes as separate migrations | 2026-11-10 |
@@ -103,6 +105,8 @@ Every agreed decision in one place. Sections below explain the details.
 | D48 | Local dev | Test-player sign-in for local testing: on only with `DEV_LOGIN=true` in `.dev.vars` and only for localhost or private network addresses (404 everywhere else). A test player is an approved account `<slug>@dev.playden.invalid`, admin only if listed in `ADMIN_EMAILS`. For those requests over plain http the session cookie drops `Secure`, so phones on the Wi-Fi keep it; every other cookie stays Secure. Kept out of production three ways: `[env.production.vars]` pins `DEV_LOGIN = "false"`, production hosts are never local, and the sign-in card exists only in Vite dev builds | 2026-11-11 |
 | D49 | Rooms | One connection per player in a room: opening the room on another device or tab moves the seat there (keeping its place in the seating order, no host change), and the old one shows "You're playing on another device" with Play here, like Meet's "Switch here". Close code `ROOM_CLOSE.replaced` (4409). A replaced tab remembers it per room until Play here or a deliberate Join, so a reload doesn't take the seat back. Accounts stay signed in on every device | 2026-11-12 |
 | D50 | Engine | Each game is a package `@playden/game-<id>` with a rules entry (pure, server-safe) and a `/view` entry (React, web only), created by `pnpm new-game`. The contract gains name, summary, teams, devOnly, configSchema, moveSchema, and `setup(seats, config, seed, now)`. Every game passes the shared contract kit (`@playden/engine/testing`), and `checks/` machine-checks isolation, engine purity, layout and registries in `pnpm test`. Tap Race is a dev-only test game | 2026-11-12 |
+| D51 | Rooms | Rooms and games design (`docs/design/rooms-and-games.md`): Lobby (home) → Room (members, one host, one game session at a time) → Game session (game participants: Playing or Spectating; everyone else is just in the room). Room states Idle → Setup → Playing → Results. In setup everyone chooses Join game or Spectate until the host taps Start; the host is always joined; arrivals land in the room and choose from a popup (Spectate only once the game has started). Results offer Play again (setup with the same game, settings and players pre-joined) or Return to room. The host can End game (Ended early: no winner, not recorded) and ban a player from the game for that session. While Playing, only players can be host. A dropped player keeps their seat for the whole game (away); Leave game frees it. Host passes after 60 s away (changes D40). Spectators are chosen, not leftovers (changes D46) | 2026-11-12 |
+| D52 | Rooms | One room at a time per person, in any role, so nobody plays two games at once. Opening a second room asks "Leave ABCD and join WXYZ?"; joining leaves the first room exactly like Leave room. Enforced by the Lobby object (it knows each person's current room), built with it; until then two rooms are possible but unsupported | 2026-11-12 |
 
 ## Scope: v1 vs later
 
@@ -270,21 +274,20 @@ interface GameDefinition<State, Move, View, Config> {
 
 Each room is one Durable Object holding one WebSocket per player; a single Lobby object tracks which rooms exist. All messages are small JSON over WebSockets.
 
-**Room lifecycle**
+**Room lifecycle** (full design: `docs/design/rooms-and-games.md`, D51)
 
-1. **Create:** host picks a game; the Lobby issues a 4-letter code (no look-alike letters such as O/0, I/1) and a link `/r/ABCD`.
-2. **Join:** player opens the link, is signed in and approved, and gets a seat under their display name.
-3. **Setup:** host sets teams (or shuffles them) and settings; players tap ready.
-4. **Play:** host taps start; the Room calls `setup` and the game runs.
-5. **Results:** final scores and highlights; host can tap rematch (same room, same players).
+1. **Create:** from the Lobby (home), a 4-letter code (no look-alike letters such as O/0, I/1) and a link `/r/ABCD` (D35).
+2. **Join:** open the link, signed in and approved; you're in the room under your display name.
+3. **Idle → Setup:** the host picks a game; everyone chooses Join game or Spectate until the host taps Start.
+4. **Playing:** players are fixed, arrivals can choose to spectate, the host can End game or ban a player from the game.
+5. **Results:** the host taps **Play again** (setup with the same game, settings and players) or **Return to room** (Idle).
 6. **Close:** the room deletes itself 60 seconds after the last player leaves (or 60 s after creation if nobody joins); its code then shows "Room not found" (D35).
 
-**Reconnects and leaving**
+**Reconnects and leaving** (details in the design doc, section 6)
 
-- The browser stores a `playerToken` per room. Reopening the link or regaining network rejoins the same seat silently.
-- A dropped player is marked away. After 60 s away, the game's `onPlayerLeft` decides what happens (e.g. Sketch Battle rotates to the next drawer).
-- If the host leaves, host passes to the longest-seated player.
-- Late joiners can join as spectators mid-game; they join teams in the next game.
+- A dropped player keeps their seat for the whole game, shown as away, and slides back in whenever they return. Play here (D49) is never a drop.
+- **Leave game** frees the seat at once and the game's `onPlayerLeft` runs.
+- The host passes on after 60 s away, or at once when they leave. While Playing, only players can be host.
 
 **Message types (shared `protocol` package)**
 

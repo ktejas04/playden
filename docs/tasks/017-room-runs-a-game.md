@@ -1,35 +1,71 @@
-# 017 — Room runs a game
+# 017 — Game sessions in a room
 Phase: 3 (Game platform)
 Depends on: 016
-Touches: packages/protocol/src/{messages.ts, room.ts, index.ts}, packages/protocol/tests/*, apps/server/src/room/{Room.ts, roomGame.ts (new), gameStore.ts (new)}, apps/server/tests/room*.test.ts, apps/web/src/room/useRoomSocket.ts, apps/web/src/screens/Room.tsx, apps/web/src/room/GameHost.tsx (new), apps/web/tests/*, docs/PROJECT.md
-Spec: docs/PROJECT.md "Rooms, lobby and realtime protocol"
+Touches: packages/engine/src/{GameDefinition.ts, seating.ts (new), index.ts}, packages/engine/tests/*, packages/protocol/src/messages.ts, packages/protocol/tests/*, apps/server/src/room/{Room.ts, RoomTable.ts, roomGame.ts, tableSync.ts, host.ts (new)}, apps/server/tests/{roomGame, roomGames, room, host}.test.ts, apps/web/src/room/*, apps/web/src/screens/Room.tsx, apps/web/tests/*, docs/PROJECT.md
+Spec: docs/design/rooms-and-games.md (D51), sections 3–7
 
 ## Rules
-- Room phases: `lobby` → `playing` → `results` → back to `lobby`.
-- Lobby: the host picks a game and sets its settings. Only games allowed here appear (dev-only games only when `DEV_LOGIN` is on).
-- Start (host only): the room checks player counts, creates the seed, and calls `setup`.
-- Every `move` is parsed with the game's `moveSchema`, then `validate`, then `apply` with server time as `now`. A rejection goes back only to the sender as `error` with the game's reason.
-- After every change, each player gets their own `view(state, playerId)`; spectators get `view(state, "spectator")`. Full views are fine for now; send one only to players whose view changed.
-- `events` from `apply` and `onDeadline` go to everyone.
-- After every change, the room sets its alarm to `nextDeadline(state)`. The alarm calls `onDeadline`. The existing empty-room close alarm must keep working alongside it.
-- When `result(state)` is not null, the room moves to `results` and shows the scores. The host can **rematch** (same game, settings and teams) or go **back to lobby**.
-- Game state lives in Durable Object storage, so a room survives eviction and hibernation mid-game.
-- Room logic that doesn't need the Durable Object (applying a move, computing who gets which view) lives in `roomGame.ts` as plain functions, so it's testable without sockets.
+The design doc is the spec. This task covers:
+
+- **Room states:** Idle → Setup → Playing → Results, with one game session at a time.
+- **Game participants:** players join in order, spectators, and banned members. Members with no role are just in the room.
+- **Setup:**
+  - Picking a game joins the host.
+  - Everyone else gets the setup popup (Join game / Spectate, ✕ to close).
+  - Switching is free until Start. The host can't spectate.
+  - "Game is full" when the game has no seats left.
+  - Changing the game keeps the joined players; overflow moves to spectating.
+  - Cancel goes back to Idle.
+- **Teams, minimal:**
+  - Joining puts you on the smaller team, the first team on a tie.
+  - Start checks the team rules and shows the reason when they aren't met.
+  - Switching teams, shuffle and move come in 018.
+- **Start:** seats the joined players in join order.
+- **Playing:**
+  - Arrivals are in the room and get a Spectate-only popup.
+  - Leave game frees the seat and runs `onPlayerLeft`.
+  - Ban from game (host): the player is out and can't join this session again.
+  - End game (host) finishes Ended early: standings from the game's optional `standings(state)`, no winner.
+  - The session ends on its own when no players are left.
+  - Removal from the room (D42) counts as Leave game.
+- **Results:**
+  - Shown automatically to players and spectators.
+  - Play again: players and spectators carry over in their roles, and people just in the room get the popup.
+  - Return to room goes back to Idle.
+- **Host:**
+  - One host.
+  - In Setup and Playing the next host is a connected player, by room seniority.
+  - In Setup with no player left, any member becomes host and is joined.
+  - While Playing with no connected player, host stays put.
+  - Handover still happens at once on a drop. The 60 s grace is 019.
+- **Badges:** Playing and Spectating on the room screen's member list.
 
 ## Steps
 1. Tests first:
-   - protocol schemas for `lobby.pickGame`, `lobby.settings`, `game.start`, `move`, `game.view`, `game.events`, `game.ended`, `game.rematch`, `game.toLobby`
-   - `roomGame.ts`: start checks, move routing, rejections reach only the sender, views per player, deadline handling, the results transition
-   - Room tests with Tap Race: start, taps, deadline end, rematch, state survives a reload of the object
-2. Protocol messages and types.
-3. Server: `roomGame.ts`, `gameStore.ts` (load and save state), and wiring them into `Room.ts`.
-4. Web:
-   - `GameHost.tsx` renders the current game's view component with its view and a `sendMove` function.
-   - The lobby gets a game picker and settings for the host. Others see what's picked.
-   - A results screen with Rematch / Back to lobby for the host.
-5. Decisions log in PROJECT.md: room phases, full per-player views for now, rejections only to the sender.
+   - pure session rules in `roomGame.ts`
+   - host choice in `host.ts`
+   - seat checks in the engine
+   - protocol schemas
+2. Engine:
+   - `seatProblem(game, seats)` for counts and team rules
+   - `joinTeam` (the smaller team)
+   - optional `standings(state)`
+3. Protocol:
+   - client messages `game.pick`, `game.setConfig`, `game.join`, `game.spectate`, `game.leave`, `game.start`, `game.ban`, `game.end`, `game.playAgain`, `game.returnToRoom`, `move`
+   - `game.status` carries the session, or null when Idle
+4. Server:
+   - session rules in `roomGame.ts`
+   - host choice in `host.ts`
+   - `Room.ts` and `RoomTable.ts` wired together, so a change to the session can move the host and vice versa
+5. Web:
+   - the setup popup and the "Setting up" or "Game in progress" card on the room screen
+   - the setup screen (players, settings, Join game / Spectate, Start)
+   - the game screen with a menu (Leave game, End game, Ban)
+   - results with Play again / Return to room
+   - badges on the room screen
+6. Tests 1–5, 7, 8, 10–14 and 16–18 from the design doc's test list, as socket tests with Tap Race.
 
 ## Done when
 - [ ] Tests above pass
-- [ ] Manual with test players: pick Tap Race, start, tap from two browsers, the game ends on target or deadline, rematch works
+- [ ] Manual with test players on PC and phone: every flow in the design doc's section 4
 - [ ] pnpm typecheck, lint, test pass

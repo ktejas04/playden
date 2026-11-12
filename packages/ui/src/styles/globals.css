@@ -43,6 +43,8 @@
   --color-player-3: var(--player-3);
   --color-player-4: var(--player-4);
   --color-player-5: var(--player-5);
+  --color-player-6: var(--player-6);
+  --color-player-7: var(--player-7);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -93,11 +95,14 @@
   --tile: #f6efd9;
   --tile-foreground: #1c1606;
   --tile-edge: #cdbb8f;
-  --player-1: #f5be32;
-  --player-2: #ff8a76;
-  --player-3: #3dbcae;
-  --player-4: #74b1f0;
-  --player-5: #b69cf2;
+  /* Player colours: no yellow (that's every main button), all readable on felt and sage. */
+  --player-1: #ff8a76;
+  --player-2: #3dbcae;
+  --player-3: #74b1f0;
+  --player-4: #b69cf2;
+  --player-5: #f490c3;
+  --player-6: #a6d46b;
+  --player-7: #f7a24f;
   --lamp: color-mix(in oklab, var(--primary) 26%, transparent);
   --chart-1: #f5be32;
   --chart-2: #ff8a76;
@@ -155,6 +160,12 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  html,
+  body {
+    /* No rubber-band bounce past the page's ends (Edge, Safari) and no pull-to-refresh
+       (Android Chrome), which would reload mid-game and drop the connection. */
+    overscroll-behavior: none;
   }
   html {
     @apply font-sans;

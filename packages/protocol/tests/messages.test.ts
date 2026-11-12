@@ -107,3 +107,81 @@ describe("parseServerMessage", () => {
     expect(parseServerMessage(JSON.stringify(snapshot)).ok).toBe(false);
   });
 });
+
+describe("game messages", () => {
+  const client = (message: unknown) => parseClientMessage(JSON.stringify(message));
+  const server = (message: unknown) => parseServerMessage(JSON.stringify(message));
+
+  it("accepts every game session control", () => {
+    for (const message of [
+      { type: "game.pick", gameId: "tap-race" },
+      { type: "game.setConfig", config: { targetTaps: 10 } },
+      { type: "game.join" },
+      { type: "game.spectate" },
+      { type: "game.leave" },
+      { type: "game.start" },
+      { type: "game.ban", playerId: "u2" },
+      { type: "game.end" },
+      { type: "game.playAgain" },
+      { type: "game.returnToRoom" },
+    ]) {
+      expect(client(message)).toEqual({ ok: true, message });
+    }
+  });
+
+  it("accepts a move with any game-specific payload", () => {
+    const message = { type: "move", move: { type: "tap" } };
+    expect(client(message)).toEqual({ ok: true, message });
+  });
+
+  it("rejects a game id that isn't lowercase-hyphenated", () => {
+    expect(client({ type: "game.pick", gameId: "Tap Race" }).ok).toBe(false);
+  });
+
+  const setup = {
+    id: 1,
+    phase: "setup",
+    gameId: "tap-race",
+    config: { targetTaps: 10 },
+    players: [
+      { id: "u1", name: "Asha", team: 0, left: false },
+      { id: "u2", name: "Ben", team: 1, left: false },
+    ],
+    spectators: ["u3"],
+    banned: [],
+    result: null,
+    endedEarly: false,
+  };
+
+  it("accepts an idle room and a session in every phase", () => {
+    const results = {
+      ...setup,
+      phase: "results",
+      result: { scores: { u1: 3, u2: 1 }, winners: ["u1"] },
+    };
+    for (const session of [null, setup, { ...setup, phase: "playing" }, results]) {
+      const message = { type: "game.status", session };
+      expect(server(message)).toEqual({ ok: true, message });
+    }
+  });
+
+  it("rejects an unknown phase", () => {
+    expect(server({ type: "game.status", session: { ...setup, phase: "paused" } }).ok).toBe(false);
+  });
+
+  it("accepts a player's view and game events", () => {
+    const view = { type: "game.view", view: { ownCount: 3 } };
+    const events = {
+      type: "game.events",
+      events: [{ type: "won", data: { team: 1 } }, { type: "timeUp" }],
+    };
+    expect(server(view)).toEqual({ ok: true, message: view });
+    expect(server(events)).toEqual({ ok: true, message: events });
+  });
+
+  it("lets server messages be far larger than client messages, for big game views", () => {
+    const big = { type: "game.view", view: { strokes: "x".repeat(50_000) } };
+    expect(server(big).ok).toBe(true);
+    expect(client({ type: "move", move: { strokes: "x".repeat(50_000) } }).ok).toBe(false);
+  });
+});

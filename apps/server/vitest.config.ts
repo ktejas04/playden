@@ -9,6 +9,8 @@ export default defineConfig({
       miniflare: {
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(import.meta.dirname, "migrations")),
+          // Dev-only games (Tap Race) must be pickable in tests, with or without a local .dev.vars.
+          DEV_LOGIN: "true",
         },
       },
     })),

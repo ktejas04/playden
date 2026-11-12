@@ -6,8 +6,11 @@ import { navigate } from "./router";
 
 interface ShellProps {
   children: ReactNode;
-  /** Shows "Lobby" with a back arrow instead of the wordmark. */
-  back?: boolean;
+  /**
+   * The header's left side: the wordmark linking home ("logo"), "‹ Lobby" ("back"), or the
+   * wordmark with no link ("plain"), for screens that have their own exit.
+   */
+  header?: "logo" | "back" | "plain";
   /** Replaces the plain theme switch on the right, e.g. the account menu. */
   headerRight?: ReactNode;
 }
@@ -21,12 +24,16 @@ export function Wordmark() {
   );
 }
 
-export function Shell({ children, back = false, headerRight }: ShellProps) {
+export function Shell({ children, header = "logo", headerRight }: ShellProps) {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-xl items-center gap-1 px-3">
-          {back ? (
+          {header === "plain" ? (
+            <span className="flex h-11 items-center px-1.5">
+              <Wordmark />
+            </span>
+          ) : header === "back" ? (
             <Button
               variant="ghost"
               className="h-11 gap-1 pr-3 pl-1.5 text-base"
