@@ -12,3 +12,16 @@ export interface GameViewProps<View, Move> {
   /** Server time now, in milliseconds, corrected for this device's clock. */
   serverNow: () => number;
 }
+
+/**
+ * What the room hands a game's optional settings view (`view/index.tsx` exports it beside the
+ * game screen). The config is the game's own shape, any shape; the platform only stores it,
+ * checks it with the game's `configSchema`, and shows this view in setup. The host can edit
+ * (`canEdit`); everyone else sees the same view read-only.
+ */
+export interface GameSettingsProps<Config> {
+  config: Config;
+  canEdit: boolean;
+  /** The whole new config; the room checks it with the game's schema and tells everyone. */
+  onChange: (next: Config) => void;
+}

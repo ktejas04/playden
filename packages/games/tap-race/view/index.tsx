@@ -70,3 +70,5 @@ export function TapRaceScreen({
     </div>
   );
 }
+
+export { TapRaceSettings } from "./settings";

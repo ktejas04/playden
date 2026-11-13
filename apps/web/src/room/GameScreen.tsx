@@ -37,6 +37,7 @@ import {
   PlayIcon,
   RepeatIcon,
   Share2Icon,
+  SlidersHorizontalIcon,
   ShuffleIcon,
   RotateCcwIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ import { navigate, setNavigationGuard } from "../router";
 import { BottomBar, Panel } from "../Shell";
 import { GameList } from "./GamePicker";
 import { isFull, seatsOf } from "./SessionCards";
+import { SettingsDialog } from "./SettingsDialog";
 import { GameStage, ResultsCard } from "./GameStage";
 import { StartCountdown, useSecondsUntil } from "./StartCountdown";
 
@@ -300,6 +302,7 @@ export function GameScreen({
 }) {
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [choosingGame, setChoosingGame] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const isHost = hostId === me;
   const countdown = useSecondsUntil(
     session.phase === "playing" ? session.startsAt : null,
@@ -400,15 +403,21 @@ export function GameScreen({
       {phase === "setup" && (
         <Panel className="mt-4">
           <p className="text-muted-foreground">{game.definition.summary}</p>
+          {/* Invite first for everyone; Settings for everyone (only the host can change them). */}
           <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={onInvite}>
+              <Share2Icon /> Invite
+            </Button>
+            {game.Settings && (
+              <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+                <SlidersHorizontalIcon /> Settings
+              </Button>
+            )}
             {isHost && (
               <Button variant="outline" size="sm" onClick={() => setChoosingGame(true)}>
                 <RepeatIcon /> Change game
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onInvite}>
-              <Share2Icon /> Invite
-            </Button>
           </div>
         </Panel>
       )}
@@ -453,6 +462,18 @@ export function GameScreen({
           onShuffle={
             phase === "setup" && isHost ? () => send({ type: "game.shuffleTeams" }) : undefined
           }
+        />
+      )}
+
+      {/* Everyone can look; only the host can change anything. */}
+      {phase === "setup" && (
+        <SettingsDialog
+          game={game}
+          config={session.config}
+          canEdit={isHost}
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          onChange={(config) => send({ type: "game.setConfig", config })}
         />
       )}
 

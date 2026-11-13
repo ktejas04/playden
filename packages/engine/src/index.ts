@@ -19,5 +19,5 @@ export {
   teamForNewcomer,
   teamSizes,
 } from "./seating";
-export type { GameViewProps } from "./view";
+export type { GameSettingsProps, GameViewProps } from "./view";
 export { type Drawn, type Rng, createRng, nextFloat, nextInt, pick, shuffle } from "./random";

@@ -1,27 +1,37 @@
-import type { AnyGame, GameDefinition, GameViewProps } from "@playden/engine";
+import type { AnyGame, GameDefinition, GameSettingsProps, GameViewProps } from "@playden/engine";
 import type { ComponentType } from "react";
 import { tapRace } from "@playden/game-tap-race";
-import { TapRaceScreen } from "@playden/game-tap-race/view";
+import { TapRaceScreen, TapRaceSettings } from "@playden/game-tap-race/view";
 
 export interface WebGame {
   definition: AnyGame;
   View: ComponentType<GameViewProps<unknown, unknown>>;
+  /** The game's own settings view, if it has settings the host can change. */
+  Settings?: ComponentType<GameSettingsProps<unknown>>;
 }
 
-/** Pairs a game with its screen; the types make sure the screen fits that game's views and moves. */
+/**
+ * Pairs a game with its screen and, optionally, its settings view; the types make sure each
+ * fits that game's views, moves and config.
+ */
 function webGame<S, M, V, C>(
   definition: GameDefinition<S, M, V, C>,
   View: ComponentType<GameViewProps<V, M>>,
+  Settings?: ComponentType<GameSettingsProps<C>>,
 ): WebGame {
-  // Safe: the room only ever hands a game's screen that same game's views and moves.
-  return { definition, View: View as ComponentType<GameViewProps<unknown, unknown>> };
+  // Safe: the room only ever hands a game's views that same game's views, moves and config.
+  return {
+    definition,
+    View: View as ComponentType<GameViewProps<unknown, unknown>>,
+    Settings: Settings as ComponentType<GameSettingsProps<unknown>> | undefined,
+  };
 }
 
 /**
  * Every game the web app can show. Adding a game: `pnpm new-game` adds its line here and in
  * apps/server/src/games.ts. Removing one: delete its folder and both lines.
  */
-export const GAMES: readonly WebGame[] = [webGame(tapRace, TapRaceScreen)];
+export const GAMES: readonly WebGame[] = [webGame(tapRace, TapRaceScreen, TapRaceSettings)];
 
 export function findWebGame(id: string): WebGame | undefined {
   return GAMES.find((game) => game.definition.id === id);

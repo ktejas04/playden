@@ -7,6 +7,7 @@ export default defineConfig({
       "packages/engine",
       "packages/games/*",
       "packages/protocol",
+      "packages/ui",
       "apps/web",
       "apps/server",
     ],
