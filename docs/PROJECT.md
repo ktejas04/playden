@@ -1,6 +1,6 @@
 # PlayDen — Master Project Doc
 
-Last updated: 2026-11-10 · Owner: Tejas Kumar
+Last updated: 2026-11-13 · Owner: Tejas Kumar
 
 ## How to use this doc
 
@@ -30,7 +30,7 @@ This is the single source of truth for PlayDen. Everything (code, docs, plans, t
 
 **Rules**
 
-- Never change a decision silently. Changing one means updating the Decisions log in the same change.
+- Never change a decision silently. Changing one means updating the Decisions log in the same change (a game's rule decisions go in its spec instead, D57).
 - Anything not decided here: choose the simplest option, then add it to the log.
 - Sections are short on purpose. Don't add background; add decisions.
 
@@ -68,9 +68,9 @@ Every agreed decision in one place. Sections below explain the details.
 | D11 | Voice | v2, Cloudflare Realtime SFU (raw, not RealtimeKit); phase-based muting by game | 2026-11-10 |
 | D12 | UX | Mobile-first portrait layouts; learn controls tour via `data-tour` tags | 2026-11-10 |
 | D13 | Code | Modular: games never import each other or server code; comments only where non-obvious | 2026-11-10 |
-| D14 | Sketch Battle | First team to guess 200, second team a flat 100 however late, no guess 0 (replaces the time-ratio formula) | 2026-11-11 |
+| D14 | Sketch Battle | First team to guess 200, second team a flat 100 however late, no guess 0, as the original (an earlier draft of ours used a time-ratio formula) | 2026-11-11 |
 | D15 | Sketch Battle | Winner's drawer stays; the losing team rotates to its next connected player, who picks the word. No streak points: a streak of 2+ gives the challenger a head start of `3 + (streak − 2)` s, uncapped by default (cap in `config.ts`) | 2026-11-11 |
-| D16 | Sketch Battle | Final round "the showdown": all round words in one shared shuffled order, drawers rotate per word, no timer, ends when one team finishes; 100 per word guessed, +100 for finishing (replaces the 2000 bonus) | 2026-11-11 |
+| D16 | Sketch Battle | Final round "the showdown": all round words in one shared shuffled order, drawers rotate per word, no timer, ends when one team finishes; 100 per word guessed, +100 for finishing, as the original (an earlier draft of ours had a 2000 bonus) | 2026-11-11 |
 | D17 | Copyright | PlayDen stays private to our WhatsApp community (about 100, never more than 200) and free, so games based on existing titles keep their real names (Codenames, Secret Hitler, Flip 7, Trio…) so players recognise them. Conditions: brand names appear only behind sign-in, never in the domain, the public sign-in page or page titles; search engines are blocked (`robots.txt` disallow-all plus a `noindex` meta, not added yet); we copy rules only, never a publisher's art, card text, word lists, code or assets. Secret Hitler is CC BY-NC-SA 4.0, so we credit its creators and stay non-commercial. Sketch Battle's rules follow drawbattle.io; its name, look, animations and word list are our own. If PlayDen ever opens to strangers or takes money (ads, paid tiers, donations tied to games), brand-named games get original names first | 2026-11-12 |
 | D18 | Workspace | Everything lives in `D:/Projects/PlayDen`; `AGENTS.md` holds agent rules, `CLAUDE.md` points to it | 2026-11-10 |
 | D19 | Access | Site, API and WebSockets share one origin so the login cookie is first-party (Safari blocks third-party cookies) | 2026-11-10 |
@@ -87,7 +87,7 @@ Every agreed decision in one place. Sections below explain the details.
 | D30 | UI | Use a component library, never hand-rolled widgets or animations: shadcn/ui (Radix + Tailwind) in `packages/ui`, added with the `shadcn` CLI as a dev dependency. We design flows and layouts, not components | 2026-11-10 |
 | D31 | Database | Drizzle ORM: `apps/server/src/db/schema.ts` is the single source of truth for tables and DB types; `drizzle-kit generate` writes the SQL migrations that Wrangler applies to D1; no hand-written SQL | 2026-11-10 |
 | D32 | UX | Light and dark themes; follows the device's setting by default, with a Light / Dark / Device switch in the header (Device shows a phone, tablet or monitor icon to match), remembered per device (`next-themes`) | 2026-11-10 |
-| D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration; Sketch Battle fits the free tier comfortably | 2026-11-10 |
+| D33 | Hosting | Checked Cloudflare pricing: incoming WebSocket messages bill 20:1 as requests, outgoing are free, hibernating rooms cost no duration. Rechecked 2026-11-13: every storage `put()` and every `setAlarm()` is a row written (100,000 a day free), and each alarm firing is a request, so fast games need D55 to fit | 2026-11-13 |
 | D34 | UX | Visual identity "card table under a lamp": felt green (dark `#0F211B`, light sage `#EEF4EF`), game-token yellow for main actions, ivory letter tiles for room codes and the join box, coral/teal/sky/lilac player colours (stable per player). Bricolage Grotesque for headings, Geist for text. Buttons are game pieces (bottom edge, lift on hover, press on tap; motion off for reduced-motion). Lists sit in one panel with dividers. Page scrolls with hidden scrollbar; header has "‹ Lobby" (except on room pages, which have one exit per screen instead: D51) and an avatar menu; main actions in a sticky bottom bar | 2026-11-10 |
 | D35 | Rooms | A room exists only once created (`POST /api/rooms` picks a free code); unknown or closed codes return "Room not found". A room closes 60 s after it becomes empty (`ROOM_EMPTY_CLOSE_MS`), replacing "30 minutes". Joining needs the Join button; no auto-join on the 4th letter | 2026-11-10 |
 | D36 | Access | Statuses: pending, approved, declined, banned. Decline (waiting only) lets the person ask again after `ASK_AGAIN_AFTER_MS` (5 s while testing; raise before launch). Block = ban for someone never approved; Unblock returns them to Waiting, Let back in restores a former member. Sign out lives in the avatar menu | 2026-11-10 |
@@ -109,6 +109,9 @@ Every agreed decision in one place. Sections below explain the details.
 | D52 | Rooms | One room at a time per person, in any role, so nobody plays two games at once. Opening a second room asks "Leave ABCD and join WXYZ?"; joining leaves the first room exactly like Leave room. Enforced by the Lobby object (it knows each person's current room), built with it; until then two rooms are possible but unsupported | 2026-11-12 |
 | D53 | Engine | Game settings are the game's own: its config can be any shape, checked by its `configSchema`. A game with settings exports a `Settings` view (`GameSettingsProps`: config, canEdit, onChange) beside its screen, registered with `webGame(definition, Screen, Settings)`. The platform only wraps it: a **Settings** button in setup for everyone (buttons in order: Invite, Settings, Change game for the host), opening a popup with the game's view; the host can change things, everyone else sees plain values, updated live every change checked on the server, kept for Play again. Common controls (number stepper, choice, on/off) and a field-list form are optional building blocks in `@playden/ui` (`components/settings`, `lib/settingFields`); a game using fields tests them against its schema with `settingProblems` | 2026-11-13 |
 | D54 | Product | Tap Race goes live as PlayDen's first game: a one-minute warm-up so the group tries rooms, teams, settings and the countdown before Sketch Battle. New games still start dev-only (`pnpm new-game`) and go live by dropping `devOnly`. Every player connection may send at most 10 game moves a second (burst 10, `MOVE_LIMIT`); faster ones are dropped quietly, so a script can't use up the free tier (D33). Switching games on and off from the admin page waits for the kill switch in Platform extras | 2026-11-13 |
+| D55 | Engine | **Live moves and lean saves.** A game's `apply` may mark a transition `live` (moves that arrive many times a second, like strokes and wrong guesses): the room applies it to the table it keeps in memory, sends each viewer only the game's `delta`, and doesn't save. Every other change saves the table once, which also carries any unsaved live changes. While live changes are unsaved, a timer keeps the room awake (at most `LIVE_MAX_UNSAVED_MS`, then it saves). A game with `delta` gets `game.delta` messages (numbered; a phone that sees a gap sends `game.resync` for the full view), and the full `game.view` only on join, reconnect and resync. The alarm is booked only when its time changes. A game may set its own per-connection `moveLimit` instead of D54's default. The contract kit checks that a live transition never changes `nextDeadline` | 2026-11-13 |
+| D56 | Engine | **Presence for games.** Games may define `onPresence(state, awayIds, now)`; the room calls it when a player mid-game drops or returns, so games can skip away players (Sketch Battle's rotation and ready-up). `onPlayerLeft` still means the seat is gone for good | 2026-11-13 |
+| D57 | Docs | `docs/PROJECT.md` describes PlayDen as a system: its Decisions log holds platform, product and process decisions. Each game's rules, and the decisions about them, live only in its own spec (`docs/games/<id>.md`, section "Decisions"). Game rows already in this log (D14–D16, D44–D47) stay as history | 2026-11-13 |
 
 ## Scope: v1 vs later
 
@@ -176,9 +179,10 @@ Players load the site and open one WebSocket, all from one Worker address; the W
 **What happens on one move**
 
 1. A player taps "guess"; the browser sends `move` over its WebSocket.
-2. The Room object calls the game's `validate`, then `apply`, timed with server time.
-3. The Room calls `view` once per player and sends each their own `patch`.
-4. Browsers re-render from the patch; the Room sets an alarm for the next deadline, if any.
+2. The Room object parses it with the game's `moveSchema`, then calls `validate` and `apply` on the table it keeps in memory, timed with server time.
+3. A **live** transition (D55) is not saved; any other is saved once, as one row.
+4. The Room sends each viewer only what they may see: the game's `delta` for that viewer if the game has one, otherwise their full `view`.
+5. Browsers update from it. If the game's next deadline changed, the Room books its alarm for it.
 
 | Component | Owns | Never does |
 | --- | --- | --- |
@@ -291,21 +295,22 @@ Each room is one Durable Object holding one WebSocket per player; a single Lobby
 - **Leave game** frees the seat at once and the game's `onPlayerLeft` runs.
 - The host passes on after 60 s away, or at once when they leave. While Playing, only players can be host.
 
-**Message types (shared `protocol` package)**
+**Message types (shared `protocol` package, `messages.ts`)**
 
 | Direction | Message | Purpose |
 | --- | --- | --- |
-| Client → server | `join` | Seat + token (name comes from the account) |
-| Client → server | `lobby.*` | Ready, change team, change settings (host) |
-| Client → server | `move` | A game move, e.g. `{type:"guess", text:"elephant"}` |
-| Client → server | `stroke` | A batch of drawing points (Sketch Battle) |
-| Client → server | `chat` | Room chat message |
-| Server → client | `snapshot` | Full view for this player (on join and reconnect) |
-| Server → client | `patch` | Changed parts of the view after a move |
-| Server → client | `events` | Game events for animations and the log |
-| Server → client | `error` | A rejected move with its reason |
+| Client → server | `ping` | Clock offset and keep-alive, every 25 s |
+| Client → server | `leave`, `remove` | Leave the room; host or admin removes a player (D42) |
+| Client → server | `game.pick`, `game.setConfig`, `game.join`, `game.switchTeam`, `game.shuffleTeams`, `game.spectate`, `game.leave`, `game.start`, `game.ban`, `game.end`, `game.playAgain`, `game.returnToRoom` | Session controls (D51, D53) |
+| Client → server | `move` | A game move, checked by the game's `moveSchema`, e.g. `{type:"guess", text:"elephant"}` or a stroke batch |
+| Client → server | `game.resync` (D55) | Ask for the full view after a gap in deltas |
+| Server → client | `snapshot`, `pong`, `removed`, `replaced`, `error` | Room members and host, clock, removal, Play here (D49), a refused message |
+| Server → client | `game.status` | The session: phase, game, settings, players, spectators |
+| Server → client | `game.view` | This viewer's full view (join, reconnect, resync, or games without `delta`) |
+| Server → client | `game.delta` (D55) | What changed for this viewer, numbered |
+| Server → client | `game.events`, `game.notice` | Events for animations; mid-game leave or ban notices |
 
-The client never assumes a move worked; it waits for the server's `patch`. Each move carries a client sequence number so duplicates after a reconnect are ignored.
+The client never assumes a move worked; it waits for the server's view or delta (it may show its own guess faded until then).
 
 ## Timers, fairness and drawing data
 
@@ -314,17 +319,17 @@ All timing is decided on the server; phones only display it. This is what makes 
 **Timers**
 
 - The server sends a deadline as a timestamp, not a countdown. Each client counts down to it after correcting for its clock offset (measured with a ping on join).
-- When the deadline passes, a Durable Object alarm fires `onDeadline` even if nobody sends anything.
+- When the deadline passes, a Durable Object alarm fires `onDeadline` even if nobody sends anything. A room has one alarm, booked only when the earliest wake-up time changes (D55); each booking is a row written and each firing a request.
 - Every scored action (a correct guess, a finished showdown word) is timed by when the server received it.
 
 **Fairness limits.** Network delay between players is typically 50–150 ms. That's fine for guessing games where gaps are seconds long. Reflex games like Dobble would need extra handling and are out of scope.
 
-**Drawing data (Sketch Battle)**
+**Fast moves (D55)**
 
-- Strokes are sent as point batches about every 100 ms, not point by point, to keep message counts low on the free tier.
-- Points are stored relative to the canvas (0–1 on each axis), so a drawing looks the same on a phone and a PC.
-- The server keeps each round's stroke list, so a reconnecting or late player sees the full drawing replayed.
-- A team's strokes go only to that team and to spectators. The other team gets a coarse block preview built on the server until they've guessed the word themselves, so nobody can peek with dev tools (D47).
+- Moves that arrive many times a second (Sketch Battle's strokes and wrong guesses) are live: kept in the room's memory, sent to each viewer as a small `delta`, and saved with the next normal change instead of one by one.
+- Everything else is saved at once, as one row: the room's `table` key holds the whole session and game state.
+- A room keeps itself awake while it has unsaved live changes, so sleeping can't lose them. A crash or deploy loses at most the live changes since the last save.
+- Games define who sees what in `view` and `delta`, so hidden information still never leaves the server (D47). Sketch Battle's drawing details are in its spec.
 
 ## Access control and admin
 
@@ -498,7 +503,7 @@ Pushing to `main` deploys to production automatically after tests pass. There ar
 
 ## Hosting, free-tier budget and costs
 
-v1 costs ₹0. The one limit to watch is Durable Object messages during Sketch Battle; if we hit it, the fix is Cloudflare's paid plan at about $5/month.
+v1 costs ₹0. The limits to watch are Durable Object rows written and running time; with live moves and lean saves (D55) a normal game night uses about a tenth of them. If we outgrow them, the fix is Cloudflare's paid plan at about $5/month.
 
 **Hosting**
 
@@ -510,14 +515,31 @@ v1 costs ₹0. The one limit to watch is Durable Object messages during Sketch B
 
 | Limit | Free allowance | What uses it |
 | --- | --- | --- |
-| Durable Object requests | 100,000/day, incl. WebSocket messages | Every move, chat line and stroke batch |
+| Durable Object requests | 100,000/day; 20 incoming WebSocket messages count as 1, outgoing are free; each alarm firing and connection is 1 | Every move, ping and connection |
 | Durable Object duration | 13,000 GB-s/day | Rooms with open sockets; hibernation keeps idle rooms free |
+| Durable Object rows written | 100,000/day | Every storage `put()` and every alarm booking |
+| Durable Object rows read | 5,000,000/day | Storage reads; a room reads mainly when it wakes |
 | Durable Object storage | 5 GB total | Tiny for us |
 | Realtime SFU + TURN | 1,000 GB/month | Voice |
 
 Over a free limit, Cloudflare fails the request instead of charging; limits reset daily at 00:00 UTC (05:30 IST).
 
-**The one hot spot: Sketch Battle strokes.** Two drawers sending 10 batches/s for 15 rounds plus the relay comes to roughly 10,000–15,000 incoming messages per game. Checked during setup (D33): incoming WebSocket messages count 20:1 toward requests, outgoing messages are free, and each connection costs one request, so a game costs roughly 500–750 requests, about 130+ full games per day on the free plan. Keep batching strokes (100–200 ms) and hibernation on; the paid plan is only a fallback.
+**Budget per room-hour (8-player Sketch Battle, with D55).** About 50 rounds an hour, drawing half the time.
+
+| Item | Per room-hour | Free daily limit | Room-hours a day |
+| --- | --- | --- | --- |
+| Requests (20,400 incoming messages ÷ 20, plus ~250 alarm firings and ~40 connections) | ~1,300 | 100,000 | ~77 |
+| Rows written (~19 a round: word chosen, correct guesses, round end, phase changes, ~5 alarm bookings, Continue taps) | ~1,000 | 100,000 | ~100 |
+| Rows read | a few hundred | 5,000,000 | thousands |
+| Running time (awake through drawing) | ~250 GB-s | 13,000 GB-s | **~52, the first limit reached** |
+
+| Night | Room-hours | Requests | Rows written | Running time |
+| --- | --- | --- | --- | --- |
+| Normal: 12 players, 2 rooms, 3 h | 6 | ~8% | ~6% | ~12% |
+| Big: 40 players, 5 rooms, 3 h | 15 | ~20% | ~15% | ~29% |
+| Peak target: 150 online, 18 rooms, 3 h | 54 | ~70% | ~54% | ~104% |
+
+Normal and big nights fit easily. The peak target would need the paid plan (~$5/month). Without D55, each move cost 2 rows written (a full save and an alarm booking), so one Sketch Battle room-hour would write ~48,000 rows and the site would stop after about 2 room-hours a day. The rest of the site (pages, sign-in, `/api/me`, socket upgrades) is about 10 Worker requests per player per night. Check these numbers on the Cloudflare dashboard after the first game night.
 
 **Where money may be needed**
 
@@ -542,15 +564,7 @@ Each game gets its own spec doc in `docs/games/` (rules, edge cases, scoring for
 | Trio | v3 | 3–6 | No | To write |
 | Flip 7 | v3 | 3–18 | No | To write |
 
-**Sketch Battle in short** (the spec has every detail)
-
-- Two teams. Each round one drawer per team draws the **same word** at once while teammates guess. The rules follow drawbattle.io so players feel at home; the name, look and words are ours (D17).
-- 15 rounds, then **the showdown**.
-- **Round points:** first team to guess 200, second team 100, no guess 0 (D14).
-- **Drawers:** the winning drawer stays; the losing team rotates to its next player, the "challenger", who picks the word (D15).
-- **Head start:** if the staying drawer has won 2+ rounds in a row, the challenger starts drawing `3 + (streak − 2)` seconds early. There are no streak points (D15).
-- **The showdown:** all round words in one shared shuffled order, drawers rotating per word, no timer; 100 per word, +100 for finishing; ends when one team finishes (D16).
-- Every number lives in `config.ts` and can be tuned after game nights.
+Each game's rules, settings and decisions are in its spec (D57). Sketch Battle's mechanics copy drawbattle.io; its name, look and words are ours (D17).
 
 ## Agent playbook
 
@@ -600,7 +614,7 @@ Work happens in focused sessions, one doc or one build step per session, so each
 1. **Planning:** this doc (done).
 2. **Setup:** monorepo, Google sign-in + approval queue + admin page, one Room object, Worker deploy via GitHub Actions; a deployed "hello room" where two phones on different networks see each other join. Plan: `docs/plans/02-setup.md`. Then write the Sketch Battle spec (D21).
 3. **Game platform:** dev test-player sign-in, seeded randomness, game registry with the dev-only Tap Race, rooms that run games, teams and spectators, away seats. Plan: `docs/plans/03-game-platform.md`. Caps, kill switch, live room list, ban kicks from live rooms and PWA move to "Platform extras" before the first full community release.
-4. **Sketch Battle v1:** plan `docs/plans/04-sketch-battle.md`, in five game phases (D43), each playable on its own: core round, full match, showdown, settings and words, polish. Engine + tests from the spec first in each, then the UI.
+4. **Sketch Battle v1:** plan `docs/plans/04-sketch-battle.md`. Platform tasks first (019b live moves and lean saves, D55; 019c presence, D56), then five game phases (D43), each playable on its own: core round, full match, showdown, settings, polish. Engine + tests from the spec first in each, then the UI. The step-by-step checklist is at the end of the spec.
 5. **Game night 1:** play with 8–12 people; collect feedback; tune `config.ts`.
 6. **v2:** voice, Codenames and Secret Hitler specs and builds, learn controls tour, admin caps + kill switch.
 7. **v3:** Trio, Flip 7, stats and leaderboards.

@@ -2,43 +2,50 @@
 
 ## Goal
 
-Sketch Battle playable by our community, built in five game phases (D43) that each end in something people can play and give feedback on. Rules: `docs/games/sketch-battle.md`.
+Sketch Battle playable by our community, built in five game phases (D43) that each end in something people can play and give feedback on. Rules: `docs/games/sketch-battle.md`; its section 23 is the step-by-step checklist.
 
 ## Before it starts
 
-Phase 3 (Game platform) is done: rooms run games, teams and spectators exist, and away seats work.
+Phase 3 (Game platform) is done: rooms run games, teams and spectators exist, and away seats work. Two platform tasks come first, because fast-moving games need them (D55, D56).
 
 ## In scope
 
-Everything in the spec. Each game phase's task files are written when that phase starts, so they can use what the previous phase taught us. Only 4.1's files exist now.
+Everything in the spec. Each game phase's task files are written when that phase starts, so they can use what the previous phase taught us. Files exist for 019b, 019c and 020–025.
 
 ## Out of scope
 
 - Learn-controls tour (v2)
-- Hindi or Hinglish word packs (D45)
-- Custom word packs
+- Word packs, player-written words, Hindi or Hinglish words (D45)
+- Streamer mode
 - Undo on the canvas
 
 ## Tasks
+
+**Platform first**
+
+| # | Title | Depends on |
+| --- | --- | --- |
+| 019b | Live moves and lean saves | 017, 019 |
+| 019c | Presence for games | 019 |
 
 **4.1 Core round:** two teams play rounds end to end.
 
 | # | Title | Depends on |
 | --- | --- | --- |
-| 020 | Screen mockups: lobby, choose, drawer, guesser, round result | — |
-| 021 | Engine: round flow, guessing and scoring | 015–018 |
-| 022 | Starter English word list | — |
-| 023 | Drawing canvas and stroke batching | 017 |
-| 024 | Block preview of the other team | 021, 023 |
-| 025 | Round screens wired to the room | 020, 021, 023, 024 |
+| 020 | Screen mockups and the feel | — |
+| 021 | Engine: round flow, guessing and scoring | 019b, 019c |
+| 022 | Word list (~2,500, our own) | — |
+| 023 | Drawing canvas and stroke sending | 019b |
+| 024 | Opponent pixel view | 021, 023 |
+| 025 | Round screens wired to the room | 020, 021, 022, 023, 024 |
 
 **4.2 Full match:** a 15-round match plays like the original.
 
 | # | Title |
 | --- | --- |
-| 026 | Engine: winner-stays rotation, streaks, head starts |
+| 026 | Engine: winner stays, streaks, private head start |
 | 027 | Head start stage and matchup badges |
-| 028 | Round summary, replays and ready-up |
+| 028 | Round summary, replays, Continue and Start next round |
 | 029 | Disconnect rules and the spectator view |
 
 **4.3 Showdown:** the complete game.
@@ -49,12 +56,11 @@ Everything in the spec. Each game phase's task files are written when that phase
 | 031 | Showdown screens |
 | 032 | Results, highlights and Play again |
 
-**4.4 Settings and words:** the host can tune games.
+**4.4 Settings**
 
 | # | Title |
 | --- | --- |
-| 033 | Host settings |
-| 034 | Full English word list (~500) and the word-length toggle |
+| 033 | Host settings and the word-length toggle |
 
 **4.5 Polish:** feels finished.
 
@@ -68,4 +74,5 @@ Everything in the spec. Each game phase's task files are written when that phase
 
 - [ ] A full game (15 rounds and the showdown) plays with 4–8 people on phones and PCs
 - [ ] Every edge case in the spec has its named test
+- [ ] The Cloudflare dashboard after a game night matches the spec's budget (section 19)
 - [ ] pnpm typecheck, lint, test pass

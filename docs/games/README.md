@@ -8,7 +8,7 @@ A game is not built until its spec exists here. Create its folder with `pnpm new
 
 | Game | Version | Spec |
 | --- | --- | --- |
-| Tap Race | Dev-only test game | [tap-race.md](tap-race.md) |
+| Tap Race | Live warm-up game (D54) | [tap-race.md](tap-race.md) |
 | Sketch Battle | v1 | [sketch-battle.md](sketch-battle.md) |
 | Codenames | v2 | To write |
 | Secret Hitler | v2 | To write |

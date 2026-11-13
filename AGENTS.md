@@ -27,7 +27,7 @@ Everything lives in this folder: code, docs, plans, tasks, local setup.
 - Tests first for any rule or formula. Never delete or weaken a test to make it pass.
 - No new dependencies, renames or folder restructuring unless the task says so.
 - Never commit secrets.
-- Changing a decision means updating the Decisions log in `docs/PROJECT.md` in the same change.
+- Changing a decision means recording it in the same change: platform, product and process decisions in the Decisions log of `docs/PROJECT.md`; a game's rule decisions in the Decisions section of its spec (D57).
 
 ## Done means
 
