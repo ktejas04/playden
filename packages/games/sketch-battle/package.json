@@ -1,0 +1,23 @@
+{
+  "name": "@playden/game-sketch-battle",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./view": "./view/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@playden/engine": "workspace:*",
+    "@playden/ui": "workspace:*",
+    "lucide-react": "^1.70.0",
+    "react": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0"
+  }
+}

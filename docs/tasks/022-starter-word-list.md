@@ -15,5 +15,5 @@ Spec: docs/games/sketch-battle.md section 18, D45
 3. The engine's word order uses this list (021 used a test list until now).
 
 ## Done when
-- [ ] Tests above pass
-- [ ] pnpm typecheck, lint, test pass
+- [x] Tests above pass
+- [x] pnpm typecheck, lint, test pass

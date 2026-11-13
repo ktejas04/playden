@@ -220,6 +220,16 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S11 | Results | Totals, winner celebration, highlights, the platform's Results controls |
 | S12 | Spectator | PC: both canvases side by side with the word and both feeds. Phone: the two teams as tabs |
 
+**Chosen layout (020, built straight into the screens in 4.1; review on devices)**
+
+- **Teams:** "Team 1" and "Team 2", as on the platform's setup screen, with coral and teal accents (the first two player colours, D34): a dot by each score, the canvas border, the matchup names.
+- **Phone, players:** status bar (round, both scores, then the word or blanks and the timer), the own team's canvas full width, then the drawer's toolbar or the guesser's guess box (sticky at the bottom, so it stays above the keyboard), then the team feed, then the opponent strip.
+- **Opponent strip:** a compact card below the feed: the 24 × 16 pixel view (or, once your team has guessed, their real drawing) at 128 px wide, the team name, who draws, and "Got it +8.7 s" once they have.
+- **Guess feed:** newest first; name, guess, and "+12.3 s" since the team's drawing started; a correct guess shows as "got it!" in green, never the word; your own guesses show faded until the server confirms them.
+- **Result:** an overlay on your canvas, "You won by 3 seconds! +200 points" in green, "You lost by 3 seconds +100 points" in red, or "Time's up! The word was …"; the canvas border turns green or red.
+- **Spectators:** both teams as tabs on a phone, side by side from 640 px wide.
+- **Motion:** each moment has one short animation (150–300 ms): the word cards and overlays fade in, the 3-2-1 zooms, a correct guess pulses the canvas border once, a score slides up when it changes. All off with reduced motion.
+
 **Our own animations (designed in the mockup task)**
 
 - **Drawer handoff:** the pencil token slides from the outgoing drawer's name chip to the challenger's chip, like moving a game piece. The staying drawer's token gets a small streak flare.
@@ -236,7 +246,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 
 - Pen, eraser, clear. Eraser paints the background colour.
 - 4 sizes: 1%, 2%, 5% and 10% of the canvas width.
-- 10 colours in our own shades (chosen in 020): black, light grey, pink, red, orange, yellow, green, blue, purple, brown. Each starts black, size 1.
+- 10 colours in our own shades (chosen in 020): black `#22201c`, light grey `#b9b6ae`, pink `#f286b4`, red `#e0493c`, orange `#f28a2e`, yellow `#f2c230`, green `#3c9c5a`, blue `#2f7ed6`, purple `#8a5bc8`, brown `#8b5a3a`, on warm paper `#fffcf3` in both themes (so a drawing looks the same on every screen; the eraser paints the paper). Each starts black, size 1.
 - No undo in v1.
 
 **Coordinates.** The canvas is 3:2. Points are whole numbers, x from 0 to 1500 and y from 0 to 1000, so a drawing looks the same on any screen. The drawer's phone drops points closer than 4 units to the last one.
@@ -311,6 +321,7 @@ interface Round {
   word: string | null;
   headStartSeconds: number;
   wordChosenAt: number | null;
+  solvedOrder: (0 | 1)[]; // teams in the order they guessed: 200, then 100
   turns: [TeamTurn, TeamTurn];
 }
 
@@ -326,6 +337,7 @@ interface RoundRecord {
 
 type Phase =
   | "choose" | "countdown" | "headStart" | "drawing" | "result" | "summary"
+  | "waiting" // the next round waits for 2 connected per team (SB12)
   | "showdownIntro" | "showdownCountdown" | "showdown" | "showdownResult" | "ended";
 
 interface SketchBattleState {
@@ -336,7 +348,7 @@ interface SketchBattleState {
   rotations: [string[], string[]]; // each team's rotation
   away: string[]; // from the presence hook (D56)
   left: string[];
-  wordOrder: number[]; // seeded shuffle of word indexes; offered from the front
+  wordOrder: number[]; // seeded shuffle of all word indexes, kept to the 2 × rounds a game can offer
   wordCursor: number;
   round: Round | null; // the current round, strokes included
   history: RoundRecord[]; // finished rounds, without strokes
@@ -426,7 +438,7 @@ Size: a round's strokes are about 5–20 KB per team; finished rounds keep only 
 ## 18. Words
 
 - Our own list of 2,500: 2,000 easy (80%), 350 medium, 150 hard. Everything is drawable: everyday objects, animals, food, places, actions, scenes and idioms. Each entry is 1 to 4 words; about 1,100 are phrases ("cat in a box", "raining cats and dogs") and some are hyphenated (`x-ray`, `t-shirt`, `jack-in-the-box`). No proper names, brands or anything copied from another game's list (D17).
-- **Where it lives.** Now: `docs/games/sketch-battle-words.txt` (one entry per line under `# easy`, `# medium`, `# hard`), with a printable copy in `docs/games/sketch-battle-words.pdf`. Task 022 moves it into `packages/games/sketch-battle/words/english.ts` as `{ word, difficulty }`, which then becomes the source of truth. It ships inside the server code: no database, and browsers never get the list.
+- **Where it lives.** `packages/games/sketch-battle/words/english.ts`, as `{ word, difficulty }` entries: the source of truth since task 022. A printable copy of the list as first approved is `docs/games/sketch-battle-words.pdf`. It ships inside the server code: no database, and browsers never get the list.
 - **How a game picks words.** At setup the engine shuffles all 2,500 entries with the game's seed (`wordOrder`). Each choose stage offers the next two from that order (`wordCursor` moves by 2) and both leave the pool, whichever is chosen. So the order is fixed when the game starts, but which word gets played depends on each chooser's pick. A 15-round game offers 30 and plays 15; the showdown reuses those 15. Every game has a new seed, so a new order; no entry repeats within a game. Difficulty is kept for later settings.
 
 ## 19. Free-tier budget

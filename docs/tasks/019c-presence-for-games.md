@@ -20,5 +20,5 @@ Spec: docs/PROJECT.md D56; docs/design/rooms-and-games.md section 8 ("Presence")
 3. Room wiring.
 
 ## Done when
-- [ ] Tests above pass
-- [ ] pnpm typecheck, lint, test pass
+- [x] Tests above pass
+- [x] pnpm typecheck, lint, test pass

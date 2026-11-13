@@ -4,6 +4,7 @@ export {
   type GameDefinition,
   type GameEvent,
   type GameResult,
+  type MoveLimit,
   type Ok,
   type Rejection,
   type Seat,

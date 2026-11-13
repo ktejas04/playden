@@ -22,6 +22,6 @@ Spec: docs/games/sketch-battle.md sections 14, 15; D47
 3. `PixelView.tsx` draws the grid as crisp blocks, sized to the opponent strip.
 
 ## Done when
-- [ ] Tests above pass
+- [x] Tests above pass
 - [ ] Manual: with dev tools open, the guessing team's socket never carries the other team's strokes or the word before they guess
-- [ ] pnpm typecheck, lint, test pass
+- [x] pnpm typecheck, lint, test pass

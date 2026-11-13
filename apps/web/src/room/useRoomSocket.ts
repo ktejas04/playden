@@ -8,12 +8,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { backoffDelay } from "./backoff";
 import { closeOutcome } from "./closeOutcome";
 import { earlyRoomSocket } from "./earlySocket";
-import { NO_GAME, type RoomGame, clockOffset, isGameMessage, reduceGame } from "./gameState";
+import {
+  type DeltaApplier,
+  NO_GAME,
+  type RoomGame,
+  clockOffset,
+  isGameMessage,
+  reduceGame,
+} from "./gameState";
+import { findWebGame } from "../games";
 import { navigate } from "../router";
 import { replacedHere } from "./replacedHere";
 import { socketUrl } from "./socketUrl";
 
 const PING_EVERY_MS = 25_000;
+
+/** A game's own way to apply its deltas (D55), from its definition. */
+const applierFor: DeltaApplier = (gameId) => {
+  const applyDelta = findWebGame(gameId)?.definition.applyDelta;
+  return applyDelta ? (view, delta) => applyDelta(view, delta) : undefined;
+};
 
 export type ConnectionStatus =
   "connecting" | "live" | "reconnecting" | "missing" | "removed" | "replaced";
@@ -94,7 +108,7 @@ export function useRoomSocket(
         return;
       }
       if (isGameMessage(message)) {
-        setGame((current) => reduceGame(current, message));
+        setGame((current) => reduceGame(current, message, applierFor));
         return;
       }
       if (message.type !== "snapshot") return;
@@ -173,6 +187,11 @@ export function useRoomSocket(
     const ws = socketRef.current;
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
   }, []);
+
+  // A missed delta (D55): ask once for the full view; deltas wait until it arrives.
+  useEffect(() => {
+    if (game.needsResync) send({ type: "game.resync" });
+  }, [game.needsResync, send]);
 
   const removePlayer = useCallback(
     (playerId: string) => send({ type: "remove", playerId }),

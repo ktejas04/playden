@@ -3,14 +3,14 @@ import type { GameDefinition } from "../GameDefinition";
 import { type ContractFixture, checkMetadata, checkPlaythrough, checkSetup } from "./contract";
 
 export { type ContractFixture, checkMetadata, checkPlaythrough, checkSetup } from "./contract";
-export { deepFreeze, firstNonJson } from "./json";
+export { deepFreeze, firstNonJson, sameJson } from "./json";
 
 /**
  * The checks every game must pass, as Vitest tests. Call it from each game's tests:
  * `describeGameContract(myGame, { seats, sampleMoves })`.
  */
-export function describeGameContract<S, M, V, C>(
-  game: GameDefinition<S, M, V, C>,
+export function describeGameContract<S, M, V, C, D>(
+  game: GameDefinition<S, M, V, C, D>,
   fixture: ContractFixture<S, M, C>,
 ): void {
   describe(`${game.id} follows the game contract`, () => {

@@ -1,6 +1,6 @@
 import { GAME_ID_PATTERN, type GameDefinition, type Seat } from "../GameDefinition";
 import { type Rng, createRng, nextInt, pick } from "../random";
-import { deepFreeze, firstNonJson } from "./json";
+import { deepFreeze, firstNonJson, sameJson } from "./json";
 
 /** What a game's tests tell the contract kit about it. */
 export interface ContractFixture<State, Move, Config> {
@@ -22,9 +22,9 @@ const START_TIME = 1_750_000_000_000;
 /** Most moves land within this many milliseconds of the previous one. */
 const MAX_THINK_MS = 1_500;
 
-type Game<S, M, V, C> = GameDefinition<S, M, V, C>;
+type Game<S, M, V, C, D = unknown> = GameDefinition<S, M, V, C, D>;
 
-export function checkMetadata<S, M, V, C>(game: Game<S, M, V, C>): string[] {
+export function checkMetadata<S, M, V, C, D>(game: Game<S, M, V, C, D>): string[] {
   const problems: string[] = [];
   if (!GAME_ID_PATTERN.test(game.id)) problems.push(`id "${game.id}" isn't lowercase-hyphenated`);
   if (!game.name.trim()) problems.push("name is empty");
@@ -41,6 +41,10 @@ export function checkMetadata<S, M, V, C>(game: Game<S, M, V, C>): string[] {
   if (!game.configSchema.safeParse(game.defaultConfig).success) {
     problems.push("defaultConfig doesn't pass configSchema");
   }
+  if (game.delta && !game.applyDelta) problems.push("delta needs applyDelta");
+  if (game.moveLimit && !(game.moveLimit.perSecond > 0 && game.moveLimit.burst >= 1)) {
+    problems.push("moveLimit needs a positive rate and burst");
+  }
   return problems;
 }
 
@@ -49,8 +53,8 @@ function jsonProblem(label: string, value: unknown): string | null {
   return problem ? `${label} isn't plain JSON: ${problem.replace(/^\$/, label)}` : null;
 }
 
-export function checkSetup<S, M, V, C>(
-  game: Game<S, M, V, C>,
+export function checkSetup<S, M, V, C, D>(
+  game: Game<S, M, V, C, D>,
   fixture: ContractFixture<S, M, C>,
 ): string[] {
   const problems: string[] = [];
@@ -70,8 +74,8 @@ export function checkSetup<S, M, V, C>(
   return problems;
 }
 
-function checkViews<S, M, V, C>(
-  game: Game<S, M, V, C>,
+function checkViews<S, M, V, C, D>(
+  game: Game<S, M, V, C, D>,
   fixture: ContractFixture<S, M, C>,
   state: S,
   at: string,
@@ -95,8 +99,8 @@ function checkViews<S, M, V, C>(
   return problems;
 }
 
-function checkResult<S, M, V, C>(
-  game: Game<S, M, V, C>,
+function checkResult<S, M, V, C, D>(
+  game: Game<S, M, V, C, D>,
   fixture: ContractFixture<S, M, C>,
   state: S,
 ): string[] {
@@ -115,12 +119,52 @@ function checkResult<S, M, V, C>(
 }
 
 /**
+ * Checks one change of state: plain JSON, a live change keeps the deadline (D55), and each
+ * viewer's delta is clean and rebuilds exactly the view they'd otherwise get.
+ */
+function checkTransition<S, M, V, C, D>(
+  game: Game<S, M, V, C, D>,
+  fixture: ContractFixture<S, M, C>,
+  before: S,
+  transition: { state: S; events: unknown; live?: true },
+  label: string,
+): string[] {
+  const { state: after, events, live } = transition;
+  const notJson = jsonProblem("events", events) ?? jsonProblem("state", after);
+  if (notJson) return [`${label}: ${notJson}`];
+  if (live && game.nextDeadline(before) !== game.nextDeadline(after)) {
+    return [`${label}: a live move changed nextDeadline`];
+  }
+  const { delta, applyDelta } = game;
+  if (!delta || !applyDelta) return [];
+  const viewers: (string | "spectator")[] = [...fixture.seats.map((s) => s.id), "spectator"];
+  for (const viewer of viewers) {
+    const change = delta(before, after, viewer);
+    const deltaNotJson = jsonProblem(`delta for ${viewer}`, change);
+    if (deltaNotJson) return [`${label}: ${deltaNotJson}`];
+    const text = JSON.stringify(change);
+    for (const secret of fixture.hiddenFrom?.(after, viewer) ?? []) {
+      if (secret && text.includes(secret)) {
+        return [`${label}: delta for ${viewer} leaks hidden "${secret}"`];
+      }
+    }
+    const was = game.view(before, viewer);
+    const rebuilt = change === null ? was : applyDelta(was, change);
+    if (!sameJson(rebuilt, game.view(after, viewer))) {
+      return [`${label}: delta for ${viewer} doesn't rebuild its view`];
+    }
+  }
+  return [];
+}
+
+/**
  * Plays one seeded random game: players try suggested moves (valid or not) at random
- * moments, deadlines fire when nobody moves first, and one player may leave midway.
+ * moments, deadlines fire when nobody moves first, one player may leave midway, and (for games
+ * with `onPresence`) players drop and come back.
  * Every state the engine is handed is frozen, so changing it in place throws.
  */
-export function checkPlaythrough<S, M, V, C>(
-  game: Game<S, M, V, C>,
+export function checkPlaythrough<S, M, V, C, D>(
+  game: Game<S, M, V, C, D>,
   fixture: ContractFixture<S, M, C>,
   seed: number,
 ): string[] {
@@ -130,6 +174,7 @@ export function checkPlaythrough<S, M, V, C>(
   let now = START_TIME;
   let step = 0;
   let left: string | null = null;
+  let away: string[] = [];
   const at = () => `seed ${seed}, step ${step}`;
   const draw = (min: number, max: number) => {
     const drawn = nextInt(rng, min, max);
@@ -138,6 +183,18 @@ export function checkPlaythrough<S, M, V, C>(
   };
 
   let state: S;
+  /** Tells the game who is away now (D56), checking the change like any other. */
+  const tellPresence = (): string[] => {
+    if (!game.onPresence) return [];
+    try {
+      const transition = game.onPresence(state, away, now);
+      const problems = checkTransition(game, fixture, state, transition, `${at()} (presence)`);
+      if (problems.length === 0) state = deepFreeze(transition.state);
+      return problems;
+    } catch (error) {
+      return [`${at()}: onPresence threw (did it change its input?): ${String(error)}`];
+    }
+  };
   try {
     state = deepFreeze(game.setup(fixture.seats, config, seed, now));
   } catch (error) {
@@ -158,18 +215,29 @@ export function checkPlaythrough<S, M, V, C>(
       left = leaving.value.id;
       rng = leaving.rng;
       try {
-        const { state: next, events } = game.onPlayerLeft(state, left);
-        const notJson = jsonProblem("events", events) ?? jsonProblem("state", next);
-        if (notJson) return [`${at()} (player left): ${notJson}`];
-        state = deepFreeze(next);
+        const transition = game.onPlayerLeft(state, left);
+        const problems = checkTransition(game, fixture, state, transition, `${at()} (player left)`);
+        if (problems.length > 0) return problems;
+        state = deepFreeze(transition.state);
       } catch (error) {
         return [`${at()}: onPlayerLeft threw (did it change its input?): ${String(error)}`];
       }
       continue;
     }
 
+    // Presence (D56): now and then someone drops or comes back.
+    if (game.onPresence && draw(1, 20) === 1) {
+      const toggled = pick(rng, fixture.seats);
+      rng = toggled.rng;
+      const id = toggled.value.id;
+      away = away.includes(id) ? away.filter((other) => other !== id) : [...away, id];
+      const problems = tellPresence();
+      if (problems.length > 0) return problems;
+      continue;
+    }
+
     const candidates = fixture.seats
-      .filter((seat) => seat.id !== left)
+      .filter((seat) => seat.id !== left && !away.includes(seat.id))
       .flatMap((seat) => fixture.sampleMoves(state, seat.id).map((move) => ({ seat, move })));
     const moveAt = now + draw(0, MAX_THINK_MS);
     const deadlineFirst = deadline !== null && (candidates.length === 0 || deadline <= moveAt);
@@ -177,16 +245,23 @@ export function checkPlaythrough<S, M, V, C>(
     if (deadlineFirst) {
       now = Math.max(now, deadline);
       try {
-        const { state: next, events } = game.onDeadline(state, now);
-        const notJson = jsonProblem("events", events) ?? jsonProblem("state", next);
-        if (notJson) return [`${at()} (deadline): ${notJson}`];
-        state = deepFreeze(next);
+        const transition = game.onDeadline(state, now);
+        const problems = checkTransition(game, fixture, state, transition, `${at()} (deadline)`);
+        if (problems.length > 0) return problems;
+        state = deepFreeze(transition.state);
       } catch (error) {
         return [`${at()}: onDeadline threw (did it change its input?): ${String(error)}`];
       }
       continue;
     }
 
+    if (candidates.length === 0 && game.onPresence && away.length > 0) {
+      // A game may wait for away players (e.g. enough to start a round): everyone comes back.
+      away = [];
+      const problems = tellPresence();
+      if (problems.length > 0) return problems;
+      continue;
+    }
     if (candidates.length === 0) {
       return [`${at()}: stuck: no moves to try and no deadline, but no result either`];
     }
@@ -202,10 +277,10 @@ export function checkPlaythrough<S, M, V, C>(
         }
         continue;
       }
-      const { state: next, events } = game.apply(state, seat.id, move, now);
-      const notJson = jsonProblem("events", events) ?? jsonProblem("state", next);
-      if (notJson) return [`${at()} (move): ${notJson}`];
-      state = deepFreeze(next);
+      const transition = game.apply(state, seat.id, move, now);
+      const problems = checkTransition(game, fixture, state, transition, `${at()} (move)`);
+      if (problems.length > 0) return problems;
+      state = deepFreeze(transition.state);
     } catch (error) {
       return [`${at()}: validate/apply threw (did it change its input?): ${String(error)}`];
     }

@@ -32,6 +32,6 @@ Today every move reads the stored table, saves it whole (1 row written) and re-b
 5. Update PROJECT.md if anything differs from D55.
 
 ## Done when
-- [ ] Tests above pass
+- [x] Tests above pass
 - [ ] Manual: Tap Race still plays end to end on two phones; a reload mid-game comes back to the same state
-- [ ] pnpm typecheck, lint, test pass
+- [x] pnpm typecheck, lint, test pass

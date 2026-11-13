@@ -189,3 +189,22 @@ describe("game messages", () => {
     expect(client({ type: "move", move: { strokes: "x".repeat(50_000) } }).ok).toBe(false);
   });
 });
+
+describe("live moves (D55)", () => {
+  const server = (message: unknown) => parseServerMessage(JSON.stringify(message)).ok;
+
+  it("accepts a resync request", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "game.resync" })).ok).toBe(true);
+  });
+
+  it("accepts a numbered delta and a view that says where its numbering starts", () => {
+    expect(server({ type: "game.delta", epoch: "e1", seq: 3, delta: { mine: 2 } })).toBe(true);
+    expect(server({ type: "game.view", view: { mine: 1 }, epoch: "e1", seq: 2 })).toBe(true);
+    expect(server({ type: "game.view", view: { mine: 1 } })).toBe(true);
+  });
+
+  it("rejects a delta without its number", () => {
+    expect(server({ type: "game.delta", epoch: "e1", delta: {} })).toBe(false);
+    expect(server({ type: "game.delta", epoch: "e1", seq: -1, delta: {} })).toBe(false);
+  });
+});

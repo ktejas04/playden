@@ -31,5 +31,5 @@ Spec: docs/games/sketch-battle.md sections 4–6, 8 (simple rotation for now), 1
 4. Register the game on the server and the web (the view is a placeholder until 025). Until 022 lands, use a short test word list.
 
 ## Done when
-- [ ] All tests above pass with fixed seeds and times
-- [ ] pnpm typecheck, lint, test pass
+- [x] All tests above pass with fixed seeds and times
+- [x] pnpm typecheck, lint, test pass

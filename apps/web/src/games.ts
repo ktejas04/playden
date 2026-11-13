@@ -2,6 +2,8 @@ import type { AnyGame, GameDefinition, GameSettingsProps, GameViewProps } from "
 import type { ComponentType } from "react";
 import { tapRace } from "@playden/game-tap-race";
 import { TapRaceScreen, TapRaceSettings } from "@playden/game-tap-race/view";
+import { sketchBattle } from "@playden/game-sketch-battle";
+import { SketchBattleScreen } from "@playden/game-sketch-battle/view";
 
 export interface WebGame {
   definition: AnyGame;
@@ -31,7 +33,10 @@ function webGame<S, M, V, C>(
  * Every game the web app can show. Adding a game: `pnpm new-game` adds its line here and in
  * apps/server/src/games.ts. Removing one: delete its folder and both lines.
  */
-export const GAMES: readonly WebGame[] = [webGame(tapRace, TapRaceScreen, TapRaceSettings)];
+export const GAMES: readonly WebGame[] = [
+  webGame(sketchBattle, SketchBattleScreen),
+  webGame(tapRace, TapRaceScreen, TapRaceSettings),
+];
 
 export function findWebGame(id: string): WebGame | undefined {
   return GAMES.find((game) => game.definition.id === id);

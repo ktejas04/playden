@@ -50,6 +50,51 @@ describe("reduceGame", () => {
   });
 });
 
+describe("deltas (D55)", () => {
+  /** A game whose view is a counter and whose delta is the new count. */
+  const applyDelta = () => (view: unknown, delta: unknown) => ({
+    ...(view as object),
+    ...(delta as object),
+  });
+  const numbered = { type: "game.view", view: { n: 0 }, epoch: "e1", seq: 4 } as const;
+  const delta = (seq: number, n: number, epoch = "e1") =>
+    ({ type: "game.delta", epoch, seq, delta: { n } }) as const;
+  const started = reduceGame(reduceGame(NO_GAME, playing), numbered);
+
+  it("applies deltas in order on top of the full view", () => {
+    let state = reduceGame(started, delta(5, 1), applyDelta);
+    state = reduceGame(state, delta(6, 2), applyDelta);
+    expect(state.view).toEqual({ n: 2 });
+    expect(state.needsResync).toBe(false);
+  });
+
+  it("a gap in the numbering asks for a resync and ignores deltas until the full view", () => {
+    let state = reduceGame(started, delta(6, 2), applyDelta);
+    expect(state.needsResync).toBe(true);
+    expect(state.view).toEqual({ n: 0 });
+    state = reduceGame(state, delta(7, 3), applyDelta);
+    expect(state.view).toEqual({ n: 0 });
+
+    state = reduceGame(state, { type: "game.view", view: { n: 3 }, epoch: "e1", seq: 7 });
+    expect(state.needsResync).toBe(false);
+    expect(reduceGame(state, delta(8, 4), applyDelta).view).toEqual({ n: 4 });
+  });
+
+  it("a delta from a room that reloaded (a new epoch) asks for a resync", () => {
+    expect(reduceGame(started, delta(5, 1, "e2"), applyDelta).needsResync).toBe(true);
+  });
+
+  it("a delta with no view to apply to asks for a resync", () => {
+    expect(reduceGame(reduceGame(NO_GAME, playing), delta(1, 1), applyDelta).needsResync).toBe(
+      true,
+    );
+  });
+
+  it("a game that can't apply deltas asks for a resync", () => {
+    expect(reduceGame(started, delta(5, 1)).needsResync).toBe(true);
+  });
+});
+
 describe("clockOffset", () => {
   it("is how far the server's clock is ahead, allowing for half the round trip", () => {
     // Sent at 1000, answered at server time 5100, received at 1200: 100 ms each way.

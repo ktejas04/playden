@@ -18,6 +18,6 @@ Spec: docs/games/sketch-battle.md sections 14, 15
 3. A dev-only page to try the canvas alone on a phone, hidden behind dev sign-in. Try 100 ms and 150 ms batches on two phones; keep the better one in `config.ts`.
 
 ## Done when
-- [ ] Tests above pass
+- [x] Tests above pass
 - [ ] Manual on two phones over the local network: drawing is smooth on both, lines start and end without delay, the page doesn't scroll, and strokes look the same on both
-- [ ] pnpm typecheck, lint, test pass
+- [x] pnpm typecheck, lint, test pass

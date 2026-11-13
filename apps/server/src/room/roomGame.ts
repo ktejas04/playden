@@ -54,8 +54,12 @@ export interface Person {
   name: string;
 }
 
+/**
+ * A change to the table, or why it was refused. `live` (D55): only the game's state changed, by
+ * a live move, so the room keeps it in memory and sends deltas instead of saving.
+ */
 export type TableOutcome =
-  { ok: true; table: TableState; events: GameEvent[] } | { ok: false; reason: string };
+  { ok: true; table: TableState; events: GameEvent[]; live?: true } | { ok: false; reason: string };
 
 const done = (table: TableState, events: GameEvent[] = []): TableOutcome => ({
   ok: true,
@@ -378,18 +382,21 @@ export function startGame(
   return done(withSession(table, { ...session, phase: "playing", seed, state, startsAt }));
 }
 
-/** After a change to a running game: it either goes on or has a result. */
+/**
+ * After a change to a running game: it either goes on or has a result. A live change (D55)
+ * stays live only while the game goes on.
+ */
 function settle(
   table: TableState,
   session: Session,
   game: AnyGame,
   events: GameEvent[],
+  live?: true,
 ): TableOutcome {
   const result: GameResult | null = game.result(session.state);
-  return done(
-    withSession(table, result ? { ...session, phase: "results", result } : session),
-    events,
-  );
+  if (result) return done(withSession(table, { ...session, phase: "results", result }), events);
+  const outcome = done(withSession(table, session), events);
+  return live && outcome.ok ? { ...outcome, live } : outcome;
 }
 
 export function applyMove(
@@ -410,8 +417,29 @@ export function applyMove(
   if (!parsed.success) return refuse("That move isn't valid");
   const verdict = game.validate(session.state, playerId, parsed.data, now);
   if (!verdict.ok) return refuse(verdict.reason);
-  const { state, events } = game.apply(session.state, playerId, parsed.data, now);
-  return settle(table, { ...session, state }, game, events);
+  const { state, events, live } = game.apply(session.state, playerId, parsed.data, now);
+  return settle(table, { ...session, state }, game, events, live);
+}
+
+/**
+ * A player's connection dropped or came back mid-game (D56): the game hears every away
+ * player, so it can skip them (e.g. when picking the next drawer). Only players count; the
+ * seat stays theirs either way. Nothing happens outside play or for games without the hook.
+ */
+export function presenceChanged(
+  table: TableState,
+  game: AnyGame,
+  personId: string,
+  awayIds: readonly string[],
+  now: number,
+): TableOutcome {
+  const { session } = table;
+  if (session?.phase !== "playing" || !game.onPresence) return done(table);
+  const players = new Set(activePlayers(session).map((p) => p.id));
+  if (!players.has(personId)) return done(table);
+  const away = awayIds.filter((id) => players.has(id));
+  const { state, events, live } = game.onPresence(session.state, away, now);
+  return settle(table, { ...session, state }, game, events, live);
 }
 
 /** Host, mid-game: finish now as "ended early". */
@@ -493,13 +521,22 @@ export function seatNotice(
   return { notice: { type: "game.notice", kind, playerId, name: player.name }, to };
 }
 
-/** A player's own view, the spectator view, or null for someone just in the room. */
-export function viewFor(table: TableState, game: AnyGame, viewerId: string): unknown {
+/**
+ * Whose view this person gets of a running or finished game: their own as a player, the
+ * spectator view, or null for someone just in the room (and before Start).
+ */
+export function viewerKey(table: TableState, viewerId: string): string | null {
   const { session } = table;
   if (!session || session.phase === "setup") return null;
   const role = roleIn(session, viewerId);
   if (role === null) return null;
-  return game.view(session.state, role === "player" ? viewerId : "spectator");
+  return role === "player" ? viewerId : "spectator";
+}
+
+/** A player's own view, the spectator view, or null for someone just in the room. */
+export function viewFor(table: TableState, game: AnyGame, viewerId: string): unknown {
+  const viewer = viewerKey(table, viewerId);
+  return viewer === null || !table.session ? null : game.view(table.session.state, viewer);
 }
 
 /** The session as everyone may see it: no seed, no engine state. */

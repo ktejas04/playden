@@ -94,6 +94,8 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("game.returnToRoom") }),
   /** A game move; the game's own schema checks it on the server. */
   z.strictObject({ type: z.literal("move"), move: z.unknown() }),
+  /** A gap in the numbered deltas (D55): send this device its full view again. */
+  z.strictObject({ type: z.literal("game.resync") }),
 ]);
 
 export const serverMessageSchema = z.discriminatedUnion("type", [
@@ -116,8 +118,26 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("replaced") }),
   /** The room's game session, or null while the room is idle. */
   z.strictObject({ type: z.literal("game.status"), session: gameSessionSchema.nullable() }),
-  /** This viewer's own view of the game (a player's, or the spectator view); never anyone else's. */
-  z.strictObject({ type: z.literal("game.view"), view: z.unknown() }),
+  /**
+   * This viewer's own view of the game (a player's, or the spectator view); never anyone else's.
+   * For games with deltas (D55) it carries the numbering the next delta follows on from.
+   */
+  z.strictObject({
+    type: z.literal("game.view"),
+    view: z.unknown(),
+    epoch: z.string().min(1).max(64).optional(),
+    seq: z.number().int().min(0).optional(),
+  }),
+  /**
+   * What changed in this viewer's view (D55), numbered per viewer from the last full view.
+   * `epoch` changes when the room reloads; a different epoch or a skipped number means resync.
+   */
+  z.strictObject({
+    type: z.literal("game.delta"),
+    epoch: z.string().min(1).max(64),
+    seq: z.number().int().min(1),
+    delta: z.unknown(),
+  }),
   z.strictObject({ type: z.literal("game.events"), events: z.array(gameEventSchema) }),
   /**
    * Someone is out of a running game: sent only to those it affects (their teammates, and the

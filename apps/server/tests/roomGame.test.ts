@@ -19,6 +19,7 @@ import {
   nextDeadline,
   pickGame,
   playAgain,
+  presenceChanged,
   returnToRoom,
   seatNotice,
   setConfig,
@@ -495,5 +496,53 @@ describe("views and status", () => {
     expect(status.session).not.toHaveProperty("seed");
     expect(status.session).not.toHaveProperty("state");
     expect(statusOf(EMPTY_TABLE)).toEqual({ type: "game.status", session: null });
+  });
+});
+
+describe("presence for games (D56)", () => {
+  /** Tap Race with a presence hook that keeps the away list in its state. */
+  const seen: string[][] = [];
+  const aware: AnyGame = {
+    ...tapRace,
+    onPresence: (state, awayIds) => {
+      seen.push(awayIds);
+      return { state: { ...(state as object), away: awayIds }, events: [] };
+    },
+  };
+  const running = () => ok(startGame(setup(ben, chi), aware, 1, NOW));
+
+  it("a drop mid-game calls onPresence with that player away", () => {
+    seen.length = 0;
+    const table = ok(presenceChanged(running(), aware, ben.id, [ben.id], NOW));
+    expect(seen).toEqual([[ben.id]]);
+    expect((session(table).state as { away: string[] }).away).toEqual([ben.id]);
+  });
+
+  it("a return calls it with the player no longer away", () => {
+    seen.length = 0;
+    const dropped = ok(presenceChanged(running(), aware, ben.id, [ben.id, chi.id], NOW));
+    ok(presenceChanged(dropped, aware, ben.id, [chi.id], NOW));
+    expect(seen).toEqual([[ben.id, chi.id], [chi.id]]);
+  });
+
+  it("only players count: spectators and people just in the room are left out", () => {
+    seen.length = 0;
+    const table = ok(spectate(running(), dev.id, HOST));
+    const after = ok(presenceChanged(table, aware, dev.id, [dev.id], NOW));
+    expect(after).toBe(table);
+    ok(presenceChanged(table, aware, ben.id, [ben.id, dev.id], NOW));
+    expect(seen).toEqual([[ben.id]]);
+  });
+
+  it("is only called while playing", () => {
+    seen.length = 0;
+    const inSetup = setup(ben, chi);
+    expect(ok(presenceChanged(inSetup, aware, ben.id, [ben.id], NOW))).toBe(inSetup);
+    expect(seen).toEqual([]);
+  });
+
+  it("a game without onPresence plays as before", () => {
+    const table = ok(startGame(setup(ben, chi), tapRace, 1, NOW));
+    expect(ok(presenceChanged(table, tapRace, ben.id, [ben.id], NOW))).toBe(table);
   });
 });

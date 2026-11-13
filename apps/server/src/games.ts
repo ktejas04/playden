@@ -1,12 +1,13 @@
 import type { AnyGame } from "@playden/engine";
 import { tapRace } from "@playden/game-tap-race";
+import { sketchBattle } from "@playden/game-sketch-battle";
 
 /**
  * Every game the server can run (rules only, never screens). Adding a game: `pnpm new-game`
  * adds its line here and in apps/web/src/games.ts. Removing one: delete its folder and both
  * lines; the architecture checks catch anything left behind.
  */
-export const GAMES: readonly AnyGame[] = [tapRace];
+export const GAMES: readonly AnyGame[] = [sketchBattle, tapRace];
 
 export function findGame(id: string): AnyGame | undefined {
   return GAMES.find((game) => game.id === id);

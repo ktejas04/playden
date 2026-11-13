@@ -18,4 +18,4 @@ Spec: docs/games/sketch-battle.md sections 5, 6, 13 (S2, S3, S5–S7); the mocku
 ## Done when
 - [ ] Manual with test players: 2 phones + 2 PC windows play 3 rounds end to end; the screens match the mockups; the guess box stays visible above the phone keyboard; a reload mid-round comes back to the same point
 - [ ] Screenshots of each screen (phone and PC, light and dark) reviewed by the owner
-- [ ] pnpm typecheck, lint, test pass
+- [x] pnpm typecheck, lint, test pass

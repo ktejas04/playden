@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@playden/engine": "workspace:*",
+    "@playden/game-sketch-battle": "workspace:*",
     "@playden/game-tap-race": "workspace:*",
     "@playden/protocol": "workspace:*",
     "@playden/ui": "workspace:*",

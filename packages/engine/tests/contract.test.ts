@@ -200,3 +200,122 @@ describe("firstNonJson", () => {
     expect(firstNonJson(value)).toBe(message);
   });
 });
+
+/**
+ * Live moves and deltas (D55): taps are live (kept in memory, not saved) and each viewer gets
+ * a small delta instead of their whole view. The kit checks that a live move never moves the
+ * deadline and that every delta rebuilds exactly the view the viewer would otherwise get.
+ */
+type LiveDelta = { mine: number };
+const liveCounter: GameDefinition<State, Move, { mine: number }, Config, LiveDelta> = {
+  ...counter,
+  moveLimit: { perSecond: 15, burst: 15 },
+  apply: (state, playerId, move, now) => {
+    const { state: next, events } = counter.apply(state, playerId, move, now);
+    return next.over ? { state: next, events } : { state: next, events, live: true };
+  },
+  delta: (before, after, viewer) => {
+    const was = before.taps[viewer] ?? 0;
+    const now = after.taps[viewer] ?? 0;
+    return was === now ? null : { mine: now };
+  },
+  applyDelta: (_view, delta) => ({ mine: delta.mine }),
+};
+
+describeGameContract(liveCounter, fixture);
+
+describe("the contract kit checks live moves and deltas", () => {
+  const playLive = (game: typeof liveCounter) => checkPlaythrough(game, fixture, 1);
+
+  it("passes a game whose live moves keep the deadline and whose deltas rebuild the view", () => {
+    expect(playLive(liveCounter)).toEqual([]);
+  });
+
+  it("fails a game whose live move changes the deadline", () => {
+    const problems = playLive({
+      ...liveCounter,
+      apply: (state, playerId, move, now) => {
+        const { state: next, events } = counter.apply(state, playerId, move, now);
+        return { state: { ...next, deadline: next.deadline + 1 }, events, live: true };
+      },
+    });
+    expect(problems.join()).toMatch(/a live move changed nextDeadline/);
+  });
+
+  it("fails a delta that doesn't rebuild the viewer's view", () => {
+    const problems = playLive({ ...liveCounter, applyDelta: (view) => view });
+    expect(problems.join()).toMatch(/delta for a doesn't rebuild its view|delta for b/);
+  });
+
+  it("fails a delta that leaks hidden information", () => {
+    const problems = playLive({
+      ...liveCounter,
+      delta: (before, after, viewer) => ({ mine: after.taps[viewer] ?? 0, peek: after.secret }),
+    } as typeof liveCounter);
+    expect(problems.join()).toMatch(/delta for .* leaks hidden "secret-1"/);
+  });
+
+  it("fails a game with a delta but no way to apply it", () => {
+    expect(checkMetadata({ ...liveCounter, applyDelta: undefined })).toContain(
+      "delta needs applyDelta",
+    );
+  });
+
+  it("fails a move limit that isn't positive", () => {
+    expect(checkMetadata({ ...liveCounter, moveLimit: { perSecond: 0, burst: 15 } })).toContain(
+      "moveLimit needs a positive rate and burst",
+    );
+  });
+});
+
+/** Presence (D56): a game told who is away, e.g. so a turn skips them. */
+interface AwareState extends State {
+  away: string[];
+}
+const aware: GameDefinition<AwareState, Move, { mine: number; away: string[] }, Config> = {
+  ...(counter as unknown as GameDefinition<
+    AwareState,
+    Move,
+    { mine: number; away: string[] },
+    Config
+  >),
+  setup: (s, c, seed, now) => ({ ...counter.setup(s, c, seed, now), away: [] }),
+  view: (state, playerId) => ({ mine: state.taps[playerId] ?? 0, away: state.away }),
+  onPresence: (state, awayIds) => ({ state: { ...state, away: [...awayIds] }, events: [] }),
+};
+
+describeGameContract(aware, fixture as unknown as ContractFixture<AwareState, Move, Config>);
+
+describe("the contract kit checks presence (D56)", () => {
+  const awareFixture = fixture as unknown as ContractFixture<AwareState, Move, Config>;
+
+  it("calls onPresence in its random games", () => {
+    let calls = 0;
+    const counted = {
+      ...aware,
+      onPresence: (state: AwareState, awayIds: string[], now: number) => {
+        calls++;
+        return aware.onPresence?.(state, awayIds, now) ?? { state, events: [] };
+      },
+    };
+    for (const seed of [1, 2, 3, 4, 5]) checkPlaythrough(counted, awareFixture, seed);
+    expect(calls).toBeGreaterThan(0);
+  });
+
+  it("fails onPresence that changes the state it was given", () => {
+    const problems = [1, 2, 3, 4, 5].flatMap((seed) =>
+      checkPlaythrough(
+        {
+          ...aware,
+          onPresence: (state, awayIds) => {
+            state.away.push(...awayIds);
+            return { state, events: [] };
+          },
+        },
+        awareFixture,
+        seed,
+      ),
+    );
+    expect(problems.join()).toMatch(/onPresence threw/);
+  });
+});

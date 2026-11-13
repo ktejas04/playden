@@ -1,6 +1,5 @@
 import type { AnyGame } from "@playden/engine";
 import type { ClientMessage, ServerMessage } from "@playden/protocol";
-import { findGame } from "../games";
 import { withRecordId } from "./gameRecords";
 import {
   type Person,
@@ -17,6 +16,7 @@ import {
   memberRemoved,
   pickGame,
   playAgain,
+  presenceChanged,
   returnToRoom,
   seatNotice,
   setConfig,
@@ -26,17 +26,19 @@ import {
   switchTeam,
 } from "./roomGame";
 import {
+  type FindGame,
+  type TableStore,
+  fullViewFor,
   gameOf,
-  loadTable,
   messagesFor,
-  saveTable,
   statusChangedBetween,
   tableDeadline,
 } from "./tableSync";
 
-/** What the table needs from its room: connections, who's who, and storage. */
+/** What the table needs from its room: connections, who's who, and the table in memory. */
 export interface TableRoom {
-  storage: DurableObjectStorage;
+  store: TableStore;
+  findGame: FindGame;
   allowDevOnlyGames: boolean;
   /** The 3-2-1 between Start and play. */
   countdownMs: number;
@@ -46,15 +48,18 @@ export interface TableRoom {
   presentIds(): Promise<string[]>;
   hostId(): Promise<string>;
   send(ws: WebSocket, message: ServerMessage): void;
-  /** After every saved change: the room re-checks who is host. */
+  /** After a saved change to the session: the room re-checks who is host. */
   changed(): Promise<void>;
-  /** Sets the room's one alarm (game deadline, away expiries, empty-room close). */
+  /** After every saved change: books the room's one alarm, if its time changed. */
   reschedule(): Promise<void>;
   /** After every saved change: the room queues any writes to the permanent record (D58). */
   recorded(before: TableState, after: TableState): Promise<void>;
 }
 
-export type TableMessage = Exclude<ClientMessage, { type: "ping" | "remove" | "leave" }>;
+export type TableMessage = Exclude<
+  ClientMessage,
+  { type: "ping" | "remove" | "leave" | "game.resync" }
+>;
 
 /** Messages only the host may send. */
 const HOST_ONLY = new Set<TableMessage["type"]>([
@@ -77,8 +82,9 @@ function randomSeed(): number {
 
 /**
  * The room's game table: runs session controls and moves through the pure functions in
- * roomGame.ts, stores the result, sends each connection its own view, and keeps the room's
- * alarm on the game's next deadline. It never knows any game's rules.
+ * roomGame.ts, keeps the result (saved, or in memory for live moves, D55), sends each
+ * connection its own view or what changed in it, and keeps the room's alarm on the game's next
+ * deadline. It never knows any game's rules.
  */
 export class RoomTable {
   constructor(private readonly room: TableRoom) {}
@@ -88,11 +94,23 @@ export class RoomTable {
    * Someone new is just in the room until they choose to join or spectate.
    */
   async welcome(ws: WebSocket): Promise<void> {
-    const table = await loadTable(this.room.storage);
+    const table = await this.room.store.load();
     const viewer = this.room.personOf(ws).id;
-    for (const message of messagesFor(table, viewer, { statusChanged: true, events: [] })) {
-      this.room.send(ws, message);
-    }
+    const messages = messagesFor(null, table, viewer, {
+      statusChanged: true,
+      events: [],
+      find: this.room.findGame,
+      numbering: this.room.store,
+    });
+    for (const message of messages) this.room.send(ws, message);
+  }
+
+  /** A device missed a delta (D55): it gets its full view again. */
+  async resync(ws: WebSocket): Promise<void> {
+    const table = await this.room.store.load();
+    const game = gameOf(table, this.room.findGame);
+    const full = fullViewFor(table, game, this.room.personOf(ws).id, this.room.store);
+    if (full) this.room.send(ws, full);
   }
 
   async handle(ws: WebSocket, message: TableMessage): Promise<void> {
@@ -109,7 +127,7 @@ export class RoomTable {
     switch (message.type) {
       case "game.pick":
         return run((table) =>
-          pickGame(table, person, message.gameId, findGame, {
+          pickGame(table, person, message.gameId, this.room.findGame, {
             allowDevOnly: this.room.allowDevOnlyGames,
           }),
         );
@@ -177,11 +195,22 @@ export class RoomTable {
     );
   }
 
+  /**
+   * A member's connection dropped or came back (D56); `awayIds` is everyone away now. Only a
+   * running game's players reach the game.
+   */
+  async presenceChanged(personId: string, awayIds: string[]): Promise<void> {
+    const now = Date.now();
+    await this.apply((table, game) =>
+      game ? presenceChanged(table, game, personId, awayIds, now) : { ok: true, table, events: [] },
+    );
+  }
+
   /** The room's alarm fired for the game's deadline. */
   async deadlineReached(): Promise<void> {
-    const table = await loadTable(this.room.storage);
-    const game = gameOf(table);
-    const deadline = tableDeadline(table);
+    const table = await this.room.store.load();
+    const game = gameOf(table, this.room.findGame);
+    const deadline = tableDeadline(table, this.room.findGame);
     if (!game || deadline === null) return;
     await this.commit(table, fireDeadline(table, game, Math.max(Date.now(), deadline)));
   }
@@ -198,8 +227,8 @@ export class RoomTable {
       after: TableState,
     ) => { notice: ServerMessage; to: string[] } | null,
   ): Promise<void> {
-    const table = await loadTable(this.room.storage);
-    const outcome = run(table, gameOf(table));
+    const table = await this.room.store.load();
+    const outcome = run(table, gameOf(table, this.room.findGame));
     if (!outcome.ok) {
       this.room.send(ws, { type: "error", reason: outcome.reason });
       return;
@@ -217,29 +246,45 @@ export class RoomTable {
   private async apply(
     run: (table: TableState, game: AnyGame | undefined) => TableOutcome,
   ): Promise<void> {
-    const table = await loadTable(this.room.storage);
-    const outcome = run(table, gameOf(table));
+    const table = await this.room.store.load();
+    const outcome = run(table, gameOf(table, this.room.findGame));
     if (outcome.ok && outcome.table !== table) await this.commit(table, outcome);
   }
 
   /**
-   * Saves the new table, tells each connection what it should hear, records what matters
-   * (D58) and resets the alarm.
+   * Keeps the new table and tells each connection what it should hear. A live change (D55)
+   * stays in memory and ends there: only the game's state changed, so the session, the record
+   * and the alarm are as they were. Any other change is saved once (carrying unsaved live
+   * changes with it), recorded (D58), and the alarm is checked.
    */
   private async commit(before: TableState, outcome: TableOutcome): Promise<void> {
     if (!outcome.ok) return;
     const { events } = outcome;
     if (outcome.table === before && events.length === 0) return;
-    const table = withRecordId(before, outcome.table, () => crypto.randomUUID());
-    await saveTable(this.room.storage, table);
-    await this.room.recorded(before, table);
-    const statusChanged = statusChangedBetween(before, table);
+    const live = outcome.live === true;
+    const table = live
+      ? outcome.table
+      : withRecordId(before, outcome.table, () => crypto.randomUUID());
+    if (live) {
+      this.room.store.keep(table);
+    } else {
+      await this.room.store.save(table);
+      await this.room.recorded(before, table);
+    }
+    const statusChanged = !live && statusChangedBetween(before, table);
+    const options = {
+      statusChanged,
+      events,
+      find: this.room.findGame,
+      numbering: this.room.store,
+    };
     for (const ws of this.room.openSockets()) {
       const viewer = this.room.personOf(ws).id;
-      for (const message of messagesFor(table, viewer, { statusChanged, events })) {
+      for (const message of messagesFor(before, table, viewer, options)) {
         this.room.send(ws, message);
       }
     }
+    if (live) return;
     if (statusChanged) await this.room.changed();
     await this.room.reschedule();
   }

@@ -30,6 +30,18 @@ export type Validation = Ok | Rejection;
 export interface Transition<State> {
   state: State;
   events: GameEvent[];
+  /**
+   * A live change (D55), for moves that arrive many times a second (strokes, wrong guesses):
+   * the room keeps it in memory, sends deltas, and saves it with the next ordinary change.
+   * A live change must never change `nextDeadline` (the contract kit checks it).
+   */
+  live?: true;
+}
+
+/** Game moves one connection may send: a burst, then this many a second (D54, D55). */
+export interface MoveLimit {
+  perSecond: number;
+  burst: number;
 }
 
 /**
@@ -47,7 +59,7 @@ export interface TeamRules {
  * time (`now`, server milliseconds) and randomness (`seed`) come in as arguments, state and
  * views are plain JSON, and nothing is changed in place. The room never knows the rules.
  */
-export interface GameDefinition<State, Move, View, Config> {
+export interface GameDefinition<State, Move, View, Config, Delta = unknown> {
   id: string;
   name: string;
   /** One line for the game picker. */
@@ -57,6 +69,8 @@ export interface GameDefinition<State, Move, View, Config> {
   teams?: TeamRules;
   /** Shown only on local dev servers (test-player sign-in on). */
   devOnly?: boolean;
+  /** Replaces the platform's per-connection move limit (D54) for this game. */
+  moveLimit?: MoveLimit;
 
   defaultConfig: Config;
   configSchema: z.ZodType<Config>;
@@ -68,10 +82,25 @@ export interface GameDefinition<State, Move, View, Config> {
   apply(state: State, playerId: string, move: Move, now: number): Transition<State>;
   /** What one player may see. Hidden information never goes into another player's view. */
   view(state: State, playerId: string | "spectator"): View;
+  /**
+   * What changed for one viewer between two states, or null when nothing did (D55). With it,
+   * the room sends deltas after every change and the full view only on join and resync.
+   * Same rules as `view`: hidden information never goes in. Needs `applyDelta`.
+   */
+  delta?(before: State, after: State, viewer: string | "spectator"): Delta | null;
+  /** The viewer's view after a delta; `applyDelta(view(before), delta)` equals `view(after)`. */
+  applyDelta?(view: View, delta: Delta): View;
   /** When the room should wake the game next, or null. */
   nextDeadline(state: State): number | null;
   onDeadline(state: State, now: number): Transition<State>;
+  /** The seat is gone for good: Leave game, a ban, or removal. */
   onPlayerLeft(state: State, playerId: string): Transition<State>;
+  /**
+   * Who is away right now (D56): called mid-game whenever a player's connection drops or comes
+   * back (never for Play here), with every away player. They keep their seats; a game may skip
+   * them, e.g. when picking the next drawer. Optional.
+   */
+  onPresence?(state: State, awayIds: string[], now: number): Transition<State>;
   /** Null while the game is in progress. */
   result(state: State): GameResult | null;
   /**
@@ -87,4 +116,4 @@ export interface GameDefinition<State, Move, View, Config> {
 }
 
 /** Any game, for registries. Method syntax above keeps concrete games assignable to this. */
-export type AnyGame = GameDefinition<unknown, unknown, unknown, unknown>;
+export type AnyGame = GameDefinition<unknown, unknown, unknown, unknown, unknown>;

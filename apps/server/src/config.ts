@@ -22,6 +22,12 @@ export const AWAY_GRACE_MS = 60_000;
  */
 export const MOVE_LIMIT = { perSecond: 10, burst: 10 } as const;
 
+/**
+ * Live moves (D55) wait in the room's memory for the next ordinary save; after this long without
+ * one, the room saves anyway. Until then a timer keeps the room awake, so sleeping can't lose them.
+ */
+export const LIVE_MAX_UNSAVED_MS = 60_000;
+
 /** The 3-2-1 every screen shows between Start and play. */
 export const START_COUNTDOWN_MS = 3_000;
 

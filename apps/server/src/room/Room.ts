@@ -7,7 +7,7 @@ import {
   inRunningGame,
   parseClientMessage,
 } from "@playden/protocol";
-import { AWAY_GRACE_MS, MOVE_LIMIT, roomEmptyCloseMs, startCountdownMs } from "../config";
+import { AWAY_GRACE_MS, LIVE_MAX_UNSAVED_MS, roomEmptyCloseMs, startCountdownMs } from "../config";
 import type { Env } from "../env";
 import { refuseSocket } from "../http";
 import { getDb } from "../db/client";
@@ -26,8 +26,9 @@ import {
   memberGone,
   nextExpiry,
 } from "./presence";
-import { type Bucket, takeToken } from "./rateLimit";
-import { gameOf, loadTable, tableDeadline } from "./tableSync";
+import { type Bucket, moveLimitFor, takeToken } from "./rateLimit";
+import { findGame } from "../games";
+import { TableStore, bookAlarm, gameOf, tableDeadline } from "./tableSync";
 
 export const ROOM_HEADERS = {
   userId: "x-playden-user-id",
@@ -77,6 +78,14 @@ export class Room extends DurableObject<Env> {
   private readonly closing = new Set<WebSocket>();
   /** Each connection's move allowance (rateLimit.ts); forgotten if the object sleeps, which is fine. */
   private readonly moveBuckets = new WeakMap<WebSocket, Bucket>();
+  /**
+   * The game table, kept in memory once loaded (D55): live moves stay here until the next
+   * save. A fresh instance (the room woke up) starts a new delta epoch, so phones resync.
+   */
+  private readonly store = new TableStore(this.ctx.storage, {
+    maxUnsavedMs: LIVE_MAX_UNSAVED_MS,
+    epoch: crypto.randomUUID(),
+  });
   /** Writes to the permanent record in D1 (D58), in order; game play never waits on them. */
   private readonly records = new RecordWriter((write) => writeRecord(getDb(this.env.DB), write));
 
@@ -126,19 +135,22 @@ export class Room extends DurableObject<Env> {
     // A returning member keeps their place in the room (and any seat or host they still hold).
     const members = await this.members();
     const now = Date.now();
-    await this.saveMembers(
-      memberArrives(
-        members,
-        { id: userId, name: attachment.name, isAdmin: attachment.isAdmin },
-        now,
-      ),
+    const arrived = memberArrives(
+      members,
+      { id: userId, name: attachment.name, isAdmin: attachment.isAdmin },
+      now,
     );
+    await this.saveMembers(arrived);
     // An arrival starts a visit; reconnecting within the grace is the same visit (D59).
     if (info.recordId && !(userId in members)) {
       this.records.add([{ kind: "memberJoined", roomId: info.recordId, userId, at: now }]);
     }
 
     await this.refresh(info, { broadcast: true });
+    // Back from away: the game hears it (D56). Play here (D49) was never away.
+    if ((members[userId]?.awayAt ?? null) !== null) {
+      await this.table().presenceChanged(userId, awayIdsOf(arrived));
+    }
     await this.table().welcome(server);
     await this.reschedule();
     return new Response(null, { status: 101, webSocket: client });
@@ -166,13 +178,14 @@ export class Room extends DurableObject<Env> {
     if (this.openSockets().length === 0) {
       // With nobody connected, the only alarm set is the empty-room close.
       await this.recordClose();
+      this.store.forget();
       await this.ctx.storage.deleteAll();
       return;
     }
     const info = await this.info();
     if (!info) return;
     // The alarm was set for whichever came first; act on that one (a test may run it early).
-    const table = await loadTable(this.ctx.storage);
+    const table = await this.store.load();
     const deadline = tableDeadline(table);
     const expiry = await this.nextGraceEnd(info, table.session);
     if (deadline !== null && (expiry === null || deadline <= expiry)) {
@@ -190,7 +203,7 @@ export class Room extends DurableObject<Env> {
   private async recordClose(): Promise<void> {
     const info = await this.info();
     if (!info?.recordId) return;
-    const table = await loadTable(this.ctx.storage);
+    const table = await this.store.load();
     this.records.add(
       closingWrites(table, { roomId: info.recordId, now: Date.now(), game: gameOf(table) }),
     );
@@ -199,7 +212,8 @@ export class Room extends DurableObject<Env> {
 
   private table(): RoomTable {
     return new RoomTable({
-      storage: this.ctx.storage,
+      store: this.store,
+      findGame,
       allowDevOnlyGames: this.env.DEV_LOGIN === "true",
       countdownMs: startCountdownMs(this.env.START_COUNTDOWN_MS),
       openSockets: () => this.openSockets(),
@@ -262,8 +276,12 @@ export class Room extends DurableObject<Env> {
       case "leave":
         await this.leave(ws);
         break;
+      case "game.resync":
+        await this.table().resync(ws);
+        break;
       case "move": {
-        const { ok, bucket } = takeToken(this.moveBuckets.get(ws), Date.now(), MOVE_LIMIT);
+        const limit = moveLimitFor(gameOf(await this.store.load()));
+        const { ok, bucket } = takeToken(this.moveBuckets.get(ws), Date.now(), limit);
         this.moveBuckets.set(ws, bucket);
         // Too fast: dropped quietly (an error back would just be more messages).
         if (ok) await this.table().handle(ws, parsed.message);
@@ -299,7 +317,7 @@ export class Room extends DurableObject<Env> {
       this.send(ws, { type: "error", reason: "You can't remove that player" });
       return;
     }
-    if (inRunningGame((await loadTable(this.ctx.storage)).session, playerId)) {
+    if (inRunningGame((await this.store.load()).session, playerId)) {
       this.send(ws, { type: "error", reason: "They're playing. Ban them from the game first" });
       return;
     }
@@ -359,8 +377,10 @@ export class Room extends DurableObject<Env> {
     const { userId } = attachmentOf(ws);
     const stillHere = this.openSockets().some((s) => attachmentOf(s).userId === userId);
     if (!onPurpose && !stillHere) {
-      await this.saveMembers(memberAway(await this.members(), userId, Date.now()));
+      const members = memberAway(await this.members(), userId, Date.now());
+      await this.saveMembers(members);
       await this.refresh(info, { broadcast: true });
+      await this.table().presenceChanged(userId, awayIdsOf(members));
     }
     await this.afterLastConnection();
     await this.reschedule();
@@ -380,14 +400,13 @@ export class Room extends DurableObject<Env> {
    */
   private async reschedule(): Promise<void> {
     if (this.openSockets().length === 0) return;
-    const table = await loadTable(this.ctx.storage);
+    const table = await this.store.load();
     const info = await this.info();
     const times = [
       tableDeadline(table),
       info ? await this.nextGraceEnd(info, table.session) : null,
     ].filter((t): t is number => t !== null);
-    if (times.length === 0) await this.ctx.storage.deleteAlarm();
-    else await this.ctx.storage.setAlarm(Math.min(...times));
+    await bookAlarm(this.ctx.storage, times.length === 0 ? null : Math.min(...times));
   }
 
   /**
@@ -453,7 +472,7 @@ export class Room extends DurableObject<Env> {
     info: RoomInfo,
     { broadcast, now = Date.now() }: { broadcast: boolean; now?: number },
   ): Promise<void> {
-    const { session } = await loadTable(this.ctx.storage);
+    const { session } = await this.store.load();
     let members = await this.members();
     const expired = expiredIds(members, session, now, AWAY_GRACE_MS);
     if (expired.length > 0) {
@@ -474,7 +493,7 @@ export class Room extends DurableObject<Env> {
     // Results with none of the game's players left: back to idle (its change re-runs this).
     await this.table().closeIfNoPlayers([...connectedIds, ...graceIds]);
     const current = await this.storedHostId(info);
-    const latest = (await loadTable(this.ctx.storage)).session;
+    const latest = (await this.store.load()).session;
     const hostId = chooseHost({ current, connectedIds, graceIds, session: latest });
     if (hostId !== current) {
       await this.ctx.storage.put(HOST_KEY, hostId);
@@ -509,6 +528,11 @@ export class Room extends DurableObject<Env> {
       // Socket closed between listing and sending; the close handler rebroadcasts.
     }
   }
+}
+
+/** Everyone whose connection has dropped (away, within their grace or holding a seat). */
+function awayIdsOf(members: Members): string[] {
+  return inOrder(members).flatMap((m) => (m.awayAt === null ? [] : [m.id]));
 }
 
 function attachmentOf(ws: WebSocket): Attachment {
