@@ -1,37 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { canRemovePlayer } from "../src";
 
-const host = { id: "host", isAdmin: false };
-const admin = { id: "admin", isAdmin: true };
-const otherAdmin = { id: "admin-2", isAdmin: true };
-const player = { id: "player", isAdmin: false };
-const otherPlayer = { id: "player-2", isAdmin: false };
+const host = "host";
+const player = "player";
+const otherPlayer = "player-2";
+const admin = "admin";
 
-describe("canRemovePlayer", () => {
+describe("canRemovePlayer (D59)", () => {
   it("lets the host remove a player", () => {
-    expect(canRemovePlayer(host, player, host.id)).toBe(true);
+    expect(canRemovePlayer(host, player, host)).toBe(true);
   });
 
-  it("lets an admin remove a player, even when someone else is host", () => {
-    expect(canRemovePlayer(admin, player, host.id)).toBe(true);
+  it("lets the host remove an admin: admins are regular people in a room", () => {
+    expect(canRemovePlayer(host, admin, host)).toBe(true);
   });
 
-  it("lets an admin remove the host", () => {
-    expect(canRemovePlayer(admin, host, host.id)).toBe(true);
+  it("refuses an admin who isn't host", () => {
+    expect(canRemovePlayer(admin, player, host)).toBe(false);
+    expect(canRemovePlayer(admin, host, host)).toBe(false);
   });
 
-  it("refuses a player who is neither host nor admin", () => {
-    expect(canRemovePlayer(player, otherPlayer, host.id)).toBe(false);
-    expect(canRemovePlayer(player, host, host.id)).toBe(false);
+  it("lets an admin who is host remove people", () => {
+    expect(canRemovePlayer(admin, player, admin)).toBe(true);
   });
 
-  it("refuses removing an admin, for the host and for other admins", () => {
-    expect(canRemovePlayer(host, admin, host.id)).toBe(false);
-    expect(canRemovePlayer(otherAdmin, admin, host.id)).toBe(false);
+  it("refuses anyone else", () => {
+    expect(canRemovePlayer(player, otherPlayer, host)).toBe(false);
+    expect(canRemovePlayer(player, host, host)).toBe(false);
   });
 
   it("refuses removing yourself", () => {
-    expect(canRemovePlayer(host, host, host.id)).toBe(false);
-    expect(canRemovePlayer(admin, admin, admin.id)).toBe(false);
+    expect(canRemovePlayer(host, host, host)).toBe(false);
   });
 });

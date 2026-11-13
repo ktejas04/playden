@@ -79,6 +79,11 @@ export interface GameDefinition<State, Move, View, Config> {
    * shows every player on 0. There is never a winner when a game ends early.
    */
   standings?(state: State): Record<string, number>;
+  /**
+   * What the game keeps in its permanent record when it ends (D58): small, plain JSON, e.g.
+   * each round's word and winner. Optional: without it, the record has no summary.
+   */
+  recordSummary?(state: State): unknown;
 }
 
 /** Any game, for registries. Method syntax above keeps concrete games assignable to this. */

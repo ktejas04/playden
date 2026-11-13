@@ -6,11 +6,11 @@ Sketch Battle playable by our community, built in five game phases (D43) that ea
 
 ## Before it starts
 
-Phase 3 (Game platform) is done: rooms run games, teams and spectators exist, and away seats work. Two platform tasks come first, because fast-moving games need them (D55, D56).
+Phase 3 (Game platform) is done: rooms run games, teams and spectators exist, and away seats work. Platform tasks come first: fast-moving games need 019b and 019c (D55, D56), and 019d keeps a record of every room and game (D58).
 
 ## In scope
 
-Everything in the spec. Each game phase's task files are written when that phase starts, so they can use what the previous phase taught us. Files exist for 019b, 019c and 020–025.
+Everything in the spec. Each game phase's task files are written when that phase starts, so they can use what the previous phase taught us. Files exist for 019b, 019c, 019d and 020–025.
 
 ## Out of scope
 
@@ -27,6 +27,7 @@ Everything in the spec. Each game phase's task files are written when that phase
 | --- | --- | --- |
 | 019b | Live moves and lean saves | 017, 019 |
 | 019c | Presence for games | 019 |
+| 019d | Game records in D1 (every game) | 017, 019 |
 
 **4.1 Core round:** two teams play rounds end to end.
 

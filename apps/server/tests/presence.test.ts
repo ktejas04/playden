@@ -64,6 +64,17 @@ describe("presence", () => {
     ]);
   });
 
+  it("mid-game, a spectator or someone just in the room is gone after the grace; a seated player isn't", () => {
+    const chi = { id: "c", name: "Chi", isAdmin: false };
+    let members = memberArrives(room(), chi, 3_000);
+    for (const id of ["a", "b", "c"]) members = memberAway(members, id, 10_000);
+    // Asha plays, Ben spectates, Chi is only in the room.
+    const game = { ...playing(["a"]), spectators: ["b"] };
+    expect(expiredIds(members, game, 10_000 + GRACE - 1, GRACE)).toEqual([]);
+    expect(nextExpiry(members, game, GRACE)).toBe(10_000 + GRACE);
+    expect(expiredIds(members, game, 10_000 + GRACE, GRACE)).toEqual(["b", "c"]);
+  });
+
   it("leaving on purpose is gone at once", () => {
     expect(Object.keys(memberGone(room(), "a"))).toEqual(["b"]);
     expect(memberGone(room(), "z")).toEqual(room());

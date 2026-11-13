@@ -10,7 +10,15 @@ export function roleIn(session: GameSession | null, userId: string): SessionRole
   return null;
 }
 
-/** Players still in the game (not left, banned or removed), in join order. */
+/** Players still in the game (not left or banned), in join order. */
 export function activePlayers(session: GameSession): GameSession["players"] {
   return session.players.filter((p) => !p.left);
+}
+
+/**
+ * Holding a seat in a game that's being played. Such a player can't be removed from the room
+ * (D59): the host bans them from the game first, which is the only option offered mid-game.
+ */
+export function inRunningGame(session: GameSession | null, userId: string): boolean {
+  return session?.phase === "playing" && roleIn(session, userId) === "player";
 }

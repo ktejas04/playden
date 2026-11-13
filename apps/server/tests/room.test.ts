@@ -420,7 +420,7 @@ describe("removing a player", () => {
     a.ws.close(1000);
   });
 
-  it("refuses a player who isn't host or admin, and nobody leaves", async () => {
+  it("refuses anyone who isn't host, and nobody leaves", async () => {
     const asha = await member("k-refuse-host", "Asha");
     const ravi = await member("k-refuse-r", "Ravi");
     const meera = await member("k-refuse-m", "Meera");
@@ -459,7 +459,7 @@ describe("removing a player", () => {
     a.ws.close(1000);
   });
 
-  it("an admin can remove the host, and host passes on; the host can't remove an admin", async () => {
+  it("admins are regular people in a room: an admin who isn't host can't remove anyone, and the host can remove an admin (D59)", async () => {
     const asha = await member("k-admin-host", "Asha");
     const ravi = await member("k-admin-r", "Ravi");
     const boss = await member(ADMIN_SUB, "Boss");
@@ -478,12 +478,20 @@ describe("removing a player", () => {
       ["Boss", true],
     ]);
 
-    remove(a.ws, boss.user.id);
-    expect((await a.next((msg) => msg.type === "error")).type).toBe("error");
-
     remove(b.ws, asha.user.id);
-    expect(await a.closed).toBe(ROOM_CLOSE.removed);
-    expect(hostOf(await r.next(snapshotWith(2)))).toBe(ravi.user.id);
-    for (const socket of [r, b]) socket.ws.close(1000);
+    expect(await b.next((msg) => msg.type === "error")).toEqual({
+      type: "error",
+      reason: "You can't remove that player",
+    });
+    remove(b.ws, ravi.user.id);
+    expect(await b.next((msg) => msg.type === "error")).toEqual({
+      type: "error",
+      reason: "You can't remove that player",
+    });
+
+    remove(a.ws, boss.user.id);
+    expect(await b.closed).toBe(ROOM_CLOSE.removed);
+    expect(hostOf(await r.next(snapshotWith(2)))).toBe(asha.user.id);
+    for (const socket of [a, r]) socket.ws.close(1000);
   });
 });

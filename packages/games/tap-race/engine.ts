@@ -97,4 +97,11 @@ export const tapRace: GameDefinition<TapRaceState, TapRaceMove, TapRaceView, Tap
       winners: players.filter(([, team]) => team === winningTeam).map(([id]) => id),
     };
   },
+
+  /** Kept in the game's permanent record (D58). */
+  recordSummary: (state) => ({
+    counts: state.counts,
+    target: state.target,
+    winningTeam: state.ended?.winningTeam ?? null,
+  }),
 };

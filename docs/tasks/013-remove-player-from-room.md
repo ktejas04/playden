@@ -5,7 +5,7 @@ Touches: packages/protocol/src/{messages.ts, room.ts, index.ts}, packages/protoc
 Spec: docs/PROJECT.md D42
 
 ## Steps
-1. Tests first for `canRemovePlayer`: the host removes non-admins, an admin removes non-admins, nobody removes themselves or an admin.
+1. (Done; the rule changed with D59: only the host removes, admins included.) Tests first for `canRemovePlayer`: the host removes non-admins, an admin removes non-admins, nobody removes themselves or an admin.
 2. Protocol: `remove { playerId }` client message, `removed { playerId, name }` server message, `isAdmin` on room players, close code `ROOM_CLOSE.removed`.
 3. Server: the Worker tells the room whether the player is an admin. The room checks `canRemovePlayer`, closes every tab of the removed player with `ROOM_CLOSE.removed`, remembers them so they are refused on rejoin, and tells everyone else. Host passes on as usual if the host was removed.
 4. Web: a removed close stops reconnecting and shows "You were removed from this room". Player rows get a menu with "Remove from room" (host and admins only) and a confirm dialog; everyone else gets a toast.

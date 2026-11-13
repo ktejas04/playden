@@ -28,7 +28,17 @@ export interface Session extends GameSession {
   seed: number | null;
   /** The engine's state; never sent to browsers. */
   state: unknown;
+  /** This session's row in the D1 `games` table (D58); none for sessions from before records. */
+  recordId?: string;
+  /** Why each departed player's seat was freed mid-game, for the record (D58). Never sent. */
+  leaveReasons?: Record<string, LeaveReason>;
 }
+
+/**
+ * Why a player's seat was freed mid-game: they left (Leave game, or left the room), or the host
+ * banned them from the game. A seated player can't be removed from the room mid-game (D59).
+ */
+export type LeaveReason = "left" | "banned";
 
 export interface TableState {
   /** The last session id handed out in this room. */
@@ -239,7 +249,7 @@ function seatFreed(
   session: Session,
   game: AnyGame,
   playerId: string,
-  { ban }: { ban: boolean },
+  reason: LeaveReason,
 ): TableOutcome {
   const { state, events } = game.onPlayerLeft(session.state, playerId);
   const next: Session = {
@@ -247,7 +257,8 @@ function seatFreed(
     state,
     players: session.players.map((p) => (p.id === playerId ? { ...p, left: true } : p)),
     spectators: without(session.spectators, playerId),
-    banned: ban ? [...session.banned, playerId] : session.banned,
+    banned: reason === "banned" ? [...session.banned, playerId] : session.banned,
+    leaveReasons: { ...session.leaveReasons, [playerId]: reason },
   };
   if (activePlayers(next).length === 0)
     return done(withSession(table, endEarly(next, game)), events);
@@ -284,7 +295,7 @@ export function leave(
     const players = session.players.map((p) => (p.id === personId ? { ...p, left: true } : p));
     return done(withSession(table, { ...session, players }));
   }
-  return seatFreed(table, session, game, personId, { ban: false });
+  return seatFreed(table, session, game, personId, "left");
 }
 
 /** Host: someone is out of this session's game; they can spectate, and play again next session. */
@@ -307,15 +318,19 @@ export function ban(
       }),
     );
   }
-  return seatFreed(table, session, game, targetId, { ban: true });
+  return seatFreed(table, session, game, targetId, "banned");
 }
 
-/** Removed from the room (D42): out of the session at once, as if they left. */
+/**
+ * Out of the room: they left it, were removed (D42) or their away grace ran out. Out of the
+ * session at once. A seated player mid-game can only have left the room themselves: removal
+ * waits for a ban (D59) and their grace never runs out while the game holds their seat.
+ */
 export function memberRemoved(table: TableState, personId: string, game: AnyGame): TableOutcome {
   const { session } = table;
   if (!session) return done(table);
   if (session.phase === "playing" && roleIn(session, personId) === "player") {
-    return seatFreed(table, session, game, personId, { ban: false });
+    return seatFreed(table, session, game, personId, "left");
   }
   if (session.phase === "results") {
     return done(

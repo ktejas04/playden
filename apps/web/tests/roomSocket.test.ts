@@ -20,7 +20,7 @@ describe("closeOutcome", () => {
     expect(closeOutcome(ROOM_CLOSE.notAllowed)).toBe("refused");
   });
 
-  it("stops for good when the host or an admin removed you", () => {
+  it("stops for good when the host removed you", () => {
     expect(closeOutcome(ROOM_CLOSE.removed)).toBe("removed");
   });
 

@@ -107,6 +107,10 @@ function checkResult<S, M, V, C>(
   for (const id of [...Object.keys(result.scores), ...result.winners]) {
     if (!ids.has(id)) problems.push(`result names "${id}", who isn't seated`);
   }
+  if (game.recordSummary) {
+    const problem = jsonProblem("recordSummary", game.recordSummary(state));
+    if (problem) problems.push(problem);
+  }
   return problems;
 }
 

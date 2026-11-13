@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type GameSession, activePlayers, roleIn } from "../src";
+import { type GameSession, activePlayers, inRunningGame, roleIn } from "../src";
 
 const session: GameSession = {
   id: 1,
@@ -34,5 +34,19 @@ describe("roleIn", () => {
 describe("activePlayers", () => {
   it("leaves out players who left", () => {
     expect(activePlayers(session).map((p) => p.id)).toEqual(["a"]);
+  });
+});
+
+describe("inRunningGame (D59)", () => {
+  it("is true only for a seated player while the game is played", () => {
+    expect(inRunningGame(session, "a")).toBe(true);
+    expect(inRunningGame(session, "c")).toBe(false);
+    expect(inRunningGame(session, "b")).toBe(false);
+    expect(inRunningGame(null, "a")).toBe(false);
+  });
+
+  it("is false in setup and on results", () => {
+    expect(inRunningGame({ ...session, phase: "setup" }, "a")).toBe(false);
+    expect(inRunningGame({ ...session, phase: "results" }, "a")).toBe(false);
   });
 });

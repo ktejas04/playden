@@ -1,0 +1,1 @@
+ALTER TABLE `game_participants` ADD `leave_reason` text;

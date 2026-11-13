@@ -3,6 +3,7 @@ import {
   type RoomPlayer,
   type SessionRole,
   canRemovePlayer,
+  inRunningGame,
   roleIn,
 } from "@playden/protocol";
 import {
@@ -316,8 +317,8 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
   if (status === "removed") {
     return (
       <RoomEnded code={code} title="You were removed from this room">
-        The host or an admin took you out of this room, so you can't rejoin it. You can still start
-        your own room or join another one.
+        The host took you out of this room, so you can't rejoin it. You can still start your own
+        room or join another one.
       </RoomEnded>
     );
   }
@@ -349,7 +350,8 @@ export function Room({ me, code, onRefused }: { me: Me; code: string; onRefused:
   const canRemove = (player: RoomPlayer) =>
     hostId !== null &&
     status === "live" &&
-    canRemovePlayer({ id: me.id, isAdmin: me.isAdmin }, player, hostId);
+    canRemovePlayer(me.id, player.id, hostId) &&
+    !inRunningGame(session, player.id);
 
   return (
     <PlayerColorsProvider ids={colorIds}>

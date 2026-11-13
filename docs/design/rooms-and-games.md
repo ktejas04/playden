@@ -57,6 +57,25 @@ GAME_PARTICIPANT              a room member's part in one session
 GAME_DEFINITION               code, not data: packages/games/<id> (D50)
   id, name, summary, minPlayers, maxPlayers, teams?, devOnly?, configSchema, moveSchema
   later: hiddenInfo, seatRefill (section 9)
+```
+
+**Where each entity lives.** The live copies are in each room's own storage and disappear when the room closes. D1 keeps a permanent record (D58), written by the room only when something important happens.
+
+| Entity | Live copy (room storage key) | Permanent record (D1 table) |
+| --- | --- | --- |
+| ROOM | `info`, `host`, `removed` | `rooms`: id, code, created_by, created_at, closed_at |
+| ROOM_MEMBER | `members` | `room_members`, one row per visit: id, room_id, user_id, joined_at, left_at, leave_reason (left, removed, timed_out, room_closed). A visit starts on arrival and ends on a final departure; coming back starts a new one; at most one open visit per person per room (D59) |
+| GAME_SESSION | `table.session` (with the engine `state`) | `games`: id, room_id, game_type, status, is_active, created_by (who set it up), host_id (current host, kept up to date), config, timestamps, winning_team, summary. Never the engine state |
+| GAME_PARTICIPANT | `table.session.players`, `spectators`, `banned` | `game_participants`: game_id, user_id, role, team, score, left_early, leave_reason (left, banned or removed) |
+| LOBBY | Not built (D52) | None: live information only |
+
+```
+D1 record (D58)
+rooms 1 ── * games            games.room_id; at most one games row per room has is_active = true
+games 1 ── * game_participants
+users 1 ── * rooms (created_by), games (created_by, host_id), game_participants (user_id)
+games.status:    setup → playing → finished | ended_early     (the game's lifecycle)
+games.is_active: true while it is the room's current game     (the row's state)
 
 GAME_RECORD                   D1, later (stats, v3)
   sessionId, roomCode, gameId, playerIds, result, startedAt, endedAt
@@ -168,7 +187,7 @@ One host for the room and its game. There is no separate game host.
 - End game
 - Play again
 - Return to room
-- remove from the room (D42, which admins can also do)
+- remove from the room (D42), except a player seated in a running game, who is banned first (D59). Admins have no room powers unless they're host (D59)
 
 ## 6. Leaving, dropping, banning
 
@@ -179,14 +198,14 @@ One host for the room and its game. There is no separate game host.
 | **Leave game** (button) | The seat is freed at once; `onPlayerLeft` runs | They stay in the room and can spectate |
 | **Ban from game** (host) | Same as Leave game, and they can't be a player again **in this session** | They stay in the room and can spectate. They can join the next session |
 | **‹ Lobby / Leave on the room screen** (a choice) | Same as Leave game, with the same warning for a player mid-game. Outside play there's nothing to lose, so no warning. The host in setup or results just hands host on | Gone from the member list |
-| **Removed from room** (D42) | Same as Leave game, at once | Gone, and can't come back until the room closes |
+| **Removed from room** (D42, D59) | Not possible for a player seated in a running game (ban them first). Anyone else is out of the session at once | Gone, and can't come back until the room closes |
 
 **Who is told** when a player is out of a running game: only those it affects. Leave game tells their teammates (everyone playing, in games without teams) and the host; a ban tells their teammates. Whoever did it isn't told, and neither are opponents or spectators. Removal from the room is already announced to everyone; a drop shows as Away.
 
 More rules:
 
 - During setup, a joined player who stays away for 60 s is moved out of the session. A Start within those 60 s still seats them.
-- The host can ban anyone but themselves, admins included: a game ban only costs a seat in one session. Removing an admin from the room is still not allowed (D42).
+- The host can ban and remove anyone but themselves, admins included: admins are regular people inside rooms unless they're host (D59). Admin power lives on the admin page.
 - Spectators who drop come back spectating. Roles return as they were while the session is the same.
 - An empty room closes 60 s after the last connection, with its game, even if seats are held (D35).
 

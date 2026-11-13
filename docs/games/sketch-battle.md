@@ -179,7 +179,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 | A player reloads, switches apps or loses signal | They keep their seat for the whole game (D51) and are shown as away. On return they get the full current view and slide back in |
 | Drawer drops mid-round | Their canvas stays; their team keeps guessing from it. Next round, rotation skips them while they're away |
 | Chooser drops while choosing | The 15 s timeout picks the first word |
-| Player leaves the game, is banned or removed | `onPlayerLeft`: out of the rotation for good. If they were drawing, it's treated like a drop |
+| Player leaves the game (or the room) or is banned | `onPlayerLeft`: out of the rotation for good. If they were drawing, it's treated like a drop. A seated player can't be removed from the room mid-game; the host bans first (D59) |
 | A team has fewer than 2 connected players | The game continues; a lone drawer can draw but nobody on that team can guess |
 | A team has no connected players | Open question (section 22) |
 | Host drops or leaves | Host passes on as usual (D51); host-only controls move with it. Ready-up and Start next round don't need the host |
@@ -267,7 +267,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | `table` | The game session (players, teams, settings, phase) and `state`, the Sketch Battle state below | Every saved change (section 15, "When the game is saved") |
 | (the alarm) | The room's one wake-up time | Only when that time changes (D55) |
 
-The D1 database (`users`, `sessions` in `apps/server/src/db/schema.ts`) is not touched by Sketch Battle. The room gets player ids and names from the session at connect time, as for every game. Game results are not recorded in v1; stats and leaderboards (v3) will add a results table then.
+D1 keeps the permanent record (D58): the platform writes `rooms`, `games` and `game_participants` for every game. Sketch Battle adds only its `recordSummary(state)`, stored in `games.summary`: each round's word, drawers, winning team and gap, the showdown result and the highlights. Never the drawings or the live state. Login data (`users`, `sessions`) is unchanged; the room gets player ids and names from the login at connect time, as for every game.
 
 **The game state (`types.ts`, plain JSON)**
 
@@ -529,6 +529,7 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 - [ ] **019b — Live moves and lean saves (D55).** The room keeps the table in memory; live transitions update memory and send `delta`s without saving; every other change saves once; the alarm is booked only when its time changes; a game may set its own move limit; contract kit checks that live moves never change the deadline.
 - [ ] **019c — Presence for games (D56).** The room calls `onPresence` when a player drops or returns mid-game.
+- [ ] **019d — Game records in D1 (D58).** Rooms, games and participants are recorded in D1; Sketch Battle defines `recordSummary(state)` (each round's word, drawers, winner and gap, the showdown result, highlights).
 
 **4.1 Core round** — two teams play rounds end to end
 

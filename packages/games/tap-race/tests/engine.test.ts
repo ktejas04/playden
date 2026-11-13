@@ -120,6 +120,15 @@ describe("Tap Race", () => {
     expect(tapRace.standings?.(tap(state, "a2"))).toEqual({ a1: 2, a2: 2, b1: 1, b2: 1 });
   });
 
+  it("the summary for the record keeps the team counts, the target and the winning team", () => {
+    const state = tap(tap(start(), "a1"), "b1");
+    expect(tapRace.recordSummary?.(state)).toEqual({
+      counts: [1, 1],
+      target: config.targetTaps,
+      winningTeam: null,
+    });
+  });
+
   it("needs every seat to be on a team", () => {
     expect(() => tapRace.setup([{ id: "x", name: "X" }], config, 1, START)).toThrow(/team/);
   });

@@ -1,10 +1,8 @@
-export interface RoomActor {
-  id: string;
-  isAdmin: boolean;
-}
-
-/** The host or an admin may remove a player; nobody removes themselves or an admin (D42). */
-export function canRemovePlayer(actor: RoomActor, target: RoomActor, hostId: string): boolean {
-  if (actor.id === target.id || target.isAdmin) return false;
-  return actor.isAdmin || actor.id === hostId;
+/**
+ * Only the host may remove someone from the room, and never themselves. Admins are regular
+ * people inside rooms (D59): the host can remove an admin, and an admin who isn't host can't
+ * remove anyone. A player seated in a running game is banned from it first (`inRunningGame`).
+ */
+export function canRemovePlayer(actorId: string, targetId: string, hostId: string): boolean {
+  return actorId === hostId && targetId !== actorId;
 }

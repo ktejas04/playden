@@ -173,6 +173,6 @@ export const ROOM_CLOSE = {
   notFound: 4404,
   /** The same player opened the room on another device or tab, which took the seat (D49). */
   replaced: 4409,
-  /** Removed by the host or an admin; refused on rejoin until the room closes. */
+  /** Removed by the host; refused on rejoin until the room closes (D42, D59). */
   removed: 4410,
 } as const;

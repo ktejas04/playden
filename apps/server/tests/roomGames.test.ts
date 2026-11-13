@@ -1,6 +1,6 @@
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { type GameSession, type ServerMessage, roleIn } from "@playden/protocol";
+import { type GameSession, ROOM_CLOSE, type ServerMessage, roleIn } from "@playden/protocol";
 import { awaySnapshot, connect, createRoom, member, roomStub, snapshotWith } from "./roomKit";
 
 /**
@@ -556,16 +556,22 @@ describe("game sessions in a room", () => {
     close(a.ws, b.ws);
   });
 
-  it("removing a player from the room mid-game frees their seat", async () => {
+  it("a seated player can't be removed from the room mid-game; after a ban, they can (D59)", async () => {
     const { people } = await room("s-remove", ["Asha", "Ben", "Chi"]);
     const [a, b, c] = people as [Person, Person, Person];
     await setUp(people, [b, c]);
     await startGame(people);
     a.ws.send({ type: "remove", playerId: c.id });
+    await a.ws.next(errorSaying("They're playing. Ban them from the game first"));
+    expect(c.ws.ws.readyState).toBe(WebSocket.OPEN);
+
+    a.ws.send({ type: "game.ban", playerId: c.id });
     const after = sessionOf(
-      await b.ws.next(sessionWhere((s) => s?.phase === "playing" && roleIn(s, c.id) === null)),
+      await b.ws.next(sessionWhere((s) => s?.phase === "playing" && roleIn(s, c.id) !== "player")),
     );
     expect(after.players.find((p) => p.id === c.id)?.left).toBe(true);
+    a.ws.send({ type: "remove", playerId: c.id });
+    expect(await c.ws.closed).toBe(ROOM_CLOSE.removed);
     close(a.ws, b.ws);
   });
 

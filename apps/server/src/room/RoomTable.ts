@@ -1,6 +1,7 @@
 import type { AnyGame } from "@playden/engine";
 import type { ClientMessage, ServerMessage } from "@playden/protocol";
 import { findGame } from "../games";
+import { withRecordId } from "./gameRecords";
 import {
   type Person,
   type TableOutcome,
@@ -49,6 +50,8 @@ export interface TableRoom {
   changed(): Promise<void>;
   /** Sets the room's one alarm (game deadline, away expiries, empty-room close). */
   reschedule(): Promise<void>;
+  /** After every saved change: the room queues any writes to the permanent record (D58). */
+  recorded(before: TableState, after: TableState): Promise<void>;
 }
 
 export type TableMessage = Exclude<ClientMessage, { type: "ping" | "remove" | "leave" }>;
@@ -155,7 +158,7 @@ export class RoomTable {
     }
   }
 
-  /** Removed from the room (D42): out of the game too. */
+  /** Out of the room (left, removed, or away too long): out of the game too. */
   async memberRemoved(personId: string): Promise<void> {
     await this.apply((table, game) =>
       game ? memberRemoved(table, personId, game) : { ok: true, table, events: [] },
@@ -219,12 +222,17 @@ export class RoomTable {
     if (outcome.ok && outcome.table !== table) await this.commit(table, outcome);
   }
 
-  /** Saves the new table, tells each connection what it should hear, and resets the alarm. */
+  /**
+   * Saves the new table, tells each connection what it should hear, records what matters
+   * (D58) and resets the alarm.
+   */
   private async commit(before: TableState, outcome: TableOutcome): Promise<void> {
     if (!outcome.ok) return;
-    const { table, events } = outcome;
-    if (table === before && events.length === 0) return;
+    const { events } = outcome;
+    if (outcome.table === before && events.length === 0) return;
+    const table = withRecordId(before, outcome.table, () => crypto.randomUUID());
     await saveTable(this.room.storage, table);
+    await this.room.recorded(before, table);
     const statusChanged = statusChangedBetween(before, table);
     for (const ws of this.room.openSockets()) {
       const viewer = this.room.personOf(ws).id;

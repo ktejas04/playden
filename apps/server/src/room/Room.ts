@@ -4,12 +4,17 @@ import {
   ROOM_CLOSE,
   type ServerMessage,
   canRemovePlayer,
+  inRunningGame,
   parseClientMessage,
 } from "@playden/protocol";
 import { AWAY_GRACE_MS, MOVE_LIMIT, roomEmptyCloseMs, startCountdownMs } from "../config";
 import type { Env } from "../env";
 import { refuseSocket } from "../http";
+import { getDb } from "../db/client";
+import { writeRecord } from "../db/gameRecords";
+import { RecordWriter } from "./RecordWriter";
 import { RoomTable } from "./RoomTable";
+import { closingWrites, hostWrites, recordWrites } from "./gameRecords";
 import { chooseHost } from "./host";
 import {
   type Members,
@@ -22,7 +27,7 @@ import {
   nextExpiry,
 } from "./presence";
 import { type Bucket, takeToken } from "./rateLimit";
-import { loadTable, tableDeadline } from "./tableSync";
+import { gameOf, loadTable, tableDeadline } from "./tableSync";
 
 export const ROOM_HEADERS = {
   userId: "x-playden-user-id",
@@ -34,6 +39,8 @@ interface RoomInfo {
   code: string;
   createdBy: string;
   createdAt: number;
+  /** This room's row in the D1 `rooms` table (D58); none for rooms from before records. */
+  recordId?: string;
 }
 
 interface Attachment {
@@ -46,7 +53,7 @@ const INFO_KEY = "info";
 const HOST_KEY = "host";
 /** Everyone in the room, connected or away (presence.ts). */
 const MEMBERS_KEY = "members";
-/** User ids removed by the host or an admin; refused until the room closes (D42). */
+/** User ids the host removed; refused until the room closes (D42, D59). */
 const REMOVED_KEY = "removed";
 
 /**
@@ -58,7 +65,8 @@ const REMOVED_KEY = "removed";
  * place, host and seat; leaving on purpose (`leave`, removal) is gone at once (presence.ts).
  * The creator is host; when the host is gone, host passes on (host.ts: only to a player while
  * a game runs) and stays with the new host even if the old one comes back.
- * The host or an admin can remove a player, who then can't rejoin this room.
+ * Only the host can remove someone (admins included, D59), who then can't rejoin this room; a
+ * player seated in a running game is banned from it first.
  * Each player holds their seat from one connection; opening the room elsewhere moves it there.
  * The table (roomGame.ts) runs the room's game session; this object stores it, sends each
  * person their own view, and wakes it at its deadlines. One alarm serves the game's
@@ -69,14 +77,23 @@ export class Room extends DurableObject<Env> {
   private readonly closing = new Set<WebSocket>();
   /** Each connection's move allowance (rateLimit.ts); forgotten if the object sleeps, which is fine. */
   private readonly moveBuckets = new WeakMap<WebSocket, Bucket>();
+  /** Writes to the permanent record in D1 (D58), in order; game play never waits on them. */
+  private readonly records = new RecordWriter((write) => writeRecord(getDb(this.env.DB), write));
 
   /** Returns false when the code is already taken by a live room. */
   async create(code: string, createdBy: string, now: number): Promise<boolean> {
     if (await this.info()) return false;
-    const info: RoomInfo = { code, createdBy, createdAt: now };
+    const recordId = crypto.randomUUID();
+    const info: RoomInfo = { code, createdBy, createdAt: now, recordId };
     await this.ctx.storage.put(INFO_KEY, info);
     await this.ctx.storage.setAlarm(now + this.closeAfterMs());
+    this.records.add([{ kind: "roomOpened", roomId: recordId, code, createdBy, at: now }]);
     return true;
+  }
+
+  /** Resolves once this room's queued record writes are done (the close waits on it; so do tests). */
+  async recordsSettled(): Promise<void> {
+    await this.records.settled();
   }
 
   async exists(): Promise<boolean> {
@@ -107,13 +124,19 @@ export class Room extends DurableObject<Env> {
     server.serializeAttachment(attachment);
     this.replace(previous);
     // A returning member keeps their place in the room (and any seat or host they still hold).
+    const members = await this.members();
+    const now = Date.now();
     await this.saveMembers(
       memberArrives(
-        await this.members(),
+        members,
         { id: userId, name: attachment.name, isAdmin: attachment.isAdmin },
-        Date.now(),
+        now,
       ),
     );
+    // An arrival starts a visit; reconnecting within the grace is the same visit (D59).
+    if (info.recordId && !(userId in members)) {
+      this.records.add([{ kind: "memberJoined", roomId: info.recordId, userId, at: now }]);
+    }
 
     await this.refresh(info, { broadcast: true });
     await this.table().welcome(server);
@@ -142,6 +165,7 @@ export class Room extends DurableObject<Env> {
   override async alarm(): Promise<void> {
     if (this.openSockets().length === 0) {
       // With nobody connected, the only alarm set is the empty-room close.
+      await this.recordClose();
       await this.ctx.storage.deleteAll();
       return;
     }
@@ -157,6 +181,20 @@ export class Room extends DurableObject<Env> {
       await this.refresh(info, { broadcast: true, now: Math.max(Date.now(), expiry) });
     }
     await this.reschedule();
+  }
+
+  /**
+   * The room is about to delete itself: its record is closed first (a running game ends
+   * early), and the close waits for the writes, since nothing runs after the delete.
+   */
+  private async recordClose(): Promise<void> {
+    const info = await this.info();
+    if (!info?.recordId) return;
+    const table = await loadTable(this.ctx.storage);
+    this.records.add(
+      closingWrites(table, { roomId: info.recordId, now: Date.now(), game: gameOf(table) }),
+    );
+    await this.records.settled();
   }
 
   private table(): RoomTable {
@@ -182,6 +220,20 @@ export class Room extends DurableObject<Env> {
         return info ? this.storedHostId(info) : "";
       },
       send: (ws, message) => this.send(ws, message),
+      recorded: async (before, after) => {
+        const info = await this.info();
+        if (!info?.recordId) return;
+        const opens = after.session?.recordId !== before.session?.recordId;
+        const hostId = opens ? await this.storedHostId(info) : null;
+        this.records.add(
+          recordWrites(before, after, {
+            roomId: info.recordId,
+            hostId,
+            now: Date.now(),
+            game: gameOf(after),
+          }),
+        );
+      },
       changed: async () => {
         const info = await this.info();
         if (info) await this.refresh(info, { broadcast: false });
@@ -229,7 +281,7 @@ export class Room extends DurableObject<Env> {
     const { userId } = attachmentOf(ws);
     const sockets = this.openSockets().filter((s) => attachmentOf(s).userId === userId);
     this.closeAll(sockets, 1000, "Left the room");
-    await this.gone(info, [userId]);
+    await this.gone(info, [userId], "left");
     await this.afterLastConnection();
   }
 
@@ -243,14 +295,12 @@ export class Room extends DurableObject<Env> {
       return;
     }
     const hostId = await this.storedHostId(info);
-    if (
-      !canRemovePlayer(
-        { id: actor.userId, isAdmin: actor.isAdmin },
-        { id: playerId, isAdmin: target.isAdmin },
-        hostId,
-      )
-    ) {
+    if (!canRemovePlayer(actor.userId, playerId, hostId)) {
       this.send(ws, { type: "error", reason: "You can't remove that player" });
+      return;
+    }
+    if (inRunningGame((await loadTable(this.ctx.storage)).session, playerId)) {
+      this.send(ws, { type: "error", reason: "They're playing. Ban them from the game first" });
       return;
     }
 
@@ -261,14 +311,27 @@ export class Room extends DurableObject<Env> {
     for (const socket of this.openSockets()) this.send(socket, notice);
     const targetSockets = this.openSockets().filter((s) => attachmentOf(s).userId === playerId);
     this.closeAll(targetSockets, ROOM_CLOSE.removed, "Removed from this room");
-    await this.gone(info, [playerId]);
+    await this.gone(info, [playerId], "removed");
+  }
+
+  /** Records people leaving the room for good (D59); drops within the grace never get here. */
+  private recordDepartures(
+    info: RoomInfo,
+    ids: string[],
+    reason: "left" | "removed" | "timed_out",
+  ): void {
+    const roomId = info.recordId;
+    if (!roomId) return;
+    const at = Date.now();
+    this.records.add(ids.map((userId) => ({ kind: "memberLeft", roomId, userId, at, reason })));
   }
 
   /** People who are gone for good: out of the member list and out of any game. */
-  private async gone(info: RoomInfo, ids: string[]): Promise<void> {
+  private async gone(info: RoomInfo, ids: string[], reason: "left" | "removed"): Promise<void> {
     let members = await this.members();
     for (const id of ids) members = memberGone(members, id);
     await this.saveMembers(members);
+    this.recordDepartures(info, ids, reason);
     for (const id of ids) await this.table().memberRemoved(id);
     await this.refresh(info, { broadcast: true });
     await this.reschedule();
@@ -397,6 +460,8 @@ export class Room extends DurableObject<Env> {
       for (const id of expired) members = memberGone(members, id);
       await this.saveMembers(members);
       // Each removal re-runs this (through the table's change), with the expired already gone.
+      // Grace ran out: nobody holding a seat mid-game expires, so this never frees one.
+      this.recordDepartures(info, expired, "timed_out");
       for (const id of expired) await this.table().memberRemoved(id);
     }
 
@@ -411,7 +476,10 @@ export class Room extends DurableObject<Env> {
     const current = await this.storedHostId(info);
     const latest = (await loadTable(this.ctx.storage)).session;
     const hostId = chooseHost({ current, connectedIds, graceIds, session: latest });
-    if (hostId !== current) await this.ctx.storage.put(HOST_KEY, hostId);
+    if (hostId !== current) {
+      await this.ctx.storage.put(HOST_KEY, hostId);
+      if (info.recordId) this.records.add(hostWrites(latest, hostId));
+    }
 
     if (broadcast || hostId !== current) {
       const snapshot: ServerMessage = {
