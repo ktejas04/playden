@@ -1,6 +1,7 @@
-import { MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@playden/ui/components/button";
+import { DeviceIcon } from "@playden/ui/components/device-icon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +30,7 @@ export function ThemeToggle() {
             <MoonIcon /> Dark
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="h-10" value="system">
-            <MonitorIcon /> Phone setting
+            <DeviceIcon /> Device
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

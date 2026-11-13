@@ -11,8 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@playden/ui/components/dropdown-menu";
-import { LogOutIcon, MonitorIcon, MoonIcon, ShieldCheckIcon, SunIcon } from "lucide-react";
+import { LogOutIcon, MoonIcon, ShieldCheckIcon, SunIcon } from "lucide-react";
 import { useTheme } from "@playden/ui/components/theme-provider";
+import { DeviceIcon } from "@playden/ui/components/device-icon";
 import { PlayerAvatar } from "./components/PlayerAvatar";
 
 interface AccountMenuProps {
@@ -75,7 +76,7 @@ export function AccountMenu({ me, waiting, onOpenMembers, onSignOut }: AccountMe
             <MoonIcon /> Dark
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="h-10" value="system">
-            <MonitorIcon /> Phone setting
+            <DeviceIcon /> Device
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
