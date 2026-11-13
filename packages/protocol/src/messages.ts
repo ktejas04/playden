@@ -114,6 +114,16 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
   /** This viewer's own view of the game (a player's, or the spectator view); never anyone else's. */
   z.strictObject({ type: z.literal("game.view"), view: z.unknown() }),
   z.strictObject({ type: z.literal("game.events"), events: z.array(gameEventSchema) }),
+  /**
+   * Someone is out of a running game: sent only to those it affects (their teammates, and the
+   * host unless the host did it), so others aren't disturbed.
+   */
+  z.strictObject({
+    type: z.literal("game.notice"),
+    kind: z.enum(["left", "banned"]),
+    playerId: userIdSchema,
+    name: z.string().min(1).max(40),
+  }),
 ]);
 
 export type RoomPlayer = z.infer<typeof roomPlayerSchema>;
@@ -123,6 +133,7 @@ export type SessionPhase = z.infer<typeof sessionPhaseSchema>;
 export type SessionPlayer = z.infer<typeof sessionPlayerSchema>;
 export type GameSession = z.infer<typeof gameSessionSchema>;
 export type GameStatus = Extract<ServerMessage, { type: "game.status" }>;
+export type GameNotice = Extract<ServerMessage, { type: "game.notice" }>;
 
 export type ParseResult<T> = { ok: true; message: T } | { ok: false; reason: string };
 

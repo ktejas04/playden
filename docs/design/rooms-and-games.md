@@ -179,6 +179,8 @@ One host for the room and its game. There is no separate game host.
 | **‹ Lobby / Leave on the room screen** (a choice) | Same as Leave game, with the same warning for a player mid-game. Outside play there's nothing to lose, so no warning. The host in setup or results just hands host on | Gone from the member list |
 | **Removed from room** (D42) | Same as Leave game, at once | Gone, and can't come back until the room closes |
 
+**Who is told** when a player is out of a running game: only those it affects. Leave game tells their teammates (everyone playing, in games without teams) and the host; a ban tells their teammates. Whoever did it isn't told, and neither are opponents or spectators. Removal from the room is already announced to everyone; a drop shows as Away.
+
 More rules:
 
 - During setup, a joined player who stays away for 60 s is moved out of the session. A Start within those 60 s still seats them.

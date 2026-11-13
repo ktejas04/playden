@@ -155,15 +155,27 @@ function useBannedNotice(banned: boolean) {
   const before = useRef(false);
   useEffect(() => {
     if (banned && !before.current) {
-      toast.info("The host took you out of this game. You can spectate, and play in the next one.");
+      toast.info("The host removed you. You can still spectate.");
     }
     before.current = banned;
   }, [banned]);
 }
 
 function showNotice(notice: RoomNotice) {
-  if (notice.type === "removed") toast.info(`${notice.name} was removed from the room.`);
-  else toast.error(notice.reason);
+  switch (notice.type) {
+    case "removed":
+      toast.info(`${notice.name} was removed from the room.`);
+      break;
+    case "game.notice":
+      toast.info(
+        notice.kind === "left"
+          ? `${notice.name} left the game.`
+          : `The host removed ${notice.name} from the game.`,
+      );
+      break;
+    case "error":
+      toast.error(notice.reason);
+  }
 }
 
 function PlayerRow({

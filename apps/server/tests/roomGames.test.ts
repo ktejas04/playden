@@ -282,6 +282,62 @@ describe("game sessions in a room", () => {
     close(a.ws, b.ws, c.ws);
   });
 
+  it("only the leaver's teammates and the host hear that they left", async () => {
+    // Team 1: Asha (host), Chi. Team 2: Ben, Dev. Eve spectates.
+    const { people } = await room("s-notice", ["Asha", "Ben", "Chi", "Dev", "Eve"]);
+    const [a, b, c, d, e] = people as [Person, Person, Person, Person, Person];
+    await setUp(people, [b, c, d]);
+    e.ws.send({ type: "game.spectate" });
+    await allHear(
+      people,
+      sessionWhere((s) => s?.spectators.length === 1),
+    );
+    await startGame(people);
+
+    const notice = (m: ServerMessage) => m.type === "game.notice";
+    d.ws.send({ type: "game.leave" });
+    for (const p of [a, b]) {
+      expect(await p.ws.next(notice)).toEqual({
+        type: "game.notice",
+        kind: "left",
+        playerId: d.id,
+        name: "Dev",
+      });
+    }
+    // Everyone has the new status by now; the opponent and the spectator got no notice.
+    await allHear(
+      [c, e],
+      sessionWhere((s) => s?.players.some((p) => p.id === d.id && p.left) ?? false),
+    );
+    expect(c.ws.inbox.some(notice) || e.ws.inbox.some(notice) || d.ws.inbox.some(notice)).toBe(
+      false,
+    );
+    close(a.ws, b.ws, c.ws, d.ws, e.ws);
+  });
+
+  it("a ban mid-game tells the banned player's teammates, not the host or opponents", async () => {
+    // Team 1: Asha (host), Chi. Team 2: Ben, Dev.
+    const { people } = await room("s-ban-notice", ["Asha", "Ben", "Chi", "Dev"]);
+    const [a, b, c, d] = people as [Person, Person, Person, Person];
+    await setUp(people, [b, c, d]);
+    await startGame(people);
+
+    const notice = (m: ServerMessage) => m.type === "game.notice";
+    a.ws.send({ type: "game.ban", playerId: d.id });
+    expect(await b.ws.next(notice)).toEqual({
+      type: "game.notice",
+      kind: "banned",
+      playerId: d.id,
+      name: "Dev",
+    });
+    await allHear(
+      [a, c],
+      sessionWhere((s) => s?.banned.includes(d.id) ?? false),
+    );
+    expect(a.ws.inbox.some(notice) || c.ws.inbox.some(notice)).toBe(false);
+    close(a.ws, b.ws, c.ws, d.ws);
+  });
+
   it("Leave game frees the seat; the leaver can spectate", async () => {
     const { people } = await room("s-leave", ["Asha", "Ben", "Chi"]);
     const [a, b, c] = people as [Person, Person, Person];

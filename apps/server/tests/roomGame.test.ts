@@ -20,6 +20,7 @@ import {
   pickGame,
   playAgain,
   returnToRoom,
+  seatNotice,
   setConfig,
   shuffleTeams,
   spectate,
@@ -327,6 +328,53 @@ describe("banning", () => {
     table = ok(endGame(table, tapRace));
     table = ok(playAgain(table, tapRace, ["asha", "ben", "chi"]));
     expect(ok(join(table, chi, tapRace)).session?.players.map((p) => p.id)).toContain("chi");
+  });
+});
+
+describe("who hears that a player is out", () => {
+  // Team 1: Asha (host), Chi. Team 2: Ben, Dev.
+  const game = () => playing(ben, chi, dev);
+
+  it("Leave game: their teammates and the host, never opponents", () => {
+    const before = game();
+    const after = ok(leave(before, dev.id, HOST, tapRace));
+    expect(seatNotice(before, after, dev.id, HOST, "left")).toEqual({
+      notice: { type: "game.notice", kind: "left", playerId: "dev", name: "Dev" },
+      to: ["ben", "asha"],
+    });
+  });
+
+  it("the host isn't told twice when it's their own teammate, or about their own leaving", () => {
+    const before = game();
+    expect(
+      seatNotice(before, ok(leave(before, chi.id, HOST, tapRace)), chi.id, HOST, "left")?.to,
+    ).toEqual(["asha"]);
+    expect(
+      seatNotice(before, ok(leave(before, HOST, HOST, tapRace)), HOST, HOST, "left")?.to,
+    ).toEqual(["chi"]);
+  });
+
+  it("a ban: their teammates only, since the host did it", () => {
+    const before = game();
+    const after = ok(ban(before, dev.id, HOST, tapRace));
+    expect(seatNotice(before, after, dev.id, HOST, "banned")?.to).toEqual(["ben"]);
+  });
+
+  it("the host banning their own teammate isn't told about it", () => {
+    const before = game();
+    const after = ok(ban(before, chi.id, HOST, tapRace));
+    expect(seatNotice(before, after, chi.id, HOST, "banned")?.to).toEqual([]);
+  });
+
+  it("nothing outside a running game, or for someone who wasn't playing", () => {
+    const inSetup = setup(ben);
+    expect(
+      seatNotice(inSetup, ok(leave(inSetup, ben.id, HOST, tapRace)), ben.id, HOST, "left"),
+    ).toBeNull();
+    const watched = ok(spectate(game(), "eve", HOST));
+    expect(
+      seatNotice(watched, ok(leave(watched, "eve", HOST, tapRace)), "eve", HOST, "left"),
+    ).toBeNull();
   });
 });
 

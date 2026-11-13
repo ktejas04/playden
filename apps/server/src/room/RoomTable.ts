@@ -17,6 +17,7 @@ import {
   pickGame,
   playAgain,
   returnToRoom,
+  seatNotice,
   setConfig,
   shuffleTeams,
   spectate,
@@ -120,11 +121,19 @@ export class RoomTable {
       case "game.spectate":
         return run((table) => spectate(table, person.id, hostId));
       case "game.leave":
-        return run((table, game) => needGame(game, (g) => leave(table, person.id, hostId, g)));
+        return this.change(
+          ws,
+          (table, game) => needGame(game, (g) => leave(table, person.id, hostId, g)),
+          (before, after) => seatNotice(before, after, person.id, hostId, "left"),
+        );
       case "game.start":
         return run((table, game) => needGame(game, (g) => startGame(table, g, randomSeed(), now)));
       case "game.ban":
-        return run((table, game) => needGame(game, (g) => ban(table, message.playerId, hostId, g)));
+        return this.change(
+          ws,
+          (table, game) => needGame(game, (g) => ban(table, message.playerId, hostId, g)),
+          (before, after) => seatNotice(before, after, message.playerId, hostId, "banned"),
+        );
       case "game.end":
         return run((table, game) => needGame(game, (g) => endGame(table, g)));
       case "game.playAgain": {
@@ -168,10 +177,17 @@ export class RoomTable {
     await this.commit(table, fireDeadline(table, game, Math.max(Date.now(), deadline)));
   }
 
-  /** Runs one change asked for by a connection; a refusal goes back to it alone. */
+  /**
+   * Runs one change asked for by a connection; a refusal goes back to it alone. `announce`
+   * names a notice and who it's for (e.g. a player left mid-game: their teammates).
+   */
   private async change(
     ws: WebSocket,
     run: (table: TableState, game: AnyGame | undefined) => TableOutcome,
+    announce?: (
+      before: TableState,
+      after: TableState,
+    ) => { notice: ServerMessage; to: string[] } | null,
   ): Promise<void> {
     const table = await loadTable(this.room.storage);
     const outcome = run(table, gameOf(table));
@@ -180,6 +196,12 @@ export class RoomTable {
       return;
     }
     await this.commit(table, outcome);
+    const told = announce?.(table, outcome.table);
+    if (told) {
+      for (const socket of this.room.openSockets()) {
+        if (told.to.includes(this.room.personOf(socket).id)) this.room.send(socket, told.notice);
+      }
+    }
   }
 
   /** Runs one change the room itself makes; nothing to refuse to. */

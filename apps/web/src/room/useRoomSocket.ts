@@ -19,7 +19,7 @@ export type ConnectionStatus =
   "connecting" | "live" | "reconnecting" | "missing" | "removed" | "replaced";
 
 /** Server messages the screen shows as toasts: someone was removed, or a request was refused. */
-export type RoomNotice = Extract<ServerMessage, { type: "removed" | "error" }>;
+export type RoomNotice = Extract<ServerMessage, { type: "removed" | "error" | "game.notice" }>;
 
 interface RoomSocketHandlers {
   /** The account can't play (signed out or not allowed); the app rechecks it. */
@@ -81,7 +81,11 @@ export function useRoomSocket(
         socket?.close(1000, "replaced");
         return;
       }
-      if (message.type === "removed" || message.type === "error") {
+      if (
+        message.type === "removed" ||
+        message.type === "error" ||
+        message.type === "game.notice"
+      ) {
         handlersRef.current.onNotice(message);
         return;
       }

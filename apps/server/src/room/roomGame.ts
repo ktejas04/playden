@@ -10,7 +10,13 @@ import {
   shuffle,
   teamSizes,
 } from "@playden/engine";
-import { type GameSession, type GameStatus, activePlayers, roleIn } from "@playden/protocol";
+import {
+  type GameNotice,
+  type GameSession,
+  type GameStatus,
+  activePlayers,
+  roleIn,
+} from "@playden/protocol";
 
 /**
  * The game side of a room (docs/design/rooms-and-games.md): at most one game session, with
@@ -435,6 +441,33 @@ export function closeIfNoPlayers(table: TableState, presentIds: readonly string[
 export function returnToRoom(table: TableState): TableOutcome {
   if (table.session?.phase === "playing") return refuse("End the game first");
   return done({ ...table, session: null });
+}
+
+/**
+ * Who should hear that a player is out of a running game (Leave game, or a ban): their
+ * teammates, everyone playing in games without teams, and the host unless it was the host's
+ * own ban. Never the player, opponents or spectators. Null when nothing needs saying: it
+ * wasn't mid-game, or they weren't playing.
+ */
+export function seatNotice(
+  before: TableState,
+  after: TableState,
+  playerId: string,
+  hostId: string,
+  kind: GameNotice["kind"],
+): { notice: GameNotice; to: string[] } | null {
+  const was = before.session;
+  if (was?.phase !== "playing" || roleIn(was, playerId) !== "player") return null;
+  if (!after.session || roleIn(after.session, playerId) === "player") return null;
+  const player = was.players.find((p) => p.id === playerId);
+  if (!player) return null;
+  // Whoever did it already knows: the player who left, or the host who banned.
+  const actor = kind === "left" ? playerId : hostId;
+  const teammates = activePlayers(after.session)
+    .filter((p) => player.team === undefined || p.team === player.team)
+    .map((p) => p.id);
+  const to = [...new Set([...teammates, hostId])].filter((id) => id !== playerId && id !== actor);
+  return { notice: { type: "game.notice", kind, playerId, name: player.name }, to };
 }
 
 /** A player's own view, the spectator view, or null for someone just in the room. */
