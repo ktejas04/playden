@@ -11,6 +11,8 @@ Spec: docs/games/sketch-battle.md sections 4–6, 8 (simple rotation for now), 1
 - Rotation: both teams move to their next connected player every round. Winner-stays comes in 026.
 - `draw`, `clear` and wrong guesses are live transitions (D55); a correct guess and word choice are not. `delta` per section 15. The pixel cells come in 024.
 - `moveLimit` is `STROKE_MOVE_LIMIT`.
+- Until the round summary (028), the result stage leads straight to the next round, but only once each team has at least 2 connected players (SB12, using `onPresence` from 019c); until then the result stays up with "Waiting for <team>".
+- `recordSummary(state)`: each finished round's word, drawers, winning team and gap (the showdown and highlights come in 030 and 032).
 
 ## Steps
 1. Tests first, using the spec's names (section 20) for everything in scope:
@@ -21,6 +23,9 @@ Spec: docs/games/sketch-battle.md sections 4–6, 8 (simple rotation for now), 1
    - hidden information: word, choices, other team's strokes
    - setup: 2–8 per team with no size-gap rule; no word offered twice
    - live moves never change the next deadline
+   - a round plays on and times out when a team has nobody connected
+   - the next round waits until each team has 2 connected players
+   - the record summary lists each round's word, drawers, winner and gap
 2. `config.ts` with every number from section 17, the state types from section 15 in `types.ts`.
 3. `guess.ts` (normalising, matching, blanks, the 3-in-3-s limit), `scoring.ts`, `rotation.ts`, `delta.ts`, `engine.ts`.
 4. Register the game on the server and the web (the view is a placeholder until 025). Until 022 lands, use a short test word list.

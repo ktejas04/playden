@@ -33,6 +33,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB9 | Teams are 2–8 players each with no size-gap rule (D44, as the original) | 2026-11-13 |
 | SB10 | Strokes and wrong guesses are live moves (D55): kept in memory and sent as small changes. The game is saved when the word is chosen, on each correct guess, at round end, on Continue taps and at every phase change | 2026-11-13 |
 | SB11 | Drawing is sent in 150 ms batches, with pen-down and pen-up sent at once; phones play each batch back smoothly. Teammates and opponents get each batch's update in the same message cycle | 2026-11-13 |
+| SB12 | A team that loses its connected players mid-round doesn't stop the round: it plays on and times out normally. The next round doesn't start until **each team has at least 2 connected players**: until then the result stays up with "Waiting for <team>", and Continue and Start next round are locked for everyone. The host can always End game (answers section 22) | 2026-11-13 |
 
 ## 3. Terms
 
@@ -165,6 +166,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 - **Replays:** both canvases from this round with a Replay button that quickly redraws the strokes in order, plus each team's guess log with times.
 - **Continue:** every player taps it and a tick appears next to their name. The next round starts when every connected player has ticked; away players aren't waited for.
 - **Start next round:** after 10 s, every player gets this button, so one inattentive person (host included) can't hold the room up. Spectators get neither button.
+- **Both teams need 2 connected players (SB12):** until each team has at least 2 connected players, Continue and Start next round are locked for everyone and the screen says who it's waiting for.
 
 ## 11. Results
 
@@ -181,7 +183,8 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 | Chooser drops while choosing | The 15 s timeout picks the first word |
 | Player leaves the game (or the room) or is banned | `onPlayerLeft`: out of the rotation for good. If they were drawing, it's treated like a drop. A seated player can't be removed from the room mid-game; the host bans first (D59) |
 | A team has fewer than 2 connected players | The game continues; a lone drawer can draw but nobody on that team can guess |
-| A team has no connected players | Open question (section 22) |
+| A team has no connected players | The round plays on and times out for that team. The next round waits until each team has at least 2 connected players; the host can End game (SB12) |
+| A team has fewer than 2 connected players when a round should start | The result stays up with "Waiting for <team>"; Continue and Start next round are locked until both teams have 2 connected players (SB12) |
 | Host drops or leaves | Host passes on as usual (D51); host-only controls move with it. Ready-up and Start next round don't need the host |
 | Someone arrives mid-game | They can spectate (D51) |
 | Words | No word is offered twice in a game. Both offered words leave the pool |
@@ -512,6 +515,8 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 - start needs 2–8 players per team, with no size-gap rule
 - no word is offered twice in a game
 - an away drawer's canvas stays and their team can still guess
+- a round plays on and times out when a team has nobody connected
+- the next round waits until each team has 2 connected players
 
 ## 21. Learn-controls tour (v2)
 
@@ -519,7 +524,7 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 
 ## 22. Open questions
 
-- **A team with no connected players.** The original's server rule isn't visible. Proposal: the game keeps running (rounds time out for that team) and the host can End game; decide before task 029.
+None. (A team with no connected players was answered by SB12 on 2026-11-13.)
 
 ## 23. Implementation checklist
 
@@ -529,12 +534,12 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 - [ ] **019b — Live moves and lean saves (D55).** The room keeps the table in memory; live transitions update memory and send `delta`s without saving; every other change saves once; the alarm is booked only when its time changes; a game may set its own move limit; contract kit checks that live moves never change the deadline.
 - [ ] **019c — Presence for games (D56).** The room calls `onPresence` when a player drops or returns mid-game.
-- [ ] **019d — Game records in D1 (D58).** Rooms, games and participants are recorded in D1; Sketch Battle defines `recordSummary(state)` (each round's word, drawers, winner and gap, the showdown result, highlights).
+- [x] **019d — Game records in D1 (D58).** Rooms, games and participants are recorded in D1. Sketch Battle's `recordSummary(state)` comes with its engine: the rounds part in 021 (each round's word, drawers, winner and gap), the showdown result in 030 and highlights in 032.
 
 **4.1 Core round** — two teams play rounds end to end
 
 - [ ] **020 — Mockups:** setup, choose, drawer, guesser, head start, round result, opponent strip; the 10-colour palette and team colours.
-- [ ] **021 — Engine: round flow, guessing, scoring.** Choose → countdown → drawing → result → next round, simple rotation, live draw and guess moves, `delta`.
+- [ ] **021 — Engine: round flow, guessing, scoring.** Choose → countdown → drawing → result → next round, simple rotation, live draw and guess moves, `delta`, the next round waiting for 2 connected per team (SB12), `recordSummary` for the rounds.
 - [ ] **022 — Word list.** Move `sketch-battle-words.txt` into `words/english.ts` with tests.
 - [ ] **023 — Canvas and stroke sending.** Pointer input, batching, pen-down/up at once, playback smoothing, tools.
 - [ ] **024 — Opponent pixel view.** 24 × 16 cells on the server, sent with every batch.
@@ -545,7 +550,7 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 - [ ] **026 — Engine: winner stays, streaks, head starts** (private head start).
 - [ ] **027 — Head start stage and matchup badges.**
 - [ ] **028 — Round summary, replays, Continue and Start next round.**
-- [ ] **029 — Disconnect rules and the spectator view** (answer section 22 first).
+- [ ] **029 — Disconnect rules and the spectator view** (SB12 answers section 22).
 
 **4.3 Showdown** — the complete game
 
