@@ -49,6 +49,7 @@ import { BottomBar, Panel } from "../Shell";
 import { GameList } from "./GamePicker";
 import { isFull, seatsOf } from "./SessionCards";
 import { GameStage, ResultsCard } from "./GameStage";
+import { StartCountdown, useSecondsUntil } from "./StartCountdown";
 
 interface Confirm {
   title: string;
@@ -300,6 +301,10 @@ export function GameScreen({
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [choosingGame, setChoosingGame] = useState(false);
   const isHost = hostId === me;
+  const countdown = useSecondsUntil(
+    session.phase === "playing" ? session.startsAt : null,
+    serverNow,
+  );
   const leaveGame = useCallback(() => send({ type: "game.leave" }), [send]);
   // The host can't leave setup or results (they cancel or move on instead); going to the
   // Lobby just hands host on, as leaving the room always does.
@@ -418,8 +423,11 @@ export function GameScreen({
         />
       )}
 
+      {phase === "playing" && countdown > 0 && <StartCountdown seconds={countdown} />}
+
       {/* A game ended early never reached its own end screen, so only the scores show. */}
-      {(phase === "playing" || (phase === "results" && !session.endedEarly)) && (
+      {((phase === "playing" && countdown === 0) ||
+        (phase === "results" && !session.endedEarly)) && (
         <GameStage
           game={game}
           view={view}

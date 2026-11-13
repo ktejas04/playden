@@ -24,6 +24,7 @@ function playing(players: string[]): GameSession {
     players: players.map((id) => ({ id, name: id, left: false })),
     spectators: [],
     banned: [],
+    startsAt: null,
     result: null,
     endedEarly: false,
   };

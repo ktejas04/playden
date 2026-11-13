@@ -237,6 +237,41 @@ describe("starting", () => {
   });
 });
 
+describe("the start countdown", () => {
+  const COUNTDOWN = 3_000;
+  const counting = () =>
+    ok(
+      startGame(
+        ok(setConfig(setup(ben), { targetTaps: 5, roundSeconds: 20 }, tapRace)),
+        tapRace,
+        7,
+        NOW,
+        { countdownMs: COUNTDOWN },
+      ),
+    );
+
+  it("Start sets when play begins, and the game's clock starts then", () => {
+    const table = counting();
+    expect(session(table).startsAt).toBe(NOW + COUNTDOWN);
+    expect(nextDeadline(table, tapRace)).toBe(NOW + COUNTDOWN + 20_000);
+  });
+
+  it("refuses moves until the countdown ends, then takes them", () => {
+    const table = counting();
+    expect(reason(applyMove(table, tapRace, HOST, tap, NOW + COUNTDOWN - 1))).toBe(
+      "Wait for the countdown",
+    );
+    expect(ok(applyMove(table, tapRace, HOST, tap, NOW + COUNTDOWN)).session?.state).toMatchObject({
+      counts: [1, 0],
+    });
+  });
+
+  it("everyone sees the start time; a new setup has none", () => {
+    expect(statusOf(counting()).session?.startsAt).toBe(NOW + COUNTDOWN);
+    expect(session(setup(ben)).startsAt).toBeNull();
+  });
+});
+
 describe("moves", () => {
   it("refuses moves from spectators and people just in the room", () => {
     const table = ok(spectate(playing(ben), chi.id, HOST));
@@ -405,6 +440,7 @@ describe("ending", () => {
       ],
       spectators: ["dev"],
       banned: [],
+      startsAt: null,
       result: null,
       endedEarly: false,
     });

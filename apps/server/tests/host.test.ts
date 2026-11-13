@@ -11,6 +11,7 @@ function session(phase: GameSession["phase"], players: string[], spectators: str
     players: players.map((id) => ({ id, name: id, left: false })),
     spectators,
     banned: [],
+    startsAt: null,
     result: null,
     endedEarly: false,
   } satisfies GameSession;

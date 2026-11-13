@@ -49,6 +49,11 @@ export const gameSessionSchema = z.strictObject({
   spectators: z.array(userIdSchema),
   /** Banned from playing in this session; they may still spectate. */
   banned: z.array(userIdSchema),
+  /**
+   * When play begins (server time): Start sets it a short countdown ahead, so every screen
+   * counts 3-2-1 together and moves before it are refused. Null until Start.
+   */
+  startsAt: z.number().nullable(),
   result: gameResultSchema.nullable(),
   /** The host ended it (or every player left): standings so far, no winner. */
   endedEarly: z.boolean(),

@@ -37,6 +37,8 @@ import {
 export interface TableRoom {
   storage: DurableObjectStorage;
   allowDevOnlyGames: boolean;
+  /** The 3-2-1 between Start and play. */
+  countdownMs: number;
   openSockets(): WebSocket[];
   personOf(ws: WebSocket): Person;
   /** Members in the room (connected, or away within their grace), longest there first. */
@@ -127,7 +129,11 @@ export class RoomTable {
           (before, after) => seatNotice(before, after, person.id, hostId, "left"),
         );
       case "game.start":
-        return run((table, game) => needGame(game, (g) => startGame(table, g, randomSeed(), now)));
+        return run((table, game) =>
+          needGame(game, (g) =>
+            startGame(table, g, randomSeed(), now, { countdownMs: this.room.countdownMs }),
+          ),
+        );
       case "game.ban":
         return this.change(
           ws,

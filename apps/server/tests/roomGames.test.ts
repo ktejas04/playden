@@ -462,6 +462,7 @@ describe("game sessions in a room", () => {
         { id: b.id, team: 1 },
       ],
       spectators: [c.id],
+      startsAt: null,
       result: null,
       endedEarly: false,
     });

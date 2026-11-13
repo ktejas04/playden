@@ -14,6 +14,15 @@ export function roomEmptyCloseMs(override: string | undefined): number {
  * gone (host passes on, a setup seat is freed). A player mid-game keeps their seat regardless.
  */
 export const AWAY_GRACE_MS = 60_000;
+/** The 3-2-1 every screen shows between Start and play. */
+export const START_COUNTDOWN_MS = 3_000;
+
+/** The countdown, or the `START_COUNTDOWN_MS` env override (0 in tests, so they needn't wait). */
+export function startCountdownMs(override: string | undefined): number {
+  const ms = Number(override);
+  return override !== undefined && Number.isInteger(ms) && ms >= 0 ? ms : START_COUNTDOWN_MS;
+}
+
 /** How long a declined person waits before they can ask again. 5 s while testing; raise before launch (e.g. 1 hour). */
 export const ASK_AGAIN_AFTER_MS = 5_000;
 /** Random codes tried before giving up when creating a room. */

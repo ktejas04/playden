@@ -152,6 +152,7 @@ describe("game messages", () => {
     ],
     spectators: ["u3"],
     banned: [],
+    startsAt: null,
     result: null,
     endedEarly: false,
   };

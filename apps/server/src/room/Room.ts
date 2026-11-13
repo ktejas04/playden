@@ -6,7 +6,7 @@ import {
   canRemovePlayer,
   parseClientMessage,
 } from "@playden/protocol";
-import { AWAY_GRACE_MS, roomEmptyCloseMs } from "../config";
+import { AWAY_GRACE_MS, roomEmptyCloseMs, startCountdownMs } from "../config";
 import type { Env } from "../env";
 import { refuseSocket } from "../http";
 import { RoomTable } from "./RoomTable";
@@ -160,6 +160,7 @@ export class Room extends DurableObject<Env> {
     return new RoomTable({
       storage: this.ctx.storage,
       allowDevOnlyGames: this.env.DEV_LOGIN === "true",
+      countdownMs: startCountdownMs(this.env.START_COUNTDOWN_MS),
       openSockets: () => this.openSockets(),
       personOf: (ws) => {
         const { userId, name } = attachmentOf(ws);

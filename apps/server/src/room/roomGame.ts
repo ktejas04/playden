@@ -76,6 +76,7 @@ function newSession(table: TableState, game: AnyGame, fields: Partial<Session>):
       banned: [],
       result: null,
       endedEarly: false,
+      startsAt: null,
       seed: null,
       state: null,
       ...fields,
@@ -341,19 +342,25 @@ export function hostPlays(table: TableState, host: Person, game: AnyGame): Table
   return outcome.ok ? outcome : done(table);
 }
 
+/**
+ * Host: start. Play begins `countdownMs` from now (every screen counts down to it); the game
+ * is set up as of that moment, so its own timers start when play does.
+ */
 export function startGame(
   table: TableState,
   game: AnyGame,
   seed: number,
   now: number,
+  { countdownMs = 0 }: { countdownMs?: number } = {},
 ): TableOutcome {
   const { session } = table;
   if (session?.phase !== "setup") return refuse("No game is being set up");
   const seats = seatsOf(session);
   const problem = seatProblem(game, seats);
   if (problem) return refuse(problem);
-  const state = game.setup(seats, session.config, seed, now);
-  return done(withSession(table, { ...session, phase: "playing", seed, state }));
+  const startsAt = now + countdownMs;
+  const state = game.setup(seats, session.config, seed, startsAt);
+  return done(withSession(table, { ...session, phase: "playing", seed, state, startsAt }));
 }
 
 /** After a change to a running game: it either goes on or has a result. */
@@ -380,6 +387,7 @@ export function applyMove(
   const { session } = table;
   if (!session || session.phase === "setup") return refuse("The game hasn't started");
   if (session.phase === "results") return refuse("The game has ended");
+  if (session.startsAt !== null && now < session.startsAt) return refuse("Wait for the countdown");
   const role = roleIn(session, playerId);
   if (role === "spectator") return refuse("You're spectating this game");
   if (role === null) return refuse("You're not in this game");
@@ -482,10 +490,21 @@ export function viewFor(table: TableState, game: AnyGame, viewerId: string): unk
 /** The session as everyone may see it: no seed, no engine state. */
 export function statusOf(table: TableState): GameStatus {
   if (!table.session) return { type: "game.status", session: null };
-  const { id, phase, gameId, config, players, spectators, banned, result, endedEarly } =
+  const { id, phase, gameId, config, players, spectators, banned, startsAt, result, endedEarly } =
     table.session;
   return {
     type: "game.status",
-    session: { id, phase, gameId, config, players, spectators, banned, result, endedEarly },
+    session: {
+      id,
+      phase,
+      gameId,
+      config,
+      players,
+      spectators,
+      banned,
+      startsAt,
+      result,
+      endedEarly,
+    },
   };
 }

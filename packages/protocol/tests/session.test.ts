@@ -12,6 +12,7 @@ const session: GameSession = {
   ],
   spectators: ["c", "b"],
   banned: [],
+  startsAt: null,
   result: null,
   endedEarly: false,
 };

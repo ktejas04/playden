@@ -120,6 +120,7 @@ RESULTS     host: [Play again] [Return to room]
 - **Host cancels:** back to Idle, and all roles clear.
 - **Leaving the room** during setup removes you from the session.
 - **Start** (host only) checks player count and team rules, creates the seed and calls `setup`.
+- **A 3-2-1 countdown** follows Start on every screen, counted on the server's clock so phones and PCs count together. The game is set up as of the moment play begins (so a 60 s round is 60 s of play), and moves before it are refused. Every game gets it from the platform.
 
 ### Playing
 
