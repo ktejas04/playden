@@ -1,12 +1,12 @@
 # Tap Race — game spec
 
-Id: `tap-race` · Dev-only (never shown in production) · Players: 2–16 in two teams · Last updated: 2026-11-12
+Id: `tap-race` · Live (PlayDen's first game; dev-only until 2026-11-13) · Players: 2–16 in two teams · Last updated: 2026-11-12
 
-A throwaway game that exists only to prove the platform: rooms, teams, moves, per-player views, hidden information and deadlines. It is listed only on local dev servers (test-player sign-in on).
+Built to prove the platform (rooms, teams, moves, per-player views, hidden information and deadlines), then shipped as the platform's first game: a one-minute warm-up so the group can try rooms, teams, settings and the countdown before Sketch Battle.
 
 ## Rules
 
-- Two teams, 1–8 players each, sizes at most 2 apart.
+- Two teams, 1–8 players each (how even is the players' call).
 - Every tap adds 1 to your team's count. Spectators can't tap.
 - You see your own team's exact count. The other team's count is hidden: you only see whether your team is **ahead**, **behind** or **level**. Spectators see both counts, and everyone sees both once the race is over.
 - The first team to reach `TARGET_TAPS` (30) wins at once.

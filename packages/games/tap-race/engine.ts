@@ -28,11 +28,10 @@ function standing(own: number, other: number): Standing {
 export const tapRace: GameDefinition<TapRaceState, TapRaceMove, TapRaceView, TapRaceConfig> = {
   id: "tap-race",
   name: "Tap Race",
-  summary: "Two teams race to tap first. A test game for local development.",
+  summary: "Two teams race to tap first. Quick, loud, and over in a minute.",
   minPlayers: 2,
   maxPlayers: 16,
   teams: { count: TEAM_COUNT, minSize: 1, maxSize: 8 },
-  devOnly: true,
 
   defaultConfig: DEFAULT_CONFIG,
   configSchema,

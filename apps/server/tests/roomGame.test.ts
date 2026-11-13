@@ -86,9 +86,14 @@ describe("picking a game", () => {
     expect(reason(pickGame(EMPTY_TABLE, asha, "nope", find, { allowDevOnly: true }))).toBe(
       "That game isn't available",
     );
-    expect(reason(pickGame(EMPTY_TABLE, asha, "tap-race", find, { allowDevOnly: false }))).toBe(
+    const unfinished = (id: string) =>
+      id === "wip" ? { ...tapRace, id: "wip", devOnly: true } : undefined;
+    expect(reason(pickGame(EMPTY_TABLE, asha, "wip", unfinished, { allowDevOnly: false }))).toBe(
       "That game isn't available",
     );
+    expect(
+      ok(pickGame(EMPTY_TABLE, asha, "wip", unfinished, { allowDevOnly: true })).session?.gameId,
+    ).toBe("wip");
   });
 
   it("switching the game in setup keeps everyone's choice", () => {

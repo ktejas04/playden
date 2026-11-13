@@ -6,7 +6,7 @@ import {
   canRemovePlayer,
   parseClientMessage,
 } from "@playden/protocol";
-import { AWAY_GRACE_MS, roomEmptyCloseMs, startCountdownMs } from "../config";
+import { AWAY_GRACE_MS, MOVE_LIMIT, roomEmptyCloseMs, startCountdownMs } from "../config";
 import type { Env } from "../env";
 import { refuseSocket } from "../http";
 import { RoomTable } from "./RoomTable";
@@ -21,6 +21,7 @@ import {
   memberGone,
   nextExpiry,
 } from "./presence";
+import { type Bucket, takeToken } from "./rateLimit";
 import { loadTable, tableDeadline } from "./tableSync";
 
 export const ROOM_HEADERS = {
@@ -66,6 +67,8 @@ const REMOVED_KEY = "removed";
 export class Room extends DurableObject<Env> {
   /** Sockets being closed by this object (replaced, removed or left); no longer in the room. */
   private readonly closing = new Set<WebSocket>();
+  /** Each connection's move allowance (rateLimit.ts); forgotten if the object sleeps, which is fine. */
+  private readonly moveBuckets = new WeakMap<WebSocket, Bucket>();
 
   /** Returns false when the code is already taken by a live room. */
   async create(code: string, createdBy: string, now: number): Promise<boolean> {
@@ -207,6 +210,13 @@ export class Room extends DurableObject<Env> {
       case "leave":
         await this.leave(ws);
         break;
+      case "move": {
+        const { ok, bucket } = takeToken(this.moveBuckets.get(ws), Date.now(), MOVE_LIMIT);
+        this.moveBuckets.set(ws, bucket);
+        // Too fast: dropped quietly (an error back would just be more messages).
+        if (ok) await this.table().handle(ws, parsed.message);
+        break;
+      }
       default:
         await this.table().handle(ws, parsed.message);
     }

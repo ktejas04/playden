@@ -1,6 +1,6 @@
 # Tap Race
 
-A test game for local development; it never appears on the live site.
+PlayDen's first game: a quick warm-up to try the room, teams and settings.
 
 **Goal:** get your team to the target first.
 

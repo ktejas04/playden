@@ -14,6 +14,14 @@ export function roomEmptyCloseMs(override: string | undefined): number {
  * gone (host passes on, a setup seat is freed). A player mid-game keeps their seat regardless.
  */
 export const AWAY_GRACE_MS = 60_000;
+/**
+ * Game moves allowed per player connection: a burst, then this many a second. Faster moves
+ * are dropped quietly. Real play stays well under it (about 5 a second even for fast
+ * tapping); it only stops scripts and auto-clickers from flooding a room, since every message
+ * counts against the free tier (D33).
+ */
+export const MOVE_LIMIT = { perSecond: 10, burst: 10 } as const;
+
 /** The 3-2-1 every screen shows between Start and play. */
 export const START_COUNTDOWN_MS = 3_000;
 
