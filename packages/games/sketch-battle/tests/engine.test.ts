@@ -169,14 +169,14 @@ describe("choosing", () => {
   });
 
   it("no word is offered twice in a game", () => {
-    let state = start({ rounds: 25, roundSeconds: 15 });
+    let state = start({ rounds: 15, roundSeconds: 15 });
     const offered: string[] = [];
     while (state.phase !== "showdownIntro") {
       if (state.phase === "choose") offered.push(...round(state).choices);
       state = state.phase === "result" ? nextRound(state) : tick(state);
     }
-    expect(offered).toHaveLength(50);
-    expect(new Set(offered).size).toBe(50);
+    expect(offered).toHaveLength(30);
+    expect(new Set(offered).size).toBe(30);
   });
 });
 

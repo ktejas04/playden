@@ -340,6 +340,8 @@ function FinalScores({ view }: { view: SketchBattleView }) {
   );
 }
 
+export { SketchBattleSettings } from "./settings";
+
 export function SketchBattleScreen(props: Props) {
   const { view, me, sendMove, serverNow } = props;
   const now = useNow(serverNow);

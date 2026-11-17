@@ -35,7 +35,7 @@ const START = 1_000_000;
 type State = SketchBattleState;
 
 function start(config: Partial<SketchBattleConfig> = {}, seed = 7): State {
-  return game.setup(seats, { ...DEFAULT_CONFIG, rounds: 3, ...config }, seed, START);
+  return game.setup(seats, { ...DEFAULT_CONFIG, rounds: 5, ...config }, seed, START);
 }
 
 function move(state: State, playerId: string, m: SketchBattleMove, at: number): State {
@@ -119,7 +119,7 @@ function solve(state: State, team: TeamIndex, after = 1): State {
 
 describe("the showdown", () => {
   it("follows the last round's summary: a 10 s title card, then a 3 s countdown", () => {
-    const intro = playRounds(3);
+    const intro = playRounds(5);
     expect(intro.phase).toBe("showdownIntro");
     const introStart = (game.nextDeadline(intro) ?? 0) - SHOWDOWN_INTRO_SECONDS * 1000;
     const countdown = tick(intro);
@@ -133,13 +133,13 @@ describe("the showdown", () => {
   });
 
   it("showdown words are all round words in one shared seeded order", () => {
-    const state = playRounds(3);
+    const state = playRounds(5);
     const roundWords = state.history.map((r) => r.word);
     expect([...sd(state).words].sort()).toEqual([...roundWords].sort());
-    expect(sd(playRounds(3)).words).toEqual(sd(state).words);
+    expect(sd(playRounds(5)).words).toEqual(sd(state).words);
     const orders = new Set(
       [1, 2, 3, 4, 5, 6].map((seed) => {
-        const s = playRounds(3, () => null, {}, seed);
+        const s = playRounds(5, () => null, {}, seed);
         return s.history.map((r) => sd(s).words.indexOf(r.word)).join();
       }),
     );
@@ -148,7 +148,7 @@ describe("the showdown", () => {
   });
 
   it("no winner stays in the showdown: both teams' pencils move on from the last round", () => {
-    const state = playRounds(3, (n) => (n === 3 ? 0 : null));
+    const state = playRounds(5, (n) => (n === 5 ? 0 : null));
     const last = state.history.at(-1);
     for (const team of [0, 1] as const) {
       const rotation = state.rotations[team];
@@ -160,7 +160,7 @@ describe("the showdown", () => {
   });
 
   it("the showdown rotates drawers per word, after a 2 s handoff", () => {
-    let state = toPlay(playRounds(3));
+    let state = toPlay(playRounds(5));
     const first = drawerOf(state, 0);
     const at = drawFrom(state, 0) + 5_000;
     state = solve(state, 0, 5_000);
@@ -184,14 +184,14 @@ describe("the showdown", () => {
   });
 
   it("the showdown scores 100 per word plus 100 for finishing, and ends when one team finishes", () => {
-    let state = toPlay(playRounds(3));
+    let state = toPlay(playRounds(5));
     const before = [...state.scores];
     state = solve(state, 1);
-    for (let i = 0; i < 3; i++) state = solve(state, 0);
+    for (let i = 0; i < 5; i++) state = solve(state, 0);
     expect(state.phase).toBe("showdownResult");
     expect(sd(state).winnerTeam).toBe(0);
     expect(state.scores).toEqual([
-      (before[0] ?? 0) + 3 * SHOWDOWN_WORD_POINTS + SHOWDOWN_FINISH_BONUS,
+      (before[0] ?? 0) + 5 * SHOWDOWN_WORD_POINTS + SHOWDOWN_FINISH_BONUS,
       (before[1] ?? 0) + SHOWDOWN_WORD_POINTS,
     ]);
     expect(refusal(state, guesserOf(state, 1), guess("zzz"), START + 9e9)).toBe(
@@ -228,7 +228,7 @@ describe("the showdown", () => {
   });
 
   it("players get no opponent canvas in the showdown; spectators see both", () => {
-    let state = toPlay(playRounds(3));
+    let state = toPlay(playRounds(5));
     const line: SketchBattleMove = {
       type: "draw",
       stroke: 1,
@@ -244,7 +244,7 @@ describe("the showdown", () => {
   });
 
   it("the drawer sees the word, guessers see blanks, and nobody sees words they haven't reached", () => {
-    let state = toPlay(playRounds(3));
+    let state = toPlay(playRounds(5));
     const firstWord = currentWord(state, 0);
     state = solve(state, 0);
     const drawerView = view(state, drawerOf(state, 0));
@@ -268,7 +268,7 @@ describe("the showdown", () => {
   });
 
   it("drawers can't guess, spectators can't play, and moves wait for the countdown", () => {
-    const intro = playRounds(3);
+    const intro = playRounds(5);
     expect(refusal(intro, "ben", guess("zzz"), START + 9e9)).toBe(
       "Guessing opens when the drawing starts",
     );
@@ -284,7 +284,7 @@ describe("the showdown", () => {
   });
 
   it("the showdown waits for each team to have 2 connected players, like a round", () => {
-    let state = playRounds(3, () => null, {}, 7, false);
+    let state = playRounds(5, () => null, {}, 7, false);
     expect(state.phase).toBe("summary");
     state = game.onPresence?.(state, ["esha", "faiz"], START).state ?? state;
     expect(refusal(state, "asha", { type: "ready" }, START + 9e9)).toBe("Waiting for Team 2");

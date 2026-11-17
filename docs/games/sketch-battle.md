@@ -39,7 +39,8 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB15 | Owner's screens (2026-11-16): the result is its own screen, not a canvas overlay: one outcome in one colour (green won, red lost), with Continue to skip ahead to the summary. The summary has no "winner" / "next challenger" labels: the outgoing drawer is struck through and the next one fades in, with the whole team on deck below and a tick by each name that tapped Continue. Both drawers see the two word choices as identical buttons, one per line, so neither reads as suggested; everyone else sees "<name> is choosing a word". Feed lines are one colour each | 2026-11-16 |
 | SB16 | Owner's call (2026-11-17), base game first: winner stays and the challenger choosing ship with the base round (021); streaks and head starts wait for 026. Start next round is only for players who have tapped Continue, so it skips the unready instead of letting an unready player skip everyone. The drawer's mouse pointer is a small black dot; the 10 colours are two rows of 5 on a phone | 2026-11-17 |
 | SB17 | Owner's call (2026-11-17): each team's ✕ / ✓ marks show under its canvas for everyone, the other team included, so you see how close they are; only the count of wrong guesses goes out, never their texts (D47). The marks replace the "Solved" badge. The round summary shows both teams' marks under the drawings. The drawer handoff on the summary is unhurried: a beat, the strike draws across, a pause, then the next drawer eases in | 2026-11-17 |
-| SB18 | Showdown details (task 030, 2026-11-17). No winner stays in the showdown: the pencil moves to the team's next connected player for every word, the first one included. It waits, like a round, until each team has 2 connected players (SB12), since a team needs a guesser. Its points count as they're scored: 100 per word, +100 on finishing. A team never sees a word it hasn't reached: its drawer sees its current word, its guessers blanks, and it sees the race only as words finished in the status bar ("2 – 1"), with no word tracks, until the result. A correct guess shows "got it! <name> draws next" on the canvas for the 2 s handoff. The 5 s result shows the game's outcome by total score, and who finished the showdown first. The last round's summary says "showdown next" with Start the showdown. Until the settings popup (033), rounds can be 3 for a quick test game and that is the default; 033 removes it and sets the default back to 15 | 2026-11-17 |
+| SB18 | Showdown details (task 030, 2026-11-17). No winner stays in the showdown: the pencil moves to the team's next connected player for every word, the first one included. It waits, like a round, until each team has 2 connected players (SB12), since a team needs a guesser. Its points count as they're scored: 100 per word, +100 on finishing. A team never sees a word it hasn't reached: its drawer sees its current word, its guessers blanks, and it sees the race only as words finished in the status bar ("2 – 1"), with no word tracks, until the result. A correct guess shows "got it! <name> draws next" on the canvas for the 2 s handoff. The 5 s result shows the game's outcome by total score, and who finished the showdown first. The last round's summary says "showdown next" with Start the showdown. Until the settings popup (033), rounds could be 3 for a quick test game (removed by SB19) | 2026-11-17 |
+| SB19 | Owner's call (2026-11-17), task 033: rounds go from 5 to 15, one at a time (default 15), so a short game is one setting away; seconds per round 15–120 in 15 s steps, default **45**. The results screen is fine as it is: the per-team breakdown and highlights wait until players ask (032) | 2026-11-17 |
 | SB20 | Owner's call (2026-11-17), the spectator view: each canvas has its team and drawer above it; while choosing, spectators see both word options (guessers still never do), and through the 3-2-1 drawers and spectators see the picked word marked and the other faded; at the round result spectators stay on the board, and each canvas shows that team's result ("Team 1 wins! +200 points", "Team 2 lost by 3 seconds +100 points", "Time's up! The word was …") before the summary. On a phone the word or blanks take their own line under the matchup and timer, so long words never push the canvas down | 2026-11-17 |
 
 ## 3. Terms
@@ -63,7 +64,7 @@ The platform's setup screen (D51) runs this:
 
 - Everyone chooses **Join game** or **Spectate**. Players pick a team (to the end of its rotation); the host can **Shuffle teams**.
 - **Start** is host-only and enabled when each team has 2–8 players, otherwise disabled with the reason ("Team 2 needs 1 more"). Uneven teams are fine.
-- **Settings** (D53 popup; host edits, everyone views): rounds 10 / **15** / 20 / 25, seconds per round 15–120 in 15 s steps (default **60**), show word lengths (**on**).
+- **Settings** (D53 popup; host edits, everyone views): rounds 5–15 (default **15**), seconds per round 15–120 in 15 s steps (default **45**), show word lengths (**on**) (SB19).
 - After Start comes the platform's 3-2-1 (D51), then round 1's choose stage. The engine gets the players, teams, settings and a seed; everything random (word order, word choices, the round-1 chooser team) comes from the seed.
 
 ## 5. A round
@@ -414,8 +415,8 @@ Size: a round's strokes are about 5–20 KB per team; finished rounds keep only 
 
 | Name | Default | Notes |
 | --- | --- | --- |
-| `ROUND_OPTIONS` / `DEFAULT_ROUNDS` | 10, 15, 20, 25 / 15 | Host setting |
-| `ROUND_SECONDS_OPTIONS` / `DEFAULT_ROUND_SECONDS` | 15–120 step 15 / 60 | Host setting |
+| `MIN_ROUNDS` / `MAX_ROUNDS` / `DEFAULT_ROUNDS` | 5 / 15 / 15 | Host setting, one at a time (SB19) |
+| `ROUND_SECONDS_MIN` / `ROUND_SECONDS_MAX` / `ROUND_SECONDS_STEP` / `DEFAULT_ROUND_SECONDS` | 15 / 120 / 15 / 45 | Host setting (SB19) |
 | `DEFAULT_SHOW_WORD_LENGTHS` | true | Host setting |
 | `WORD_CHOICES` | 2 | |
 | `CHOOSE_SECONDS` | 15 | |
@@ -579,11 +580,11 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 - [x] **030 — Engine: showdown.**
 - [x] **031 — Showdown screens.**
-- [ ] **032 — Results, highlights, Play again.**
+- [x] **032 — Results, highlights, Play again.** Results and Play again as built; the breakdown and highlights wait (SB19).
 
 **4.4 Settings**
 
-- [ ] **033 — Host settings and the word-length toggle.** Remove the 3-round test option and set the default back to 15 (SB18).
+- [x] **033 — Host settings and the word-length toggle.** Rounds 5–15, 45 s default (SB19).
 
 **4.5 Polish**
 

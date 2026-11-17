@@ -5,13 +5,13 @@ import type { SketchBattleConfig } from "./types";
 
 export const TEAM_COUNT = 2;
 
-/**
- * 3 is a quick test game for reaching the showdown fast; remove it and set the default back to
- * 15 in task 033, when the settings popup lets the host pick.
- */
-export const ROUND_OPTIONS = [3, 10, 15, 20, 25] as const;
-export const DEFAULT_ROUNDS = 3;
-export const ROUND_SECONDS_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120] as const;
+/** Host settings (SB19): rounds 5–15, one at a time; seconds per round 15–120 in 15 s steps. */
+export const MIN_ROUNDS = 5;
+export const MAX_ROUNDS = 15;
+export const DEFAULT_ROUNDS = 15;
+export const ROUND_SECONDS_MIN = 15;
+export const ROUND_SECONDS_MAX = 120;
+export const ROUND_SECONDS_STEP = 15;
 export const DEFAULT_ROUND_SECONDS = 45;
 export const DEFAULT_SHOW_WORD_LENGTHS = true;
 
@@ -75,14 +75,13 @@ export const DEFAULT_CONFIG: SketchBattleConfig = {
   showWordLengths: DEFAULT_SHOW_WORD_LENGTHS,
 };
 
-const oneOf = (options: readonly number[], label: string) =>
-  z
+export const configSchema = z.strictObject({
+  rounds: z.number().int().min(MIN_ROUNDS).max(MAX_ROUNDS),
+  roundSeconds: z
     .number()
     .int()
-    .refine((n) => options.includes(n), `${label} must be one of ${options.join(", ")}`);
-
-export const configSchema = z.strictObject({
-  rounds: oneOf(ROUND_OPTIONS, "Rounds"),
-  roundSeconds: oneOf(ROUND_SECONDS_OPTIONS, "Seconds per round"),
+    .min(ROUND_SECONDS_MIN)
+    .max(ROUND_SECONDS_MAX)
+    .multipleOf(ROUND_SECONDS_STEP),
   showWordLengths: z.boolean(),
 });
