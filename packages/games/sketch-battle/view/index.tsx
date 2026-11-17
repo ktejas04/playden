@@ -2,6 +2,7 @@ import type { GameViewProps } from "@playden/engine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@playden/ui/components/tabs";
 import { type Pending, addPending, settlePending } from "@playden/ui/lib/pending";
 import { cn } from "@playden/ui/lib/utils";
+import { PencilIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
   DrawStart,
@@ -21,6 +22,7 @@ import { TEAM_ACCENT, TEAM_NAME } from "./palette";
 import { ShowdownIntro, ShowdownResult } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
+import { resultText } from "./result";
 import { phaseLength, secondsLeft } from "./timer";
 import { useNow } from "./useNow";
 
@@ -47,6 +49,14 @@ function CanvasOverlay({
   sendMove?: (move: SketchBattleMove) => void;
 }) {
   if (view.phase === "choose" && sendMove) {
+    return <ChooseOverlay view={view} seconds={seconds} sendMove={sendMove} />;
+  }
+  if (view.phase === "result" && viewerTeam === null && view.lastRound) {
+    const result = resultText(view.lastRound, team, TEAM_NAME[team]);
+    return <ResultOverlay title={result.title} detail={result.detail} tone={result.tone} />;
+  }
+  // Drawers and spectators see the pick through the 3-2-1; guessers get the big count.
+  if (view.phase === "countdown" && view.choices && sendMove) {
     return <ChooseOverlay view={view} seconds={seconds} sendMove={sendMove} />;
   }
   const counting = view.phase === "countdown" || view.phase === "showdownCountdown";
@@ -259,8 +269,26 @@ function SpectatorBoard({
   sendMove: (move: SketchBattleMove) => void;
 }) {
   const current = view.phase === "showdown" ? view.showdown?.current : null;
+  const drawerOf = (team: TeamIndex) =>
+    view.teams[team].players.find((p) => p.id === view.teams[team].drawerId)?.name;
   const side = (team: TeamIndex) => (
     <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+        {/* On a phone the tabs already name the team. */}
+        <span
+          className="hidden items-center gap-1.5 @2xl:flex"
+          style={{ color: TEAM_ACCENT[team] }}
+        >
+          <span className="size-2.5 rounded-full" style={{ background: TEAM_ACCENT[team] }} />
+          {TEAM_NAME[team]}
+        </span>
+        {drawerOf(team) && (
+          <span className="ml-auto flex min-w-0 items-center gap-1 text-foreground">
+            <PencilIcon className="size-4 shrink-0" style={{ color: TEAM_ACCENT[team] }} />
+            <span className="truncate">{drawerOf(team)}</span>
+          </span>
+        )}
+      </div>
       {current && (
         <p className="font-heading text-lg font-bold" style={{ color: TEAM_ACCENT[team] }}>
           {current[team] ?? ""}
@@ -289,7 +317,7 @@ function SpectatorBoard({
         <TabsContent value="0">{side(0)}</TabsContent>
         <TabsContent value="1">{side(1)}</TabsContent>
       </Tabs>
-      <div className="hidden gap-3 @2xl:grid @2xl:grid-cols-2">
+      <div className="hidden gap-8 @2xl:grid @2xl:grid-cols-2">
         {side(0)}
         {side(1)}
       </div>
@@ -320,7 +348,9 @@ export function SketchBattleScreen(props: Props) {
   if (view.phase === "ended") return <FinalScores view={view} />;
   if (view.phase === "showdownIntro") return <ShowdownIntro view={view} seconds={seconds} />;
   if (view.phase === "showdownResult") return <ShowdownResult view={view} />;
-  if (view.phase === "result" || view.phase === "summary") {
+  // Players get the result as its own screen; spectators stay on the board (SB20).
+  const spectating = view.me.role === "spectator";
+  if (view.phase === "summary" || (view.phase === "result" && !spectating)) {
     return (
       <Intermission
         key={view.lastRound?.number}

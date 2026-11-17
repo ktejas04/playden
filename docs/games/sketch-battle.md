@@ -40,6 +40,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB16 | Owner's call (2026-11-17), base game first: winner stays and the challenger choosing ship with the base round (021); streaks and head starts wait for 026. Start next round is only for players who have tapped Continue, so it skips the unready instead of letting an unready player skip everyone. The drawer's mouse pointer is a small black dot; the 10 colours are two rows of 5 on a phone | 2026-11-17 |
 | SB17 | Owner's call (2026-11-17): each team's ✕ / ✓ marks show under its canvas for everyone, the other team included, so you see how close they are; only the count of wrong guesses goes out, never their texts (D47). The marks replace the "Solved" badge. The round summary shows both teams' marks under the drawings. The drawer handoff on the summary is unhurried: a beat, the strike draws across, a pause, then the next drawer eases in | 2026-11-17 |
 | SB18 | Showdown details (task 030, 2026-11-17). No winner stays in the showdown: the pencil moves to the team's next connected player for every word, the first one included. It waits, like a round, until each team has 2 connected players (SB12), since a team needs a guesser. Its points count as they're scored: 100 per word, +100 on finishing. A team never sees a word it hasn't reached: its drawer sees its current word, its guessers blanks, and it sees the race only as words finished in the status bar ("2 – 1"), with no word tracks, until the result. A correct guess shows "got it! <name> draws next" on the canvas for the 2 s handoff. The 5 s result shows the game's outcome by total score, and who finished the showdown first. The last round's summary says "showdown next" with Start the showdown. Until the settings popup (033), rounds can be 3 for a quick test game and that is the default; 033 removes it and sets the default back to 15 | 2026-11-17 |
+| SB20 | Owner's call (2026-11-17), the spectator view: each canvas has its team and drawer above it; while choosing, spectators see both word options (guessers still never do), and through the 3-2-1 drawers and spectators see the picked word marked and the other faded; at the round result spectators stay on the board, and each canvas shows that team's result ("Team 1 wins! +200 points", "Team 2 lost by 3 seconds +100 points", "Time's up! The word was …") before the summary. On a phone the word or blanks take their own line under the matchup and timer, so long words never push the canvas down | 2026-11-17 |
 
 ## 3. Terms
 
@@ -224,7 +225,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S9 | Showdown intro | Title card, lineups, countdown |
 | S10 | Showdown | Like S5/S6 with the running score in words finished; no opponent canvas, no word tracks (SB18) |
 | S11 | Results | Totals, winner celebration, highlights, the platform's Results controls |
-| S12 | Spectator | PC: both canvases side by side with the word and both feeds. Phone: the two teams as tabs |
+| S12 | Spectator | PC: both canvases side by side, each with its team and drawer above it, with the word and both feeds; the word options while choosing and each team's result on its canvas (SB20). Phone: the two teams as tabs |
 
 **Chosen layout (020, built straight into the screens in 4.1; review on devices)**
 
@@ -399,7 +400,7 @@ Size: a round's strokes are about 5–20 KB per team; finished rounds keep only 
 
 - `view(state, viewer)` is the full picture for one viewer, sent on join, reconnect and resync.
 - `delta(before, after, viewer)` is what changed for that viewer, sent after every change (D55). For a draw move: new points to the drawer's team and spectators, changed cells to the other team (unless they've guessed). For a correct guess: the guess, the score, the locked box, and for the guessing team the other team's full drawing so far.
-- Hidden information never leaves the server: the word only to drawers, spectators and teams that guessed; word choices only to the two drawers; the other team's strokes only once your team guessed; the head-start canvas only to the chooser and spectators.
+- Hidden information never leaves the server: the word only to drawers, spectators and teams that guessed; word choices only to the two drawers and spectators (SB20); the other team's strokes only once your team guessed; the head-start canvas only to the chooser and spectators.
 
 ## 16. Engine notes
 

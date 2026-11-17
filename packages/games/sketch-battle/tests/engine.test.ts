@@ -459,10 +459,22 @@ describe("hidden information", () => {
     expect(view(state, guessers(state, 0)[0] ?? "").teams[0].canvas.kind).toBe("strokes");
   });
 
-  it("word choices go only to the two drawers", () => {
+  it("drawers and spectators keep the choices through the countdown, to show the pick (SB20)", () => {
+    const state = start();
+    const chosenAt = (state.phaseEndsAt ?? START) - 1_000;
+    const counting = move(state, round(state).chooserId, { type: "choose", index: 1 }, chosenAt);
+    expect(counting.phase).toBe("countdown");
+    expect(view(counting, drawer(counting, 0)).choices).toEqual(round(state).choices);
+    expect(view(counting, "spectator").choices).toEqual(round(state).choices);
+    expect(view(counting, guessers(counting, 0)[0] ?? "").choices).toBeNull();
+    expect(view(tick(counting), "spectator").choices).toBeNull();
+  });
+
+  it("word choices go to the two drawers and spectators, never to guessers (SB20)", () => {
     const state = start();
     expect(view(state, guessers(state, 0)[0] ?? "").choices).toBeNull();
-    expect(view(state, "spectator").choices).toBeNull();
+    expect(view(state, guessers(state, 1)[0] ?? "").choices).toBeNull();
+    expect(view(state, "spectator").choices).toEqual(round(state).choices);
   });
 
   it("spectators see both canvases and the word", () => {
@@ -778,7 +790,9 @@ describeGameContract(game, {
     const team = viewer === "spectator" ? null : teamOf(viewer);
     const isDrawer = team !== null && r.turns[team].drawerId === viewer;
     const hidden: string[] = [];
-    if (r.word === null && !isDrawer) hidden.push(...r.choices.map((w) => JSON.stringify(w)));
+    if (r.word === null && team !== null && !isDrawer) {
+      hidden.push(...r.choices.map((w) => JSON.stringify(w)));
+    }
     if (r.word !== null && team !== null && !isDrawer && r.turns[team].solvedAt === null) {
       hidden.push(JSON.stringify(r.word));
     }

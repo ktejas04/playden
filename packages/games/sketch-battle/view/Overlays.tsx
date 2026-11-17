@@ -1,6 +1,6 @@
 import { Button } from "@playden/ui/components/button";
 import { cn } from "@playden/ui/lib/utils";
-import { Clock, Trophy } from "lucide-react";
+import { ArrowRight, Clock, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Tone } from "./result";
 import type { SketchBattleMove, SketchBattleView } from "../types";
@@ -22,6 +22,7 @@ function Over({ children, className }: { children: ReactNode; className?: string
 /**
  * S2, on the canvas: both drawers see the two words, only the chooser can tap one. The words
  * look the same so neither reads as the suggested pick. Everyone else sees who is choosing.
+ * Through the 3-2-1 that follows, the picked word is marked and the other fades (SB20).
  */
 export function ChooseOverlay({
   view,
@@ -36,6 +37,7 @@ export function ChooseOverlay({
     view.teams.flatMap((t) => t.players).find((p) => p.id === view.chooserId)?.name ?? "Someone";
   const iChoose =
     view.me.role === "drawer" && view.teams[view.me.team ?? 0].drawerId === view.chooserId;
+  const picked = view.phase === "countdown" ? view.word : null;
 
   return (
     <Over className="bg-background/85">
@@ -46,22 +48,51 @@ export function ChooseOverlay({
       )}
       <div className="flex w-full max-w-64 flex-col items-center gap-4">
         <p className="font-heading text-xl font-bold">
-          {iChoose ? "choose a word" : `${chooser} is choosing a word`}
+          {picked
+            ? iChoose
+              ? "your word"
+              : `${chooser} picked`
+            : iChoose
+              ? "choose a word"
+              : `${chooser} is choosing a word`}
         </p>
         {view.choices && (
           <div className="flex w-full flex-col gap-2.5">
-            {view.choices.map((word, i) => (
-              <Button
-                key={word}
-                variant="outline"
-                size="lg"
-                disabled={!iChoose}
-                className="w-full bg-card font-heading text-lg font-bold disabled:opacity-70"
-                onClick={() => sendMove({ type: "choose", index: i as 0 | 1 })}
-              >
-                {word}
-              </Button>
-            ))}
+            {view.choices.map((word, i) =>
+              picked ? (
+                <div key={word} className="relative">
+                  {word === picked && (
+                    <ArrowRight
+                      className="absolute top-1/2 right-full mr-2 size-5 -translate-y-1/2 text-primary duration-300 animate-in fade-in-0 slide-in-from-left-2"
+                      aria-hidden
+                    />
+                  )}
+                  <Button
+                    variant={word === picked ? "default" : "outline"}
+                    size="lg"
+                    disabled
+                    aria-label={word === picked ? `${word}, picked` : word}
+                    className={cn(
+                      "w-full font-heading text-lg font-bold transition-opacity duration-300 disabled:opacity-100",
+                      word !== picked && "bg-card opacity-35 disabled:opacity-35",
+                    )}
+                  >
+                    {word}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  key={word}
+                  variant="outline"
+                  size="lg"
+                  disabled={!iChoose}
+                  className="w-full bg-card font-heading text-lg font-bold disabled:opacity-70"
+                  onClick={() => sendMove({ type: "choose", index: i as 0 | 1 })}
+                >
+                  {word}
+                </Button>
+              ),
+            )}
           </div>
         )}
       </div>
@@ -72,7 +103,8 @@ export function ChooseOverlay({
 /** S3: the 3-2-1 before drawing starts. */
 export function CountdownOverlay({ seconds }: { seconds: number }) {
   return (
-    <Over className="bg-background/40">
+    // The same backing as the other canvas messages, so the number reads in both themes.
+    <Over className="bg-background/80 dark:bg-background/85">
       <span
         key={seconds}
         className="font-heading text-7xl font-bold text-foreground duration-300 animate-in zoom-in-50 fade-in-0"

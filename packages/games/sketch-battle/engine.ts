@@ -561,7 +561,13 @@ export const sketchBattle: GameDefinition<
       roundNumber: round?.number ?? 0,
       rounds: state.config.rounds,
       chooserId: round?.chooserId ?? null,
-      choices: state.phase === "choose" && isDrawer && round ? round.choices : null,
+      // Both drawers, and spectators (SB20); never guessers. Kept through the countdown to show the pick.
+      choices:
+        (state.phase === "choose" || state.phase === "countdown") &&
+        (isDrawer || team === null) &&
+        round
+          ? round.choices
+          : null,
       word,
       blanks,
       teams: [teamView(state, 0, team), teamView(state, 1, team)],

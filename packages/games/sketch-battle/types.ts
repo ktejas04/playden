@@ -168,7 +168,7 @@ export interface SketchBattleView {
   roundNumber: number;
   rounds: number;
   chooserId: string | null;
-  /** The two words to pick from: only for the two drawers, while choosing. */
+  /** The two words, while choosing and through the countdown: for the two drawers and spectators (SB20). */
   choices: Pair<string> | null;
   /** The word, for drawers (from the countdown), spectators, teams that guessed, and everyone at the result. */
   word: string | null;
