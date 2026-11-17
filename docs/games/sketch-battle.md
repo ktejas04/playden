@@ -43,6 +43,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB19 | Owner's call (2026-11-17), task 033: rounds go from 5 to 15, one at a time (default 15), so a short game is one setting away; seconds per round 15–120 in 15 s steps, default **45**. The results screen is fine as it is: the per-team breakdown and highlights wait until players ask (032) | 2026-11-17 |
 | SB20 | Owner's call (2026-11-17), the spectator view: each canvas has its team and drawer above it; while choosing, spectators see both word options (guessers still never do), and through the 3-2-1 drawers and spectators see the picked word marked and the other faded; at the round result spectators stay on the board, and each canvas shows that team's result ("Team 1 wins! +200 points", "Team 2 lost by 3 seconds +100 points", "Time's up! The word was …") before the summary. On a phone the word or blanks take their own line under the matchup and timer, so long words never push the canvas down | 2026-11-17 |
 | SB21 | Owner's call (2026-11-18), reverses SB15's "the result is its own screen, with Continue to skip ahead": at the round result players stay on the board too, and their own canvas shows their result for the 5 s ("You win! +200 points" with a trophy, "You lost by 3 seconds +100 points" in red, "Time's up! The word was …"). The opponent strip and feeds stay, the timer hides, and nothing can be tapped. Then everyone moves to the summary on their own; its Continue is the round end's only button | 2026-11-18 |
+| SB22 | Owner's call (2026-11-18), from the original's spectator view: in the showdown spectators also get a word track, a column per team with every showdown word in order, each finished word in green and a blank line for each still ahead (beside the canvases on a PC, below them on a phone). Players still get no word tracks (SB18) | 2026-11-18 |
 
 ## 3. Terms
 
@@ -164,7 +165,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 - **Words:** every word from the rounds played, including unguessed ones, in one seeded shuffle that is the same for both teams.
 - **Intro:** a 10 s title card showing each team's lineup, then a 3 s countdown.
 - **Play:** each team's first drawer is its next connected player after its last-round drawer; nobody stays (SB18). When a team guesses a word, a 2 s handoff **(ours)** passes the pencil to its next connected player, who sees the next word. No timer, no passing, no head starts.
-- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") (SB18: no word tracks). Spectators see both canvases.
+- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") (SB18: no word tracks). Spectators see both canvases and a word track per team, finished words in green and blanks for the rest (SB22).
 - **End:** the moment one team guesses its last word. A 5 s result overlay ("you win! final score 1600"), then the results screen.
 
 ## 10. Round summary and ready-up
@@ -227,7 +228,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S9 | Showdown intro | Title card, lineups, countdown |
 | S10 | Showdown | Like S5/S6 with the running score in words finished; no opponent canvas, no word tracks (SB18) |
 | S11 | Results | Totals, winner celebration, highlights, the platform's Results controls |
-| S12 | Spectator | PC: both canvases side by side, each with its team and drawer above it, with the word and both feeds; the word options while choosing and each team's result on its canvas (SB20). Phone: the two teams as tabs |
+| S12 | Spectator | PC: both canvases side by side, each with its team and drawer above it, with the word and both feeds; the word options while choosing and each team's result on its canvas (SB20); in the showdown a word track per team on the right (SB22). Phone: the two teams as tabs, the word track below |
 
 **Chosen layout (020, built straight into the screens in 4.1; review on devices)**
 

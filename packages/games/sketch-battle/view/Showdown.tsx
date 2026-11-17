@@ -1,7 +1,7 @@
 import { cn } from "@playden/ui/lib/utils";
 import { ClockIcon, PencilIcon, TrophyIcon } from "lucide-react";
 import { SHOWDOWN_FINISH_BONUS, SHOWDOWN_WORD_POINTS } from "../config";
-import type { SketchBattleView, TeamIndex, TeamView } from "../types";
+import type { ShowdownView, SketchBattleView, TeamIndex, TeamView } from "../types";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
 
 /** The title card's entrance: dealt onto the table, unhurried (spec section 13). */
@@ -150,5 +150,42 @@ export function ShowdownResult({ view }: { view: SketchBattleView }) {
         ))}
       </div>
     </Frame>
+  );
+}
+
+/**
+ * Spectators' view of the race (SB22): both teams' words in showdown order, each finished word
+ * in green and a blank line for each still ahead. Players never get this (SB18).
+ */
+export function WordTrack({ showdown }: { showdown: ShowdownView }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-center">
+      {TEAMS.map((t) => (
+        <span
+          key={t}
+          className="pb-1 font-heading text-base font-bold"
+          style={{ color: TEAM_ACCENT[t] }}
+        >
+          {TEAM_NAME[t]}
+        </span>
+      ))}
+      {Array.from({ length: showdown.total }, (_, i) =>
+        TEAMS.map((t) => {
+          const word = showdown.finished[t]?.[i];
+          return word ? (
+            <span
+              key={`${t}-${i}`}
+              className="min-w-0 font-heading text-base leading-6 font-semibold break-words text-success duration-300 animate-in fade-in-0 motion-reduce:animate-none"
+            >
+              {word}
+            </span>
+          ) : (
+            <span key={`${t}-${i}`} className="flex h-6 items-center justify-center" aria-hidden>
+              <span className="h-0.5 w-8 rounded-full bg-border" />
+            </span>
+          );
+        }),
+      )}
+    </div>
   );
 }

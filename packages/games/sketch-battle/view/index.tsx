@@ -19,7 +19,7 @@ import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
 import { ChooseOverlay, CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { ShowdownIntro, ShowdownResult } from "./Showdown";
+import { ShowdownIntro, ShowdownResult, WordTrack } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { resultText } from "./result";
@@ -301,8 +301,8 @@ function SpectatorBoard({
       <Feed team={view.teams[team]} />
     </div>
   );
-  return (
-    <div className="@container">
+  const board = (
+    <>
       <Tabs defaultValue="0" className="@2xl:hidden">
         <TabsList className="w-full">
           {([0, 1] as const).map((t) => (
@@ -322,6 +322,18 @@ function SpectatorBoard({
       <div className="hidden gap-8 @2xl:grid @2xl:grid-cols-2">
         {side(0)}
         {side(1)}
+      </div>
+    </>
+  );
+  if (!view.showdown) return <div className="@container">{board}</div>;
+  // The showdown adds the word track (SB22): beside the canvases on a wide board, below otherwise.
+  return (
+    <div className="@container">
+      <div className="flex flex-col gap-6 @4xl:flex-row">
+        <div className="min-w-0 flex-1">{board}</div>
+        <aside className="border-t border-border/60 pt-4 @4xl:w-52 @4xl:shrink-0 @4xl:border-t-0 @4xl:border-l @4xl:border-border @4xl:pt-0 @4xl:pl-6">
+          <WordTrack showdown={view.showdown} />
+        </aside>
       </div>
     </div>
   );

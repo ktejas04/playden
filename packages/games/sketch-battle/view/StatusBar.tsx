@@ -45,7 +45,13 @@ export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: 
   return (
     <div className="@container" data-tour="timer">
       <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 py-1 @xl:flex @xl:justify-between @xl:gap-4">
-        <div className="order-last col-span-2 flex min-h-8 min-w-0 items-end @xl:order-none @xl:min-h-0">
+        <div
+          className={cn(
+            "order-last col-span-2 flex min-h-8 min-w-0 items-end @xl:order-none @xl:min-h-0",
+            // Spectators get each team's showdown word above its canvas instead.
+            racing && view.me.role === "spectator" && "hidden",
+          )}
+        >
           {view.word ? (
             <p
               className={cn(
@@ -57,7 +63,7 @@ export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: 
             </p>
           ) : view.blanks ? (
             <Blanks blanks={view.blanks} />
-          ) : view.phase === "drawing" || racing ? (
+          ) : (view.phase === "drawing" || racing) && view.me.role !== "spectator" ? (
             <span
               className="inline-block h-6 w-28 border-b-[3px] border-foreground/70"
               aria-label="Hidden word"
