@@ -31,6 +31,7 @@ export function Blanks({ blanks }: { blanks: string }) {
  */
 export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: number | null }) {
   const guessing = view.phase === "drawing" || view.phase === "countdown";
+  const racing = view.phase === "showdown";
   const urgent = view.phase === "drawing" && seconds !== null && seconds <= 5;
   const myTeam = view.me.team ?? 0;
   const isSolved = view.teams[myTeam]?.solvedAt !== null;
@@ -53,7 +54,7 @@ export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: 
           </p>
         ) : view.blanks ? (
           <Blanks blanks={view.blanks} />
-        ) : view.phase === "drawing" ? (
+        ) : view.phase === "drawing" || racing ? (
           <span
             className="inline-block h-6 w-28 border-b-[3px] border-foreground/70"
             aria-label="Hidden word"
@@ -61,16 +62,26 @@ export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: 
         ) : null}
       </div>
 
-      {/* Active Drawers Face-off */}
-      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-muted/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground sm:text-sm">
-        <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[0] }}>
-          <span>✏</span> {drawer0}
-        </span>
-        <span className="font-normal text-muted-foreground/60">vs</span>
-        <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[1] }}>
-          <span>✏</span> {drawer1}
-        </span>
-      </div>
+      {view.showdown ? (
+        <div
+          className="flex shrink-0 items-center gap-2 rounded-full border border-border/50 bg-muted/60 px-3 py-1 font-heading text-base font-bold tabular-nums sm:text-lg"
+          aria-label={`Words finished: Team 1 ${view.showdown.done[0]}, Team 2 ${view.showdown.done[1]}`}
+        >
+          <span style={{ color: TEAM_ACCENT[0] }}>{view.showdown.done[0]}</span>
+          <span className="font-normal text-muted-foreground/60">–</span>
+          <span style={{ color: TEAM_ACCENT[1] }}>{view.showdown.done[1]}</span>
+        </div>
+      ) : (
+        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-muted/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground sm:text-sm">
+          <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[0] }}>
+            <span>✏</span> {drawer0}
+          </span>
+          <span className="font-normal text-muted-foreground/60">vs</span>
+          <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[1] }}>
+            <span>✏</span> {drawer1}
+          </span>
+        </div>
+      )}
 
       {guessing && seconds !== null && (
         <span

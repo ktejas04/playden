@@ -74,6 +74,9 @@ export function ResultsCard({
 }) {
   const rows = Object.entries(result.scores).sort(([, a], [, b]) => b - a);
   const title = headline(result, endedEarly, myId, nameOf, teamOf);
+  // In a team game everyone on a team shares its score, which the game's own end screen
+  // shows; each row only needs who won. A game ended early has no end screen: keep them.
+  const showScores = endedEarly || rows.some(([id]) => teamOf(id) === undefined);
   const Icon = endedEarly ? FlagIcon : TrophyIcon;
   return (
     <Panel className="mt-4 duration-300 animate-in fade-in-0 zoom-in-95">
@@ -109,7 +112,7 @@ export function ResultsCard({
                 {id === myId && <span className="text-muted-foreground"> (you)</span>}
               </span>
               {won && <Badge className="h-6 px-2 text-sm">Winner</Badge>}
-              <span className="w-10 text-right tabular-nums">{score}</span>
+              {showScores && <span className="w-10 text-right tabular-nums">{score}</span>}
             </li>
           );
         })}

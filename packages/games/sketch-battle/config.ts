@@ -5,8 +5,12 @@ import type { SketchBattleConfig } from "./types";
 
 export const TEAM_COUNT = 2;
 
-export const ROUND_OPTIONS = [10, 15, 20, 25] as const;
-export const DEFAULT_ROUNDS = 15;
+/**
+ * 3 is a quick test game for reaching the showdown fast; remove it and set the default back to
+ * 15 in task 033, when the settings popup lets the host pick.
+ */
+export const ROUND_OPTIONS = [3, 10, 15, 20, 25] as const;
+export const DEFAULT_ROUNDS = 3;
 export const ROUND_SECONDS_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120] as const;
 export const DEFAULT_ROUND_SECONDS = 45;
 export const DEFAULT_SHOW_WORD_LENGTHS = true;
@@ -31,6 +35,7 @@ export const SHOWDOWN_FINISH_BONUS = 100;
 export const SHOWDOWN_INTRO_SECONDS = 10;
 export const SHOWDOWN_COUNTDOWN_SECONDS = 3;
 export const SHOWDOWN_HANDOFF_SECONDS = 2;
+export const SHOWDOWN_RESULT_SECONDS = 5;
 
 export const TEAM_MIN_PLAYERS = 2;
 export const TEAM_MAX_PLAYERS = 8;

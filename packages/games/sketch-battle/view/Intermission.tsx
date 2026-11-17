@@ -203,14 +203,12 @@ function TeamLineup({
   index,
   lineup,
   stage,
-  final,
   ready,
 }: {
   team: TeamView;
   index: TeamIndex;
   lineup: Lineup | null;
   stage: HandoffStage;
-  final: boolean;
   ready: ReadonlySet<string>;
 }) {
   /** A player's name, with a tick once they've tapped Continue. */
@@ -239,18 +237,7 @@ function TeamLineup({
       >
         {team.score}
       </span>
-      {final && (
-        <div className="flex flex-col items-center gap-0.5">
-          {team.players
-            .filter((p) => !p.left)
-            .map((p) => (
-              <span key={p.id} className="text-base font-medium">
-                {name(p.id)}
-              </span>
-            ))}
-        </div>
-      )}
-      {!final && lineup && (
+      {lineup && (
         <>
           <span className="flex h-9 items-center font-heading text-2xl font-bold">
             {arrived ? (
@@ -328,11 +315,13 @@ function NextRound({
   const stage = useHandoff();
   const [replays, setReplays] = useState<[number, number]>([0, 0]);
   const last = view.lastRound;
-  const final = (last?.number ?? view.roundNumber) >= view.rounds;
+  const showdownNext = (last?.number ?? view.roundNumber) >= view.rounds;
 
   const lineup = (team: TeamIndex) => {
     const outgoing = last?.drawerIds[team] ?? view.teams[team].drawerId;
-    return outgoing ? lineupFor(view.teams[team], outgoing, last?.winnerTeam === team) : null;
+    // Nobody stays into the showdown (SB18): both pencils move on.
+    const stays = !showdownNext && last?.winnerTeam === team;
+    return outgoing ? lineupFor(view.teams[team], outgoing, stays) : null;
   };
   const ready = new Set(view.ready);
   const player = view.me.team !== null;
@@ -353,13 +342,11 @@ function NextRound({
           <CheckIcon className="size-5" /> Ready
         </Cta>
       ) : (
-        <Cta onClick={() => sendMove({ type: "ready" })}>
-          {final ? "See final results" : "Continue"}
-        </Cta>
+        <Cta onClick={() => sendMove({ type: "ready" })}>Continue</Cta>
       )}
       {canForce && (
         <Cta variant="outline" onClick={() => sendMove({ type: "forceStart" })}>
-          {final ? "Skip to results" : "Start next round"}
+          {showdownNext ? "Start the showdown" : "Start next round"}
         </Cta>
       )}
     </div>
@@ -369,7 +356,7 @@ function NextRound({
     <div className="flex flex-col gap-6 @container">
       <Frame action={actions}>
         <p className="font-heading text-2xl font-bold">
-          {final ? "last round" : `round ${(last?.number ?? view.roundNumber) + 1}`}
+          {showdownNext ? "showdown next" : `round ${(last?.number ?? view.roundNumber) + 1}`}
         </p>
         <div className="grid w-full max-w-md grid-cols-2 gap-6">
           {([0, 1] as const).map((t) => (
@@ -379,7 +366,6 @@ function NextRound({
               index={t}
               lineup={lineup(t)}
               stage={stage}
-              final={final}
               ready={ready}
             />
           ))}

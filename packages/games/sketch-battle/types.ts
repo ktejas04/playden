@@ -32,7 +32,7 @@ export interface Guess {
   correct: boolean;
 }
 
-/** One team's side of a round. */
+/** One team's side of a round, or of one showdown word. */
 export interface TeamTurn {
   drawerId: string;
   /** Server time this drawer may start drawing. */
@@ -70,10 +70,33 @@ export interface RoundRecord {
 
 /**
  * Where the game is. `result`: the round's outcome, 5 s. `summary`: until every connected
- * player has tapped Continue, or someone taps Start next round (section 10). The showdown
- * phases come in task 030.
+ * player has tapped Continue, or someone taps Start next round (section 10). After the last
+ * round: the showdown's intro, countdown, play and result (section 9).
  */
-export type Phase = "choose" | "countdown" | "drawing" | "result" | "summary" | "ended";
+export type Phase =
+  | "choose"
+  | "countdown"
+  | "drawing"
+  | "result"
+  | "summary"
+  | "showdownIntro"
+  | "showdownCountdown"
+  | "showdown"
+  | "showdownResult"
+  | "ended";
+
+/** The race through every round word after the last round (section 9). */
+export interface Showdown {
+  /** Every round word, in one seeded order shared by both teams. */
+  words: string[];
+  /** Words each team has finished; a team's current word is `words[done[team]]`. */
+  done: Pair<number>;
+  /** Each team's current word: strokes are kept for the current word only. */
+  turns: Pair<TeamTurn>;
+  /** The team that finished first, and when. */
+  winnerTeam: TeamIndex | null;
+  finishedAt: number | null;
+}
 
 export interface SketchBattleState {
   config: SketchBattleConfig;
@@ -100,6 +123,8 @@ export interface SketchBattleState {
   ready: string[];
   /** Each player's latest guess times, for the 3-in-3-seconds limit. */
   recentGuesses: Record<string, number[]>;
+  /** The showdown, once the last round's summary is done. */
+  showdown: Showdown | null;
 }
 
 export type DrawStart = { tool: Tool; colour: number; size: BrushSize };
@@ -156,6 +181,22 @@ export interface SketchBattleView {
   waitingFor: TeamIndex[];
   /** Players who tapped Continue since the round ended. */
   ready: string[];
+  /** The showdown as this viewer may see it; null before it starts. */
+  showdown: ShowdownView | null;
+}
+
+export interface ShowdownView {
+  /** How many words each team has to finish. */
+  total: number;
+  /** Words each team has finished: everyone sees the race. */
+  done: Pair<number>;
+  /** The words a team finished: for that team and spectators, and for everyone at the end. */
+  finished: Pair<string[] | null>;
+  /** Each team's current word: for that team's drawer and spectators. */
+  current: Pair<string | null>;
+  /** Each team's current word as blanks, for that team's guessers (null with word lengths off). */
+  blanks: Pair<string | null>;
+  winnerTeam: TeamIndex | null;
 }
 
 /** What changed in one viewer's view (D55); see delta.ts. */
@@ -187,5 +228,7 @@ export interface SketchBattleSummary {
     /** Milliseconds between the two teams' correct guesses; null unless both guessed. */
     gapMs: number | null;
   }[];
+  /** Words each team finished in the showdown and who finished first; null if it never started. */
+  showdown: { words: number; done: Pair<number>; winnerTeam: TeamIndex | null } | null;
   scores: Pair<number>;
 }

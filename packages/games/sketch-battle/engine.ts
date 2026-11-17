@@ -32,6 +32,15 @@ import { blanksFor, guessProblem, isCorrectGuess, rememberGuess, tooManyGuesses 
 import { EMPTY_CELLS, markStroke } from "./preview";
 import { connectedIn, nextDrawer } from "./rotation";
 import { gapMs, pointsFor } from "./scoring";
+import {
+  inShowdown,
+  newTurn,
+  showdownDeadline,
+  showdownGuess,
+  showdownOver,
+  showdownView,
+  startShowdown,
+} from "./showdown";
 import type {
   CanvasOp,
   Pair,
@@ -125,15 +134,21 @@ function lastStroke(ops: readonly CanvasOp[]): Stroke | undefined {
   return last && "id" in last ? last : undefined;
 }
 
-function newTurn(drawerId: string): TeamTurn {
-  return { drawerId, drawFrom: 0, ops: [], cells: EMPTY_CELLS, guesses: [], solvedAt: null };
+/** The team's turn being played: the round's, or the current showdown word's. */
+function currentTurn(state: State, team: TeamIndex): TeamTurn | undefined {
+  if (state.showdown && inShowdown(state.phase)) return state.showdown.turns[team];
+  return state.round?.turns[team];
 }
 
 function withTurn(state: State, team: TeamIndex, turn: TeamTurn): State {
+  const pair = (turns: Pair<TeamTurn>): Pair<TeamTurn> =>
+    team === 0 ? [turn, turns[1]] : [turns[0], turn];
+  if (state.showdown && inShowdown(state.phase)) {
+    return { ...state, showdown: { ...state.showdown, turns: pair(state.showdown.turns) } };
+  }
   const round = state.round;
   if (!round) return state;
-  const turns: Pair<TeamTurn> = team === 0 ? [turn, round.turns[1]] : [round.turns[0], turn];
-  return { ...state, round: { ...round, turns } };
+  return { ...state, round: { ...round, turns: pair(round.turns) } };
 }
 
 /**
@@ -166,7 +181,7 @@ function startRound(state: State, now: number): Transition<State> {
     headStartSeconds: 0,
     wordChosenAt: null,
     solvedOrder: [],
-    turns: [newTurn(drawers[0]), newTurn(drawers[1])],
+    turns: [newTurn(drawers[0], 0), newTurn(drawers[1], 0)],
   };
   return {
     state: {
@@ -224,10 +239,10 @@ function endRound(state: State, now: number, events: GameEvent[]): Transition<St
 
 const isLastRound = (state: State) => (state.round?.number ?? 0) >= state.config.rounds;
 
-/** Teams the next round waits for (SB12); the last round's summary waits for nobody. */
+/** Teams the next round, or the showdown, waits for (SB12, SB18). */
 function waitingFor(state: State): TeamIndex[] {
   if (state.phase !== "result" && state.phase !== "summary") return [];
-  return isLastRound(state) ? [] : teamsShort(state);
+  return teamsShort(state);
 }
 
 /** Every connected player has tapped Continue (away and departed players aren't waited for). */
@@ -238,15 +253,10 @@ function everyoneReady(state: State): boolean {
   );
 }
 
-/** After the summary: the next round, or the end of the game. */
+/** After the summary: the next round, or the showdown after the last one. */
 function afterSummary(state: State, now: number): Transition<State> {
   const next = { ...state, ready: [] };
-  if (isLastRound(state)) {
-    return {
-      state: { ...next, phase: "ended", phaseEndsAt: null },
-      events: [{ type: "game.ended", data: { scores: state.scores } }],
-    };
-  }
+  if (isLastRound(state)) return startShowdown(next, now, unavailable(state));
   return startRound(next, now);
 }
 
@@ -263,7 +273,7 @@ function draw(
   team: TeamIndex,
   move: Extract<SketchBattleMove, { type: "draw" }>,
 ): State {
-  const turn = state.round?.turns[team];
+  const turn = currentTurn(state, team);
   if (!turn) return state;
   const points = decodePoints(move.points);
   if (move.start) {
@@ -315,10 +325,13 @@ function seesWord(state: State, team: TeamIndex | null, isDrawer: boolean): bool
   return round.turns[team].solvedAt !== null;
 }
 
-/** May this viewer see a team's real strokes and guesses (D47)? */
+/** May this viewer see a team's real strokes and guesses (D47)? Never in the showdown (SB4). */
 function seesTeam(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
   if (viewerTeam === null || viewerTeam === team) return true;
-  if (state.phase === "result" || state.phase === "summary" || state.phase === "ended") return true;
+  if (state.phase === "result" || state.phase === "summary" || showdownOver(state.phase)) {
+    return true;
+  }
+  if (inShowdown(state.phase)) return false;
   return state.round?.turns[viewerTeam].solvedAt != null;
 }
 
@@ -326,7 +339,9 @@ const NO_OPS: CanvasOp[] = [];
 const NO_GUESSES: SketchBattleView["teams"][0]["guesses"] = [];
 
 function teamView(state: State, team: TeamIndex, viewerTeam: TeamIndex | null): TeamView {
-  const turn = state.round?.turns[team];
+  const turn = currentTurn(state, team);
+  const racing = inShowdown(state.phase);
+  const playing = racing ? state.phase === "showdown" : Boolean(state.round?.word);
   const shown = seesTeam(state, viewerTeam, team);
   const away = new Set(state.away);
   const left = new Set(state.left);
@@ -339,11 +354,11 @@ function teamView(state: State, team: TeamIndex, viewerTeam: TeamIndex | null): 
     })),
     score: state.scores[team],
     drawerId: turn?.drawerId ?? null,
-    drawFrom: turn && state.round?.word ? turn.drawFrom : null,
+    drawFrom: turn && playing ? turn.drawFrom : null,
     solvedAt: turn?.solvedAt ?? null,
     canvas: shown
       ? { kind: "strokes", ops: turn?.ops ?? NO_OPS }
-      : { kind: "cells", cells: turn?.cells ?? EMPTY_CELLS },
+      : { kind: "cells", cells: racing ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
     guesses: shown ? (turn?.guesses ?? NO_GUESSES) : null,
     wrongGuesses: turn?.guesses.filter((g) => !g.correct).length ?? 0,
   };
@@ -403,6 +418,7 @@ export const sketchBattle: GameDefinition<
       scores: [0, 0],
       ready: [],
       recentGuesses: {},
+      showdown: null,
     };
     return startRound(state, now).state;
   },
@@ -411,9 +427,10 @@ export const sketchBattle: GameDefinition<
     const team = teamOf(state, playerId);
     const round = state.round;
     if (state.phase === "ended") return { ok: false, reason: "The game is over" };
-    if (team === null || !round) return { ok: false, reason: "You're watching this game" };
-    const turn = round.turns[team];
+    const turn = team === null ? undefined : currentTurn(state, team);
+    if (team === null || !round || !turn) return { ok: false, reason: "You're watching this game" };
     const isDrawer = turn.drawerId === playerId;
+    const racing = inShowdown(state.phase);
 
     switch (move.type) {
       case "choose":
@@ -425,7 +442,8 @@ export const sketchBattle: GameDefinition<
       case "draw":
       case "clear": {
         if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
-        if (state.phase !== "drawing" || now < turn.drawFrom) {
+        const playing = state.phase === "drawing" || state.phase === "showdown";
+        if (!playing || now < turn.drawFrom) {
           return { ok: false, reason: "Wait for the drawing to start" };
         }
         if (turn.solvedAt !== null) {
@@ -448,9 +466,11 @@ export const sketchBattle: GameDefinition<
         return { ok: true };
       }
       case "guess": {
+        if (state.phase === "showdownResult") return { ok: false, reason: "The showdown is over" };
         // Closed the moment time is up, even if the room hasn't processed the deadline yet.
-        if (roundOver(state, now)) return { ok: false, reason: "The round is over" };
-        if (state.phase !== "drawing" || now < turn.drawFrom) {
+        if (!racing && roundOver(state, now)) return { ok: false, reason: "The round is over" };
+        const open = racing ? state.phase === "showdown" : state.phase === "drawing";
+        if (!open || now < turn.drawFrom) {
           return { ok: false, reason: "Guessing opens when the drawing starts" };
         }
         if (isDrawer) return { ok: false, reason: "Drawers can't guess" };
@@ -495,7 +515,7 @@ export const sketchBattle: GameDefinition<
       case "draw":
         return { state: draw(state, team, move), events: [], live: true };
       case "clear": {
-        const turn = state.round?.turns[team];
+        const turn = currentTurn(state, team);
         if (!turn) return { state, events: [] };
         const cleared = {
           ...turn,
@@ -505,6 +525,9 @@ export const sketchBattle: GameDefinition<
         return { state: withTurn(state, team, cleared), events: [], live: true };
       }
       case "guess":
+        if (inShowdown(state.phase)) {
+          return showdownGuess(state, playerId, team, move.text, now, unavailable(state));
+        }
         return guess(state, playerId, team, move.text, now);
       case "ready":
         return startWhenReady({ ...state, ready: [...state.ready, playerId] }, now);
@@ -516,9 +539,21 @@ export const sketchBattle: GameDefinition<
   view: (state, viewer) => {
     const team = viewer === "spectator" ? null : teamOf(state, viewer);
     const round = state.round;
-    const isDrawer = team !== null && round?.turns[team].drawerId === viewer;
+    const isDrawer = team !== null && currentTurn(state, team)?.drawerId === viewer;
+    const showdown = showdownView(state, team, isDrawer);
     const showWord = seesWord(state, team, isDrawer);
-    const word = showWord ? (round?.word ?? null) : null;
+    // In the showdown a player's word and blanks are their own team's current word.
+    const racing = showdown !== null && inShowdown(state.phase);
+    const roundBlanks =
+      round?.word && !showWord && state.config.showWordLengths ? blanksFor(round.word) : null;
+    const word = racing
+      ? team === null
+        ? null
+        : showdown.current[team]
+      : showWord
+        ? (round?.word ?? null)
+        : null;
+    const blanks = racing ? (team === null ? null : showdown.blanks[team]) : roundBlanks;
     return {
       me: { team, role: team === null ? "spectator" : isDrawer ? "drawer" : "guesser" },
       phase: state.phase,
@@ -528,12 +563,12 @@ export const sketchBattle: GameDefinition<
       chooserId: round?.chooserId ?? null,
       choices: state.phase === "choose" && isDrawer && round ? round.choices : null,
       word,
-      blanks:
-        round?.word && !showWord && state.config.showWordLengths ? blanksFor(round.word) : null,
+      blanks,
       teams: [teamView(state, 0, team), teamView(state, 1, team)],
       lastRound: state.history.at(-1) ?? null,
       waitingFor: waitingFor(state),
       ready: state.phase === "result" || state.phase === "summary" ? state.ready : [],
+      showdown,
     };
   },
 
@@ -575,6 +610,10 @@ export const sketchBattle: GameDefinition<
       case "summary":
         // Start next round opens; a round whose last unready players left starts now.
         return startWhenReady({ ...state, phaseEndsAt: null }, now);
+      case "showdownIntro":
+      case "showdownCountdown":
+      case "showdownResult":
+        return showdownDeadline(state, now);
       default:
         return { state, events: [] };
     }
@@ -610,6 +649,11 @@ export const sketchBattle: GameDefinition<
       winnerTeam: record.winnerTeam,
       gapMs: gapMs(record.solvedAt, record.drawingStartedAt),
     })),
+    showdown: state.showdown && {
+      words: state.showdown.words.length,
+      done: state.showdown.done,
+      winnerTeam: state.showdown.winnerTeam,
+    },
     scores: state.scores,
   }),
 };

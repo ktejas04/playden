@@ -39,6 +39,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB15 | Owner's screens (2026-11-16): the result is its own screen, not a canvas overlay: one outcome in one colour (green won, red lost), with Continue to skip ahead to the summary. The summary has no "winner" / "next challenger" labels: the outgoing drawer is struck through and the next one fades in, with the whole team on deck below and a tick by each name that tapped Continue. Both drawers see the two word choices as identical buttons, one per line, so neither reads as suggested; everyone else sees "<name> is choosing a word". Feed lines are one colour each | 2026-11-16 |
 | SB16 | Owner's call (2026-11-17), base game first: winner stays and the challenger choosing ship with the base round (021); streaks and head starts wait for 026. Start next round is only for players who have tapped Continue, so it skips the unready instead of letting an unready player skip everyone. The drawer's mouse pointer is a small black dot; the 10 colours are two rows of 5 on a phone | 2026-11-17 |
 | SB17 | Owner's call (2026-11-17): each team's ✕ / ✓ marks show under its canvas for everyone, the other team included, so you see how close they are; only the count of wrong guesses goes out, never their texts (D47). The marks replace the "Solved" badge. The round summary shows both teams' marks under the drawings. The drawer handoff on the summary is unhurried: a beat, the strike draws across, a pause, then the next drawer eases in | 2026-11-17 |
+| SB18 | Showdown details (task 030, 2026-11-17). No winner stays in the showdown: the pencil moves to the team's next connected player for every word, the first one included. It waits, like a round, until each team has 2 connected players (SB12), since a team needs a guesser. Its points count as they're scored: 100 per word, +100 on finishing. A team never sees a word it hasn't reached: its drawer sees its current word, its guessers blanks, and it sees the race only as words finished in the status bar ("2 – 1"), with no word tracks, until the result. A correct guess shows "got it! <name> draws next" on the canvas for the 2 s handoff. The 5 s result shows the game's outcome by total score, and who finished the showdown first. The last round's summary says "showdown next" with Start the showdown. Until the settings popup (033), rounds can be 3 for a quick test game and that is the default; 033 removes it and sets the default back to 15 | 2026-11-17 |
 
 ## 3. Terms
 
@@ -159,8 +160,8 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 
 - **Words:** every word from the rounds played, including unguessed ones, in one seeded shuffle that is the same for both teams.
 - **Intro:** a 10 s title card showing each team's lineup, then a 3 s countdown.
-- **Play:** each team's first drawer is its next drawer under the normal rotation rules. When a team guesses a word, a 2 s handoff **(ours)** passes the pencil to its next connected player, who sees the next word. No timer, no passing, no head starts.
-- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") and a word track per team. A team sees the text of the words it has finished. Spectators see both canvases.
+- **Play:** each team's first drawer is its next connected player after its last-round drawer; nobody stays (SB18). When a team guesses a word, a 2 s handoff **(ours)** passes the pencil to its next connected player, who sees the next word. No timer, no passing, no head starts.
+- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") (SB18: no word tracks). Spectators see both canvases.
 - **End:** the moment one team guesses its last word. A 5 s result overlay ("you win! final score 1600"), then the results screen.
 
 ## 10. Round summary and ready-up
@@ -221,7 +222,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S7 | Round result | Overlay on the canvas; the canvas border turns the team's win or lose colour |
 | S8 | Round summary | Section 10. Scrollable on phone: scores and handoff on top, Continue / Start next round in the bottom bar, replays below |
 | S9 | Showdown intro | Title card, lineups, countdown |
-| S10 | Showdown | Like S5/S6 with the running score and word tracks; no opponent canvas |
+| S10 | Showdown | Like S5/S6 with the running score in words finished; no opponent canvas, no word tracks (SB18) |
 | S11 | Results | Totals, winner celebration, highlights, the platform's Results controls |
 | S12 | Spectator | PC: both canvases side by side with the word and both feeds. Phone: the two teams as tabs |
 
@@ -575,13 +576,13 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 **4.3 Showdown** — the complete game
 
-- [ ] **030 — Engine: showdown.**
-- [ ] **031 — Showdown screens.**
+- [x] **030 — Engine: showdown.**
+- [x] **031 — Showdown screens.**
 - [ ] **032 — Results, highlights, Play again.**
 
 **4.4 Settings**
 
-- [ ] **033 — Host settings and the word-length toggle.**
+- [ ] **033 — Host settings and the word-length toggle.** Remove the 3-round test option and set the default back to 15 (SB18).
 
 **4.5 Polish**
 

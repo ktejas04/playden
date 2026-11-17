@@ -3,6 +3,9 @@ import {
   COUNTDOWN_SECONDS,
   FORCE_START_AFTER_SECONDS,
   RESULT_SECONDS,
+  SHOWDOWN_COUNTDOWN_SECONDS,
+  SHOWDOWN_INTRO_SECONDS,
+  SHOWDOWN_RESULT_SECONDS,
 } from "../config";
 import type { SketchBattleView } from "../types";
 
@@ -27,6 +30,12 @@ export function phaseLength(view: SketchBattleView): number | null {
       return RESULT_SECONDS;
     case "summary":
       return FORCE_START_AFTER_SECONDS;
+    case "showdownIntro":
+      return SHOWDOWN_INTRO_SECONDS;
+    case "showdownCountdown":
+      return SHOWDOWN_COUNTDOWN_SECONDS;
+    case "showdownResult":
+      return SHOWDOWN_RESULT_SECONDS;
     case "drawing": {
       const starts = view.teams.flatMap((team) => (team.drawFrom === null ? [] : [team.drawFrom]));
       if (view.phaseEndsAt === null || starts.length === 0) return null;

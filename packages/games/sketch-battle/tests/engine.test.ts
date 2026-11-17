@@ -38,7 +38,7 @@ const ROUND_MS = DEFAULT_CONFIG.roundSeconds * 1000;
 type State = SketchBattleState;
 
 function start(config: Partial<SketchBattleConfig> = {}, seed = 7): State {
-  return game.setup(seats, { ...DEFAULT_CONFIG, ...config }, seed, START);
+  return game.setup(seats, { ...DEFAULT_CONFIG, rounds: 10, ...config }, seed, START);
 }
 
 function move(state: State, playerId: string, m: SketchBattleMove, at: number): State {
@@ -171,7 +171,7 @@ describe("choosing", () => {
   it("no word is offered twice in a game", () => {
     let state = start({ rounds: 25, roundSeconds: 15 });
     const offered: string[] = [];
-    while (state.phase !== "ended") {
+    while (state.phase !== "showdownIntro") {
       if (state.phase === "choose") offered.push(...round(state).choices);
       state = state.phase === "result" ? nextRound(state) : tick(state);
     }
@@ -678,15 +678,6 @@ describe("ready-up", () => {
   it("Continue is refused outside the round's end", () => {
     expect(refusal(start(), "asha", READY, START)).toBe("The round is not over yet");
   });
-
-  it("the last round's Continue ends the game even with a team short", () => {
-    let state = tick(tick(toDrawing(start({ rounds: 10 })).state));
-    for (let n = 2; n <= 10; n++) state = tick(tick(toDrawing(readyAll(state, START)).state));
-    state = game.onPresence?.(state, ["esha", "faiz"], START).state ?? state;
-    expect(view(state, "asha").waitingFor).toEqual([]);
-    state = readyAll(state, START);
-    expect(state.phase).toBe("ended");
-  });
 });
 
 describe("the end of the game", () => {
@@ -709,18 +700,12 @@ describe("the end of the game", () => {
     return state;
   }
 
-  it("ends after the last round with the higher team winning", () => {
+  it("the last round leads to the showdown, with the round points kept", () => {
     const state = playRounds(10, (n) => (n <= 6 ? 0 : 1));
-    expect(state.phase).toBe("ended");
+    expect(state.phase).toBe("showdownIntro");
     expect(state.scores).toEqual([1200, 800]);
-    const result = game.result(state);
-    expect(result?.winners.sort()).toEqual(["asha", "ben", "chi"]);
-    expect(result?.scores).toMatchObject({ asha: 1200, dev: 800 });
-  });
-
-  it("equal totals are a draw", () => {
-    const state = playRounds(10, (n) => (n % 2 === 0 ? 0 : 1));
-    expect(game.result(state)?.winners).toEqual([]);
+    expect(game.result(state)).toBeNull();
+    expect(game.standings?.(state)).toMatchObject({ asha: 1200, dev: 800 });
   });
 
   it("the record summary lists each round's word, drawers, winner and gap", () => {
@@ -733,6 +718,7 @@ describe("the end of the game", () => {
     const summary = game.recordSummary?.(state);
     expect(summary).toEqual({
       rounds: [{ number: 1, word: w, drawerIds: ["asha", "dev"], winnerTeam: 0, gapMs: 17_700 }],
+      showdown: null,
       scores: [200, 100],
     });
   });
@@ -746,9 +732,12 @@ describe("the end of the game", () => {
 describeGameContract(game, {
   seats,
   config: { ...DEFAULT_CONFIG, rounds: 10, roundSeconds: 15 },
-  maxSteps: 4_000,
+  maxSteps: 8_000,
   sampleMoves: (state, playerId) => {
-    const ops = state.round?.turns[teamOf(playerId)].ops ?? [];
+    const team = teamOf(playerId);
+    const racing = state.showdown !== null && state.phase !== "ended";
+    const turn = racing ? state.showdown?.turns[team] : state.round?.turns[team];
+    const ops = turn?.ops ?? [];
     const last = [...ops].reverse().find((op) => "id" in op);
     const lastId = last && "id" in last ? last.id : 0;
     const moves: SketchBattleMove[] = [
@@ -760,10 +749,28 @@ describeGameContract(game, {
       { type: "ready" },
       { type: "forceStart" },
     ];
-    if (state.round?.word) moves.push(guess(state.round.word));
+    if (racing && state.showdown) {
+      moves.push(guess(state.showdown.words[state.showdown.done[team]] ?? ""));
+    } else if (state.round?.word) moves.push(guess(state.round.word));
     return moves;
   },
   hiddenFrom: (state, viewer) => {
+    const sd = state.showdown;
+    if (sd) {
+      if (state.phase === "showdownResult" || state.phase === "ended") return [];
+      // Words a viewer hasn't reached stay hidden (the last round's word is public already).
+      const team = viewer === "spectator" ? null : teamOf(viewer);
+      const isDrawer = team !== null && sd.turns[team].drawerId === viewer;
+      const seen =
+        team === null
+          ? Math.max(sd.done[0], sd.done[1]) + 1
+          : sd.done[team] + (isDrawer && state.phase !== "showdownIntro" ? 1 : 0);
+      const lastWord = state.history.at(-1)?.word;
+      return sd.words
+        .slice(seen)
+        .filter((w) => w !== lastWord)
+        .map((w) => JSON.stringify(w));
+    }
     const r = state.round;
     if (!r || state.phase === "result" || state.phase === "summary" || state.phase === "ended") {
       return [];
