@@ -1,13 +1,12 @@
 import { Button } from "@playden/ui/components/button";
 import { cn } from "@playden/ui/lib/utils";
-import { CheckIcon, ClockIcon, PencilIcon, RotateCcwIcon, TrophyIcon } from "lucide-react";
+import { CheckIcon, PencilIcon, RotateCcwIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { nextDrawer } from "../rotation";
 import type { CanvasOp, SketchBattleMove, SketchBattleView, TeamIndex, TeamView } from "../types";
 import { prepare, useCanvasSize } from "./Canvas";
 import { AttemptTracker } from "./Feed";
 import { PAPER, TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { resultText } from "./result";
 import { drawOps, opsUpTo, stepCount } from "./strokes";
 
 /**
@@ -102,7 +101,7 @@ function ReplayCanvas({
   );
 }
 
-/** The two result steps share one frame, so the button sits in the same place on both. */
+/** The summary's frame: the lineup centred, the buttons at the bottom. */
 function Frame({ children, action }: { children: ReactNode; action: ReactNode }) {
   return (
     <div className="flex min-h-[22rem] flex-col items-center justify-between gap-8 py-4 text-center sm:min-h-[24rem] sm:py-6">
@@ -135,33 +134,6 @@ function Cta({
     >
       {children}
     </Button>
-  );
-}
-
-/** Step 1: how the round went for this viewer, one colour per outcome. */
-function Outcome({ view, onNext }: { view: SketchBattleView; onNext: () => void }) {
-  const last = view.lastRound;
-  if (!last) return null;
-  const { title, detail, tone } = resultText(last, view.me.team);
-  const won = tone === "won" || (view.me.team === null && last.winnerTeam !== null);
-  const colour =
-    tone === "won" ? "text-success" : tone === "lost" ? "text-destructive" : "text-foreground";
-
-  return (
-    <Frame action={<Cta onClick={onNext}>Continue</Cta>}>
-      <div
-        className="flex flex-col items-center gap-3 duration-300 animate-in fade-in-0 zoom-in-95"
-        role="status"
-      >
-        {won ? (
-          <TrophyIcon className="size-16 text-amber-500" strokeWidth={1.75} aria-hidden />
-        ) : (
-          <ClockIcon className={cn("size-14", colour)} strokeWidth={1.75} aria-hidden />
-        )}
-        <p className={cn("font-heading text-3xl font-bold sm:text-4xl", colour)}>{title}</p>
-        <p className={cn("font-heading text-lg font-semibold", colour)}>{detail}</p>
-      </div>
-    </Frame>
   );
 }
 
@@ -300,8 +272,12 @@ function TeamLineup({
   );
 }
 
-/** Step 2: the scores and next round's drawers, then both drawings to look back at. */
-function NextRound({
+/**
+ * The round summary (S7, section 10): the scores and next round's drawers, then both drawings
+ * to look back at. The round result before it shows on the board (SB21). The next round starts
+ * when everyone has tapped Continue, or when someone taps Start next round 10 s in.
+ */
+export function Intermission({
   view,
   me,
   seconds,
@@ -405,34 +381,5 @@ function NextRound({
         })}
       </div>
     </div>
-  );
-}
-
-/**
- * The round's end (S7): the result for this viewer (5 s, or until they tap on), then the
- * summary with the next round's drawers. The next round starts when everyone has tapped
- * Continue, or when someone taps Start next round 10 s in (section 10).
- */
-export function Intermission({
-  view,
-  me,
-  seconds,
-  sendMove,
-}: {
-  view: SketchBattleView;
-  me: string;
-  seconds: number | null;
-  sendMove: (move: SketchBattleMove) => void;
-}) {
-  const [skipped, setSkipped] = useState(false);
-  return view.phase === "result" && !skipped ? (
-    <Outcome view={view} onNext={() => setSkipped(true)} />
-  ) : (
-    <NextRound
-      view={view}
-      me={me}
-      seconds={view.phase === "summary" ? seconds : null}
-      sendMove={sendMove}
-    />
   );
 }

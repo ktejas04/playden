@@ -34,7 +34,7 @@ type Props = GameViewProps<SketchBattleView, SketchBattleMove>;
 
 const otherTeam = (team: TeamIndex): TeamIndex => (team === 0 ? 1 : 0);
 
-/** What goes over a team's canvas right now: choose words, 3-2-1, or a team's win. */
+/** What goes over a team's canvas right now: choose words, 3-2-1, a team's win, or the result. */
 function CanvasOverlay({
   view,
   team,
@@ -51,8 +51,10 @@ function CanvasOverlay({
   if (view.phase === "choose" && sendMove) {
     return <ChooseOverlay view={view} seconds={seconds} sendMove={sendMove} />;
   }
-  if (view.phase === "result" && viewerTeam === null && view.lastRound) {
-    const result = resultText(view.lastRound, team, TEAM_NAME[team]);
+  // Players see their own result, spectators each team's on its canvas (SB20, SB21).
+  if (view.phase === "result" && view.lastRound && (viewerTeam === null || viewerTeam === team)) {
+    const who = viewerTeam === null ? TEAM_NAME[team] : undefined;
+    const result = resultText(view.lastRound, team, who);
     return <ResultOverlay title={result.title} detail={result.detail} tone={result.tone} />;
   }
   // Drawers and spectators see the pick through the 3-2-1; guessers get the big count.
@@ -350,9 +352,8 @@ export function SketchBattleScreen(props: Props) {
   if (view.phase === "ended") return <FinalScores view={view} />;
   if (view.phase === "showdownIntro") return <ShowdownIntro view={view} seconds={seconds} />;
   if (view.phase === "showdownResult") return <ShowdownResult view={view} />;
-  // Players get the result as its own screen; spectators stay on the board (SB20).
-  const spectating = view.me.role === "spectator";
-  if (view.phase === "summary" || (view.phase === "result" && !spectating)) {
+  // The round result stays on the board for everyone (SB21); the summary is its own screen.
+  if (view.phase === "summary") {
     return (
       <Intermission
         key={view.lastRound?.number}
