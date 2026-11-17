@@ -5,6 +5,7 @@ import {
   CHOOSE_SECONDS,
   COUNTDOWN_SECONDS,
   DEFAULT_CONFIG,
+  FORCE_START_AFTER_SECONDS,
   GUESS_WINDOW_MS,
   RESULT_SECONDS,
   STROKE_MOVE_LIMIT,
@@ -80,6 +81,25 @@ function toDrawing(state: State, index: 0 | 1 = 0): { state: State; drawingAt: n
 }
 
 const guess = (text: string) => ({ type: "guess", text }) as const;
+const READY = { type: "ready" } as const;
+const FORCE = { type: "forceStart" } as const;
+
+/** Every connected player taps Continue on the summary, in seat order. */
+function readyAll(state: State, at: number): State {
+  let next = state;
+  for (const { id } of seats) {
+    if (next.phase !== "summary") break;
+    if (next.away.includes(id) || next.left.includes(id) || next.ready.includes(id)) continue;
+    next = move(next, id, READY, at);
+  }
+  return next;
+}
+
+/** From a round's end to the next round: the result runs out, then everyone taps Continue. */
+function nextRound(state: State): State {
+  const summary = tick(state);
+  return readyAll(summary, summary.phaseEndsAt ?? START);
+}
 const line = (stroke: number, points: number[]): SketchBattleMove => ({
   type: "draw",
   stroke,
@@ -124,7 +144,7 @@ describe("choosing", () => {
     const chooserTeams = new Set(
       [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => {
         let state = toDrawing(start({}, seed)).state;
-        state = tick(tick(state));
+        state = nextRound(tick(state));
         return teamOf(round(state).chooserId);
       }),
     );
@@ -153,7 +173,7 @@ describe("choosing", () => {
     const offered: string[] = [];
     while (state.phase !== "ended") {
       if (state.phase === "choose") offered.push(...round(state).choices);
-      state = tick(state);
+      state = state.phase === "result" ? nextRound(state) : tick(state);
     }
     expect(offered).toHaveLength(50);
     expect(new Set(offered).size).toBe(50);
@@ -315,6 +335,29 @@ describe("guessing", () => {
     );
   });
 
+  it("guesses are refused the moment the round's time is up, before the deadline is processed", () => {
+    const { state } = toDrawing(start());
+    const deadline = state.phaseEndsAt ?? 0;
+    const g = guessers(state, 0)[0] ?? "";
+    expect(game.validate(state, g, guess(word(state)), deadline - 1).ok).toBe(true);
+    expect(refusal(state, g, guess(word(state)), deadline)).toBe("The round is over");
+  });
+
+  it("guesses are refused once the round has ended", () => {
+    const drawing = toDrawing(start());
+    const at = drawing.drawingAt + 1_000;
+    let state = move(
+      drawing.state,
+      guessers(drawing.state, 0)[0] ?? "",
+      guess(word(drawing.state)),
+      at,
+    );
+    state = move(state, guessers(state, 1)[0] ?? "", guess(word(state)), at + 1);
+    expect(state.phase).toBe("result");
+    const late = guessers(state, 0)[1] ?? "";
+    expect(refusal(state, late, guess("anything"), at + 2)).toBe("The round is over");
+  });
+
   it("a team can't guess again after guessing", () => {
     const drawing = toDrawing(start());
     let state = drawing.state;
@@ -370,6 +413,21 @@ describe("hidden information", () => {
     state = move(state, g ?? "", guess(word(state)), drawingAt + 10);
     expect(view(state, g ?? "").word).toBe(word(state));
     expect(view(state, guessers(state, 1)[0] ?? "").word).toBeNull();
+  });
+
+  it("the other team's wrong-guess count shows, but not their guesses", () => {
+    const drawing = toDrawing(start());
+    let state = drawing.state;
+    const [g] = guessers(state, 1);
+    state = move(state, g ?? "", guess("banana"), drawing.drawingAt + 10);
+    state = move(state, g ?? "", guess("rocket"), drawing.drawingAt + 20);
+    const theirs = view(state, guessers(state, 0)[0] ?? "").teams[1];
+    expect(theirs.guesses).toBeNull();
+    expect(theirs.wrongGuesses).toBe(2);
+    expect(JSON.stringify(theirs)).not.toContain("banana");
+    state = move(state, g ?? "", guess(word(state)), drawing.drawingAt + 30);
+    const after = view(state, guessers(state, 0)[0] ?? "").teams[1];
+    expect([after.wrongGuesses, after.solvedAt]).toEqual([2, drawing.drawingAt + 30]);
   });
 
   it("with word lengths off, guessers get no blanks", () => {
@@ -439,18 +497,58 @@ describe("hidden information", () => {
 });
 
 describe("rotation and disconnects", () => {
-  it("both teams move to their next connected player every round", () => {
-    let state = tick(tick(toDrawing(start()).state));
+  /** Plays the current round to its end with `team` guessing first (null: nobody guesses). */
+  function playRound(state: State, team: TeamIndex | null): State {
+    const drawing = toDrawing(state);
+    let next = drawing.state;
+    if (team !== null) {
+      next = move(next, guessers(next, team)[0] ?? "", guess(word(next)), drawing.drawingAt + 1);
+    }
+    return nextRound(tick(next));
+  }
+
+  it("both teams rotate after a no-winner round", () => {
+    let state = playRound(start(), null);
     expect([drawer(state, 0), drawer(state, 1)]).toEqual(["ben", "esha"]);
     state = game.onPresence?.(state, ["chi"], START).state ?? state;
-    state = tick(tick(tick(tick(state))));
+    state = playRound(state, null);
     expect(drawer(state, 0)).toBe("asha");
+  });
+
+  it("the winning drawer stays and the losing team rotates", () => {
+    let state = playRound(start(), 1);
+    expect([drawer(state, 0), drawer(state, 1)]).toEqual(["ben", "dev"]);
+    state = playRound(state, 1);
+    expect([drawer(state, 0), drawer(state, 1)]).toEqual(["chi", "dev"]);
+    state = playRound(state, 0);
+    expect([drawer(state, 0), drawer(state, 1)]).toEqual(["chi", "esha"]);
+  });
+
+  it("the challenger chooses after a round with a winner", () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const afterTeam1Won = playRound(start({}, seed), 0);
+      expect(round(afterTeam1Won).chooserId).toBe(drawer(afterTeam1Won, 1));
+      const afterTeam2Won = playRound(start({}, seed), 1);
+      expect(round(afterTeam2Won).chooserId).toBe(drawer(afterTeam2Won, 0));
+    }
+  });
+
+  it("a winning drawer who is away gives way to the next connected player", () => {
+    let state = playRound(start(), 1);
+    expect(drawer(state, 1)).toBe("dev");
+    const drawing = toDrawing(state);
+    state = drawing.state;
+    state = move(state, guessers(state, 1)[0] ?? "", guess(word(state)), drawing.drawingAt + 1);
+    state = tick(state);
+    state = game.onPresence?.(state, ["dev"], START + 999_001).state ?? state;
+    state = nextRound(state);
+    expect(drawer(state, 1)).toBe("esha");
   });
 
   it("rotation skips players who left", () => {
     let state = toDrawing(start()).state;
     state = game.onPlayerLeft(state, "esha").state;
-    state = tick(tick(state));
+    state = nextRound(tick(state));
     expect(drawer(state, 1)).toBe("faiz");
   });
 
@@ -477,26 +575,117 @@ describe("rotation and disconnects", () => {
     expect(state.scores).toEqual([200, 0]);
   });
 
-  it("the next round waits until each team has 2 connected players", () => {
-    let state = tick(toDrawing(start()).state);
+  it("Continue and Start next round are locked until each team has 2 connected players", () => {
+    let state = tick(tick(toDrawing(start()).state));
+    expect(state.phase).toBe("summary");
     state = game.onPresence?.(state, ["esha", "faiz"], START).state ?? state;
-    state = tick(state);
-    expect(state.phase).toBe("waiting");
-    expect(game.nextDeadline(state)).toBeNull();
     expect(view(state, "asha").waitingFor).toEqual([1]);
+    const late = (state.phaseEndsAt ?? START) + 1;
+    expect(refusal(state, "asha", READY, late)).toBe("Waiting for Team 2");
+    expect(refusal(state, "asha", FORCE, late)).toBe("Waiting for Team 2");
 
     state = game.onPresence?.(state, ["faiz"], START + 90_000).state ?? state;
+    expect(view(state, "asha").waitingFor).toEqual([]);
+    expect(state.phase).toBe("summary");
+    state = readyAll(state, START + 91_000);
     expect(state.phase).toBe("choose");
     expect(round(state).number).toBe(2);
-    expect(game.nextDeadline(state)).toBe(START + 90_000 + CHOOSE_SECONDS * 1000);
+    expect(game.nextDeadline(state)).toBe(START + 91_000 + CHOOSE_SECONDS * 1000);
   });
 
   it("with too few players left, the game waits until the host ends it", () => {
-    let state = tick(toDrawing(start()).state);
+    let state = tick(tick(toDrawing(start()).state));
     for (const id of ["esha", "faiz"]) state = game.onPlayerLeft(state, id).state;
-    state = tick(state);
-    expect(state.phase).toBe("waiting");
+    expect(refusal(state, "asha", READY, START + 999_999)).toBe("Waiting for Team 2");
+    expect(state.phase).toBe("summary");
     expect(game.standings?.(state)).toMatchObject({ asha: 0, dev: 0 });
+  });
+});
+
+describe("ready-up", () => {
+  /** Round 1 played out with no winner, now on the summary. */
+  const summary = () => tick(tick(toDrawing(start()).state));
+
+  it("the result shows for 5 s before the summary", () => {
+    const result = tick(toDrawing(start()).state);
+    expect(result.phase).toBe("result");
+    const resultEnds = game.nextDeadline(result) ?? 0;
+    const state = tick(result);
+    expect(state.phase).toBe("summary");
+    expect(game.nextDeadline(state)).toBe(resultEnds + FORCE_START_AFTER_SECONDS * 1000);
+  });
+
+  it("the next round starts when every connected player is ready", () => {
+    let state = summary();
+    const at = state.phaseEndsAt ?? START;
+    for (const id of ["asha", "ben", "chi", "dev", "esha"]) state = move(state, id, READY, at);
+    expect(state.phase).toBe("summary");
+    expect(view(state, "dev").ready).toEqual(["asha", "ben", "chi", "dev", "esha"]);
+    expect(refusal(state, "asha", READY, at)).toBe("You're already ready");
+    state = move(state, "faiz", READY, at);
+    expect(state.phase).toBe("choose");
+    expect(round(state).number).toBe(2);
+    expect(view(state, "dev").ready).toEqual([]);
+  });
+
+  it("Continue taps during the result count once the summary is up", () => {
+    let state = tick(toDrawing(start()).state);
+    for (const { id } of seats) state = move(state, id, READY, START + 1);
+    expect(state.phase).toBe("result");
+    state = tick(state);
+    expect(state.phase).toBe("choose");
+  });
+
+  it("away players aren't waited for", () => {
+    let state = summary();
+    state = game.onPresence?.(state, ["faiz"], START).state ?? state;
+    state = readyAll(state, state.phaseEndsAt ?? START);
+    expect(state.phase).toBe("choose");
+  });
+
+  it("the round starts when the last unready player drops", () => {
+    let state = summary();
+    for (const id of ["asha", "ben", "chi", "dev", "esha"]) state = move(state, id, READY, START);
+    state = game.onPresence?.(state, ["faiz"], START + 5).state ?? state;
+    expect(state.phase).toBe("choose");
+  });
+
+  it("a ready player can skip the unready ones after 10 s and not before", () => {
+    let state = summary();
+    const unlock = state.phaseEndsAt ?? 0;
+    state = move(state, "ben", READY, unlock - 5_000);
+    expect(refusal(state, "ben", FORCE, unlock - 1)).toBe(
+      "Start next round opens 10 s into the summary",
+    );
+    state = tick(state);
+    expect(state.phase).toBe("summary");
+    expect(game.nextDeadline(state)).toBeNull();
+    state = move(state, "ben", FORCE, unlock + 1);
+    expect(state.phase).toBe("choose");
+  });
+
+  it("a player who hasn't tapped Continue can't skip the others", () => {
+    const state = tick(summary());
+    expect(refusal(state, "asha", FORCE, START + 999_999)).toBe("Tap Continue first");
+  });
+
+  it("spectators can't ready up or force the next round", () => {
+    const state = tick(summary());
+    expect(refusal(state, "zed", READY, START + 999_999)).toBe("You're watching this game");
+    expect(refusal(state, "zed", FORCE, START + 999_999)).toBe("You're watching this game");
+  });
+
+  it("Continue is refused outside the round's end", () => {
+    expect(refusal(start(), "asha", READY, START)).toBe("The round is not over yet");
+  });
+
+  it("the last round's Continue ends the game even with a team short", () => {
+    let state = tick(tick(toDrawing(start({ rounds: 10 })).state));
+    for (let n = 2; n <= 10; n++) state = tick(tick(toDrawing(readyAll(state, START)).state));
+    state = game.onPresence?.(state, ["esha", "faiz"], START).state ?? state;
+    expect(view(state, "asha").waitingFor).toEqual([]);
+    state = readyAll(state, START);
+    expect(state.phase).toBe("ended");
   });
 });
 
@@ -515,7 +704,7 @@ describe("the end of the game", () => {
           drawing.drawingAt + 1,
         );
       }
-      state = tick(tick(state));
+      state = nextRound(tick(state));
     }
     return state;
   }
@@ -540,10 +729,10 @@ describe("the end of the game", () => {
     const drawingAt = drawing.drawingAt;
     const w = word(state);
     state = move(state, guessers(state, 0)[0] ?? "", guess(w), drawingAt + 12_300);
-    state = move(state, guessers(state, 1)[0] ?? "", guess(w), drawingAt + 47_000);
+    state = move(state, guessers(state, 1)[0] ?? "", guess(w), drawingAt + 30_000);
     const summary = game.recordSummary?.(state);
     expect(summary).toEqual({
-      rounds: [{ number: 1, word: w, drawerIds: ["asha", "dev"], winnerTeam: 0, gapMs: 34_700 }],
+      rounds: [{ number: 1, word: w, drawerIds: ["asha", "dev"], winnerTeam: 0, gapMs: 17_700 }],
       scores: [200, 100],
     });
   });
@@ -568,13 +757,15 @@ describeGameContract(game, {
       { type: "draw", stroke: lastId, points: [600, 600, 15, -20], end: true },
       { type: "clear" },
       guess("zzz"),
+      { type: "ready" },
+      { type: "forceStart" },
     ];
     if (state.round?.word) moves.push(guess(state.round.word));
     return moves;
   },
   hiddenFrom: (state, viewer) => {
     const r = state.round;
-    if (!r || state.phase === "result" || state.phase === "waiting" || state.phase === "ended") {
+    if (!r || state.phase === "result" || state.phase === "summary" || state.phase === "ended") {
       return [];
     }
     const team = viewer === "spectator" ? null : teamOf(viewer);

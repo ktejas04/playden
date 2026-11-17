@@ -8,8 +8,8 @@ import { PALETTE, PALETTE_NAMES } from "./palette";
 const SIZES: BrushSize[] = [1, 2, 3, 4];
 /** Dot diameters for the size buttons, in pixels: a hint of each brush, not to scale. */
 const DOT = { 1: 4, 2: 7, 3: 11, 4: 16 } as const;
-/** Full-size touch targets on a phone. */
-const ITEM = "h-10 min-w-10 rounded-xl";
+/** Full-size touch targets on a phone, adapting gracefully. */
+const ITEM = "size-9 sm:size-10 min-w-0 rounded-xl";
 
 /**
  * The drawer's tools (spec section 14): pen or eraser, 4 sizes and 10 colours, each a
@@ -25,7 +25,7 @@ export function Toolbar({
   onClear: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-2" data-tour="toolbar">
+    <div className="flex flex-col gap-2 pt-1" data-tour="toolbar">
       <div className="flex items-center gap-1.5">
         <ToggleGroup
           type="single"
@@ -35,10 +35,10 @@ export function Toolbar({
           onValueChange={(value) => value && onChange({ ...tool, tool: value as Tool })}
         >
           <ToggleGroupItem value="pen" aria-label="Pen" className={ITEM} data-tour="pen">
-            <PencilIcon />
+            <PencilIcon className="size-4 sm:size-5" />
           </ToggleGroupItem>
           <ToggleGroupItem value="eraser" aria-label="Eraser" className={ITEM} data-tour="eraser">
-            <EraserIcon />
+            <EraserIcon className="size-4 sm:size-5" />
           </ToggleGroupItem>
         </ToggleGroup>
         <ToggleGroup
@@ -69,19 +69,20 @@ export function Toolbar({
         <Button
           variant="outline"
           size="icon"
-          className="ml-auto"
+          className="ml-auto size-9 sm:size-10"
           aria-label="Clear the canvas"
           data-tour="clear"
           onClick={onClear}
         >
-          <Trash2Icon />
+          <Trash2Icon className="size-4 sm:size-5" />
         </Button>
       </div>
       <ToggleGroup
         type="single"
         spacing={1}
         aria-label="Colour"
-        className="grid w-full grid-cols-10"
+        // Two rows of 5 on a phone, so each swatch is a comfortable tap; one row when there's room.
+        className="grid w-full grid-cols-5 gap-1.5 @lg:grid-cols-10"
         data-tour="colours"
         value={String(tool.colour)}
         onValueChange={(value) =>
@@ -94,8 +95,11 @@ export function Toolbar({
             value={String(index)}
             aria-label={PALETTE_NAMES[index]}
             className={cn(
-              "h-8 w-full min-w-0 rounded-lg border-2 border-black/10 p-0 transition-transform duration-150",
-              "data-[state=on]:scale-110 data-[state=on]:border-foreground",
+              "h-9 w-full min-w-0 rounded-lg border-2 border-black/10 p-0 transition-[box-shadow,translate] duration-150",
+              // A ring outside the swatch with a gap of page colour shows on every swatch, black
+              // included, in both themes. Hover: a faint ring and a small lift; press settles it.
+              "data-[state=on]:ring-2 data-[state=on]:ring-foreground data-[state=on]:ring-offset-2 data-[state=on]:ring-offset-card",
+              "data-[state=off]:hover:-translate-y-0.5 data-[state=off]:hover:ring-2 data-[state=off]:hover:ring-foreground/35 data-[state=off]:hover:ring-offset-2 data-[state=off]:hover:ring-offset-card active:translate-y-0",
             )}
             style={{ background: colour }}
           />

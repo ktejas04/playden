@@ -26,12 +26,18 @@ export function gapMs(
   return Math.abs(a - drawingStartedAt[0] - (b - drawingStartedAt[1]));
 }
 
-/** "0.4 seconds" under a second, otherwise whole seconds rounded up ("35 seconds"). */
+/**
+ * The gap between two teams' guesses (SB14):
+ * - If >= 1 s: rounded up to the nearest upper whole second ("4 seconds", "1 second")
+ * - If < 1 s: rounded to nearest tenth of a second ("0.4 seconds", "less than 0.1 seconds")
+ */
 export function formatGap(ms: number): string {
-  if (ms < 1_000) {
-    const tenths = Math.max(1, Math.ceil(ms / 100));
-    if (tenths < 10) return `0.${tenths} seconds`;
+  if (ms >= 1000) {
+    const sec = Math.ceil(ms / 1000);
+    return `${sec} ${sec === 1 ? "second" : "seconds"}`;
   }
-  const seconds = Math.max(1, Math.ceil(ms / 1_000));
-  return seconds === 1 ? "1 second" : `${seconds} seconds`;
+  const tenths = Math.round(ms / 100);
+  if (tenths === 0) return "less than 0.1 seconds";
+  if (tenths === 10) return "1 second";
+  return `${(tenths / 10).toFixed(1)} seconds`;
 }

@@ -46,7 +46,7 @@ import { HostBadge } from "../components/HostBadge";
 import { PlayerAvatar } from "../components/PlayerAvatar";
 import type { WebGame } from "../games";
 import { navigate, setNavigationGuard } from "../router";
-import { BottomBar, Panel } from "../Shell";
+import { BottomBar, Panel, useWideShell } from "../Shell";
 import { GameList } from "./GamePicker";
 import { isFull, seatsOf } from "./SessionCards";
 import { SettingsDialog } from "./SettingsDialog";
@@ -308,6 +308,7 @@ export function GameScreen({
     session.phase === "playing" ? session.startsAt : null,
     serverNow,
   );
+  useWideShell(Boolean(game.wide) && session.phase === "playing" && countdown === 0);
   const leaveGame = useCallback(() => send({ type: "game.leave" }), [send]);
   // The host can't leave setup or results (they cancel or move on instead); going to the
   // Lobby just hands host on, as leaving the room always does.
@@ -446,7 +447,7 @@ export function GameScreen({
         />
       )}
 
-      {phase !== "results" && (
+      {phase === "setup" && (
         <Roster
           session={session}
           game={game}

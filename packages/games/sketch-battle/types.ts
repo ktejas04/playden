@@ -69,16 +69,17 @@ export interface RoundRecord {
 }
 
 /**
- * Where the game is. `waiting`: the next round can't start until each team has 2 connected
- * players (SB12). The showdown phases come in task 030.
+ * Where the game is. `result`: the round's outcome, 5 s. `summary`: until every connected
+ * player has tapped Continue, or someone taps Start next round (section 10). The showdown
+ * phases come in task 030.
  */
-export type Phase = "choose" | "countdown" | "drawing" | "result" | "waiting" | "ended";
+export type Phase = "choose" | "countdown" | "drawing" | "result" | "summary" | "ended";
 
 export interface SketchBattleState {
   config: SketchBattleConfig;
   rng: Rng;
   phase: Phase;
-  /** When the current phase ends (server time); null while waiting or ended. */
+  /** When the current phase ends (server time); on the summary, when Start next round opens. */
   phaseEndsAt: number | null;
   /** Each team's drawing order: its setup order. */
   rotations: Pair<string[]>;
@@ -95,6 +96,8 @@ export interface SketchBattleState {
   /** Finished rounds, without strokes. */
   history: RoundRecord[];
   scores: Pair<number>;
+  /** Players who tapped Continue since the round ended. */
+  ready: string[];
   /** Each player's latest guess times, for the 3-in-3-seconds limit. */
   recentGuesses: Record<string, number[]>;
 }
@@ -112,7 +115,9 @@ export type SketchBattleMove =
       end?: true;
     }
   | { type: "clear" }
-  | { type: "guess"; text: string };
+  | { type: "guess"; text: string }
+  | { type: "ready" }
+  | { type: "forceStart" };
 
 /** One team's canvas as a viewer may see it: real strokes, or only the pixel view (D47). */
 export type CanvasView = { kind: "strokes"; ops: CanvasOp[] } | { kind: "cells"; cells: string };
@@ -126,6 +131,8 @@ export interface TeamView {
   canvas: CanvasView;
   /** This team's guesses, when the viewer may see them; null otherwise. */
   guesses: Guess[] | null;
+  /** How many wrong guesses this team made this round; everyone sees it, not the texts. */
+  wrongGuesses: number;
 }
 
 /** What one viewer sees. Built only from what they may know (spec section 15). */
@@ -147,6 +154,8 @@ export interface SketchBattleView {
   lastRound: RoundRecord | null;
   /** Teams that need more connected players before the next round (SB12). */
   waitingFor: TeamIndex[];
+  /** Players who tapped Continue since the round ended. */
+  ready: string[];
 }
 
 /** What changed in one viewer's view (D55); see delta.ts. */

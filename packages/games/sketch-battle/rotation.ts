@@ -16,6 +16,20 @@ export function nextConnected(
   return current;
 }
 
+/**
+ * A team's drawer for the next round (spec section 8): the winning team's drawer stays unless
+ * they're unavailable; every other team moves to its next connected player.
+ */
+export function nextDrawer(
+  rotation: readonly string[],
+  current: string,
+  won: boolean,
+  unavailable: ReadonlySet<string>,
+): string {
+  if (won && !unavailable.has(current)) return current;
+  return nextConnected(rotation, current, unavailable);
+}
+
 /** A team's players who are here: neither away nor departed. */
 export function connectedIn(
   rotation: readonly string[],

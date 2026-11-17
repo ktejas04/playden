@@ -1,6 +1,6 @@
 # Sketch Battle — game spec
 
-Id: `sketch-battle` · Version: v1 · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-13
+Id: `sketch-battle` · Version: v1 · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-17
 
 Two teams race to guess the same word, each from its own drawer's sketch. The mechanics copy drawbattle.io, checked against its game code on 2026-11-13, so the game plays exactly like the original. The name, look, animations, sounds and word list are our own (D17). Where we deliberately differ, section 2 says so and why. Rules marked **(ours)** are ones the original decides on its server, where we can't see them.
 
@@ -26,7 +26,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB2 | Winner's drawer stays, the losing team rotates and its challenger picks the word. Head start `3 + (streak − 2)` s from a streak of 2, no streak points (D15, same as the original) | 2026-11-11 |
 | SB3 | Showdown as the original: 100 per word, +100 for finishing, ends when one team finishes (D16) | 2026-11-11 |
 | SB4 | Copied from the original: the head start is private (only the chooser sees their canvas, nobody guesses until both draw); no opponent canvas in the showdown; a drawer's canvas locks once their team guesses; both drawers see the two word choices; replays are a quick redraw; everyone taps Continue after a round | 2026-11-13 |
-| SB5 | Our timer differences: any player may force the next round after **10 s** and the showdown title card lasts **10 s** (the original uses 11 s for both) | 2026-11-13 |
+| SB5 | Our timer differences: a player who has tapped Continue may force the next round after **10 s** and the showdown title card lasts **10 s** (the original uses 11 s for both) | 2026-11-13 |
 | SB6 | Our fairness differences: guesses are limited to 3 in any 3 s, at most 36 characters, no pasting, all checked on the server (the original checks only in the browser). The opponent's pixel view is built on the server from strokes it never sends (the original sends the full strokes and the word to every browser and hides them there) | 2026-11-13 |
 | SB7 | Our look: the same tools (10 colours, eraser, clear, 4 sizes) in our own shades and styling | 2026-11-13 |
 | SB8 | Platform differences: the host keeps Start, settings and End game (D51); seats belong to accounts, so nobody takes over another player's seat; one word list of our own (~2,500 words); no word packs, streamer mode or player-written words for now | 2026-11-13 |
@@ -34,6 +34,11 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB10 | Strokes and wrong guesses are live moves (D55): kept in memory and sent as small changes. The game is saved when the word is chosen, on each correct guess, at round end, on Continue taps and at every phase change | 2026-11-13 |
 | SB11 | Drawing is sent in 150 ms batches, with pen-down and pen-up sent at once; phones play each batch back smoothly. Teammates and opponents get each batch's update in the same message cycle | 2026-11-13 |
 | SB12 | A team that loses its connected players mid-round doesn't stop the round: it plays on and times out normally. The next round doesn't start until **each team has at least 2 connected players**: until then the result stays up with "Waiting for <team>", and Continue and Start next round are locked for everyone. The host can always End game (answers section 22) | 2026-11-13 |
+| SB13 | Guessing closes the moment the round's time is up or the round has ended: the server refuses any later guess ("The round is over") even before it has processed the deadline, and the guess box locks when the timer reaches 0. Until the drawing stage starts (choose and countdown) the box stays locked | 2026-11-13 |
+| SB14 | Our difference: the "won by" gap shows tenths of a second ("34.7 seconds"), and a whole number when within 0.05 s of one ("10 seconds"); under 0.05 s it's "less than 0.1 seconds". The original shows tenths only under 1 s and rounds everything else up to whole seconds, so a 10.0 s gap read "11 seconds" next to feed times 10.0 s apart | 2026-11-13 |
+| SB15 | Owner's screens (2026-11-16): the result is its own screen, not a canvas overlay: one outcome in one colour (green won, red lost), with Continue to skip ahead to the summary. The summary has no "winner" / "next challenger" labels: the outgoing drawer is struck through and the next one fades in, with the whole team on deck below and a tick by each name that tapped Continue. Both drawers see the two word choices as identical buttons, one per line, so neither reads as suggested; everyone else sees "<name> is choosing a word". Feed lines are one colour each | 2026-11-16 |
+| SB16 | Owner's call (2026-11-17), base game first: winner stays and the challenger choosing ship with the base round (021); streaks and head starts wait for 026. Start next round is only for players who have tapped Continue, so it skips the unready instead of letting an unready player skip everyone. The drawer's mouse pointer is a small black dot; the 10 colours are two rows of 5 on a phone | 2026-11-17 |
+| SB17 | Owner's call (2026-11-17): each team's ✕ / ✓ marks show under its canvas for everyone, the other team included, so you see how close they are; only the count of wrong guesses goes out, never their texts (D47). The marks replace the "Solved" badge. The round summary shows both teams' marks under the drawings. The drawer handoff on the summary is unhurried: a beat, the strike draws across, a pause, then the next drawer eases in | 2026-11-17 |
 
 ## 3. Terms
 
@@ -68,8 +73,8 @@ The platform's setup screen (D51) runs this:
 | 3 | Head start | `h` s, only if `h > 0` | Only the chooser draws, and only the chooser sees that canvas. Everyone else, including the chooser's teammates, sees "<name>'s head start" with a countdown. Nobody can guess |
 | 4 | Drawing | round length | Both drawers draw, guessers guess. The deadline is round length after the head start ends, so the chooser draws round length + `h` in total |
 | 5 | Round end | — | When the deadline passes, or the moment both teams have guessed |
-| 6 | Result | 5 s | Overlay on each canvas: "you won by 2.4 seconds! +200 points" / "you lost by 6 seconds! +100 points" / "time's up! the word was …" |
-| 7 | Summary | until ready | Section 10. The next round starts when every connected player has tapped Continue, or when any player taps Start next round, available after 10 s |
+| 6 | Result | 5 s | Its own screen (SB15): "You win! +200 points" / "You lost by 6 seconds +100 points" / "Time's up! The word was …". Continue skips ahead to the summary; Continue taps there count from now |
+| 7 | Summary | until ready | Section 10. The next round starts when every connected player has tapped Continue, or when a ready player taps Start next round, available after 10 s (SB16) |
 
 After the last round, the showdown begins (section 9).
 
@@ -94,7 +99,7 @@ After the last round, the showdown begins (section 9).
 
 **Rules**
 
-- Only guessers can guess, and only during the drawing stage (not during the choose, countdown or head start stages).
+- Only guessers can guess, and only during the drawing stage (not during the choose, countdown or head start stages). Guessing closes the moment the round's time is up or the round has ended, even before the room has processed the deadline; the guess box locks when the timer reaches 0 (SB13).
 - Once a team has guessed, its guess box locks ("You got it!"). One correct guess per team is enough.
 - Your team's guesses show to your team and to spectators. Once your team has guessed, you also see the other team's guesses and its real canvas.
 - Each guess in the feed shows how long after that team's drawing started it came ("+12.3 s").
@@ -109,11 +114,11 @@ After the last round, the showdown begins (section 9).
 | Only one guesses | 200 | 0 |
 | Nobody guesses | 0 | 0 |
 
-The result's "won by" gap is the time between the two teams' correct guesses. Under 1 s it shows one decimal ("0.4 seconds"); otherwise it rounds up to whole seconds.
+The result's "won by" gap is the time between the two teams' correct guesses, to the nearest tenth of a second ("34.7 seconds", "0.4 seconds"). Within 0.05 s of a whole number it shows the whole number ("10 seconds", "1 second"); under 0.05 s it says "less than 0.1 seconds" (SB14).
 
 **Worked examples**
 
-1. Team A guesses at 12.3 s, team B at 47.0 s → A 200, B 100. A "won by 35 seconds".
+1. Team A guesses at 12.3 s, team B at 47.0 s → A 200, B 100. A "won by 34.7 seconds".
 2. Team A guesses at 20 s, team B never does → A 200, B 0. B sees "time's up! the word was …".
 3. Nobody guesses → 0 and 0. Both teams rotate drawers and a random team chooses next.
 4. Showdown with 15 words: A finishes all 15 while B has finished 9 → A 15 × 100 + 100 = **1600**, B 9 × 100 = **900**. B's half-drawn 10th word doesn't count.
@@ -165,7 +170,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 - On deck for each team.
 - **Replays:** both canvases from this round with a Replay button that quickly redraws the strokes in order, plus each team's guess log with times.
 - **Continue:** every player taps it and a tick appears next to their name. The next round starts when every connected player has ticked; away players aren't waited for.
-- **Start next round:** after 10 s, every player gets this button, so one inattentive person (host included) can't hold the room up. Spectators get neither button.
+- **Start next round:** after 10 s, every player who has tapped Continue gets this button, so one inattentive person (host included) can't hold the room up. Players who haven't tapped see only Continue (SB16). Spectators get neither button.
 - **Both teams need 2 connected players (SB12):** until each team has at least 2 connected players, Continue and Start next round are locked for everyone and the screen says who it's waiting for.
 
 ## 11. Results
@@ -454,13 +459,16 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 - team that never guesses scores 0
 - nobody guessing scores 0 for both
 - same-millisecond guesses go to the first processed
-- the won-by gap shows one decimal under a second and whole seconds rounded up otherwise
+- the won-by gap shows tenths of a second, and a whole number when within 0.05 s of one
+- the won-by gap calls under 0.05 s less than a tenth, never 0 seconds
 
 **Guessing**
 
 - guess matching ignores case, accents, spaces and punctuation
 - drawers and spectators can't guess
 - guesses are refused outside the drawing stage
+- guesses are refused the moment the round's time is up, before the deadline is processed
+- guesses are refused once the round has ended
 - a team can't guess again after guessing
 - a 4th guess within 3 s is refused
 - guesses over 36 characters are refused
@@ -499,7 +507,8 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 
 - the next round starts when every connected player is ready
 - away players aren't waited for
-- any player can force the next round after 10 s and not before
+- a ready player can force the next round after 10 s and not before
+- a player who hasn't tapped Continue can't force the next round
 - spectators can't ready up or force the next round
 
 **Showdown**
@@ -544,24 +553,24 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 **Platform first** (needed by every fast-moving game; Tap Race benefits too)
 
-- [ ] **019b — Live moves and lean saves (D55).** The room keeps the table in memory; live transitions update memory and send `delta`s without saving; every other change saves once; the alarm is booked only when its time changes; a game may set its own move limit; contract kit checks that live moves never change the deadline.
-- [ ] **019c — Presence for games (D56).** The room calls `onPresence` when a player drops or returns mid-game.
+- [x] **019b — Live moves and lean saves (D55).** The room keeps the table in memory; live transitions update memory and send `delta`s without saving; every other change saves once; the alarm is booked only when its time changes; a game may set its own move limit; contract kit checks that live moves never change the deadline.
+- [x] **019c — Presence for games (D56).** The room calls `onPresence` when a player drops or returns mid-game.
 - [x] **019d — Game records in D1 (D58).** Rooms, games and participants are recorded in D1. Sketch Battle's `recordSummary(state)` comes with its engine: the rounds part in 021 (each round's word, drawers, winner and gap), the showdown result in 030 and highlights in 032.
 
 **4.1 Core round** — two teams play rounds end to end
 
 - [ ] **020 — Mockups:** setup, choose, drawer, guesser, head start, round result, opponent strip; the 10-colour palette and team colours.
-- [ ] **021 — Engine: round flow, guessing, scoring.** Choose → countdown → drawing → result → next round, simple rotation, live draw and guess moves, `delta`, the next round waiting for 2 connected per team (SB12), `recordSummary` for the rounds.
-- [ ] **022 — Word list.** Move `sketch-battle-words.txt` into `words/english.ts` with tests.
-- [ ] **023 — Canvas and stroke sending.** Pointer input, batching, pen-down/up at once, playback smoothing, tools.
-- [ ] **024 — Opponent pixel view.** 24 × 16 cells on the server, sent with every batch.
-- [ ] **025 — Round screens wired to the room.** S2, S3, S5–S7, blanks, guess box rules, feed with times.
+- [x] **021 — Engine: round flow, guessing, scoring.** Choose → countdown → drawing → result → next round, winner stays and the challenger chooses (SB16), live draw and guess moves, `delta`, the next round waiting for 2 connected per team (SB12), `recordSummary` for the rounds.
+- [x] **022 — Word list.** Move `sketch-battle-words.txt` into `words/english.ts` with tests.
+- [x] **023 — Canvas and stroke sending.** Pointer input, batching, pen-down/up at once, playback smoothing, tools.
+- [x] **024 — Opponent pixel view.** 24 × 16 cells on the server, sent with every batch.
+- [x] **025 — Round screens wired to the room.** S2, S3, S5–S7, blanks, guess box rules, feed with times.
 
 **4.2 Full match** — a 15-round match plays like the original
 
-- [ ] **026 — Engine: winner stays, streaks, head starts** (private head start).
+- [ ] **026 — Engine: streaks and head starts** (private head start). Winner stays moved to 021 (SB16).
 - [ ] **027 — Head start stage and matchup badges.**
-- [ ] **028 — Round summary, replays, Continue and Start next round.**
+- [x] **028 — Round summary, replays, Continue and Start next round.**
 - [ ] **029 — Disconnect rules and the spectator view** (SB12 answers section 22).
 
 **4.3 Showdown** — the complete game

@@ -10,6 +10,8 @@ export interface WebGame {
   View: ComponentType<GameViewProps<unknown, unknown>>;
   /** The game's own settings view, if it has settings the host can change. */
   Settings?: ComponentType<GameSettingsProps<unknown>>;
+  /** The board needs the desktop's width while playing, e.g. a big canvas beside a feed. */
+  wide?: boolean;
 }
 
 /**
@@ -34,7 +36,7 @@ function webGame<S, M, V, C>(
  * apps/server/src/games.ts. Removing one: delete its folder and both lines.
  */
 export const GAMES: readonly WebGame[] = [
-  webGame(sketchBattle, SketchBattleScreen),
+  { ...webGame(sketchBattle, SketchBattleScreen), wide: true },
   webGame(tapRace, TapRaceScreen, TapRaceSettings),
 ];
 

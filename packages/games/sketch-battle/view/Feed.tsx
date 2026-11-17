@@ -1,16 +1,42 @@
 import { cn } from "@playden/ui/lib/utils";
 import type { Pending } from "@playden/ui/lib/pending";
-import { CheckIcon } from "lucide-react";
 import type { Guess, TeamView } from "../types";
 
-/** "+12.3 s": how long after this team's drawing started the guess came. */
-export function sinceStart(at: number, drawFrom: number | null): string {
-  return `+${(Math.max(0, at - (drawFrom ?? at)) / 1000).toFixed(1)} s`;
+/** Row of mini attempt marks under the canvas: ✓ (green) and ✕ (red). */
+export function AttemptTracker({ team, className }: { team: TeamView; className?: string }) {
+  // From the counts, not the guesses: the other team's texts are hidden, their marks are not.
+  const marks = [
+    ...Array.from({ length: team.wrongGuesses }, () => false),
+    ...(team.solvedAt !== null ? [true] : []),
+  ];
+  if (marks.length === 0) return null;
+  return (
+    <div
+      className={cn("flex flex-wrap items-center gap-1.5 py-1 text-sm font-bold", className)}
+      aria-label="Guess attempts"
+    >
+      {marks.map((correct, i) =>
+        correct ? (
+          <span key={i} className="text-emerald-600 dark:text-emerald-400">
+            ✓
+          </span>
+        ) : (
+          <span key={i} className="text-rose-600 dark:text-rose-400">
+            ✕
+          </span>
+        ),
+      )}
+    </div>
+  );
 }
 
 /**
- * A team's guesses, newest first, each with its time since the team's drawing started. Your
- * own guesses show faded until the server confirms them.
+ * A team's guess feed, newest guess first. Each line is one colour: a right guess all green, a
+ * wrong one all red, a guess still on its way all muted.
+ * - ✓ <name> guessed <word>
+ * - ✕ <name> guessed <word>
+ * - ! <name> is guessing
+ * - ✏ <name> is drawing
  */
 export function Feed({
   team,
@@ -24,46 +50,53 @@ export function Feed({
   className?: string;
 }) {
   const nameOf = (id: string) => team.players.find((p) => p.id === id)?.name ?? "Someone";
+  const drawer = team.players.find((p) => p.id === team.drawerId);
+  const guessers = team.players.filter((p) => p.id !== team.drawerId);
   const guesses: Guess[] = [...(team.guesses ?? [])].reverse();
-  if (guesses.length === 0 && pending.length === 0) {
-    return (
-      <p className={cn("px-1 py-2 text-sm text-muted-foreground", className)}>No guesses yet</p>
-    );
-  }
+
   return (
-    <ul
-      className={cn("flex max-h-48 flex-col divide-y overflow-y-auto", className)}
-      data-tour="team-feed"
-    >
+    <div className={cn("flex flex-col gap-1 text-sm font-medium", className)} data-tour="team-feed">
+      {/* Pending guesses */}
       {[...pending].reverse().map((p) => (
-        <li key={`p${p.id}`} className="flex items-baseline gap-2 py-1.5 opacity-50">
-          <span className="shrink-0 text-sm font-semibold">{myName ?? "You"}</span>
-          <span className="min-w-0 flex-1 truncate">{p.item}</span>
-        </li>
+        <div key={`p${p.id}`} className="flex items-center gap-2 text-muted-foreground opacity-60">
+          <span className="font-bold">·</span>
+          <span>
+            {myName ?? "You"} guessed <span className="font-semibold">{p.item}</span>
+          </span>
+        </div>
       ))}
+
+      {/* Confirmed guesses (newest on top) */}
       {guesses.map((guess, i) => (
-        <li
+        <div
           key={`${guess.by}-${guess.at}-${i}`}
           className={cn(
-            "flex items-baseline gap-2 py-1.5 duration-200 animate-in fade-in-0",
-            guess.correct && "font-semibold text-success",
+            "flex items-center gap-2 duration-150 animate-in fade-in-0",
+            guess.correct
+              ? "font-semibold text-emerald-600 dark:text-emerald-400"
+              : "text-rose-600 dark:text-rose-400",
           )}
         >
-          <span className="shrink-0 text-sm font-semibold">{nameOf(guess.by)}</span>
-          <span className="min-w-0 flex-1 truncate">
-            {guess.correct ? (
-              <span className="inline-flex items-center gap-1">
-                <CheckIcon className="size-4" /> got it!
-              </span>
-            ) : (
-              guess.text
-            )}
+          <span className="font-bold">{guess.correct ? "✓" : "✕"}</span>
+          <span>
+            {nameOf(guess.by)} guessed <span className="font-semibold">{guess.text}</span>
           </span>
-          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-            {sinceStart(guess.at, team.drawFrom)}
-          </span>
-        </li>
+        </div>
       ))}
-    </ul>
+
+      {/* Active role status indicators */}
+      {guessers.map((g) => (
+        <div key={`guess-${g.id}`} className="flex items-center gap-2 text-muted-foreground">
+          <span className="font-bold">!</span>
+          <span>{g.name} is guessing</span>
+        </div>
+      ))}
+      {drawer && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <span>✏</span>
+          <span>{drawer.name} is drawing</span>
+        </div>
+      )}
+    </div>
   );
 }

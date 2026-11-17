@@ -6,8 +6,17 @@ import { type Point, drawOps, farEnough, toCanvasPoint } from "./strokes";
 import { usePlayback } from "./usePlayback";
 import { useStrokeSender } from "./useStrokeSender";
 
+/**
+ * The drawer's mouse pointer: a small black dot, centred on the pen tip. The system crosshair
+ * draws white on Windows and vanishes on the paper. A thin white edge keeps it visible over
+ * black ink.
+ */
+const PEN_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12"><circle cx="6" cy="6" r="3.5" fill="#000" stroke="#fff" stroke-width="1.5"/></svg>',
+)}") 6 6, crosshair`;
+
 /** Canvas pixels at the screen's density, so lines stay sharp on phones. */
-function useCanvasSize(box: React.RefObject<HTMLDivElement | null>) {
+export function useCanvasSize(box: React.RefObject<HTMLDivElement | null>) {
   const [width, setWidth] = useState(0);
   useEffect(() => {
     const el = box.current;
@@ -21,7 +30,7 @@ function useCanvasSize(box: React.RefObject<HTMLDivElement | null>) {
   return width;
 }
 
-function prepare(canvas: HTMLCanvasElement | null, width: number) {
+export function prepare(canvas: HTMLCanvasElement | null, width: number) {
   if (!canvas || width === 0) return;
   const ratio = window.devicePixelRatio || 1;
   const height = (width * 2) / 3;
@@ -161,7 +170,8 @@ export function Canvas({
       <canvas
         ref={overlay}
         aria-hidden
-        className={cn("absolute inset-0 size-full", tools && "cursor-crosshair touch-none")}
+        className={cn("absolute inset-0 size-full", tools && "touch-none")}
+        style={tools ? { cursor: PEN_CURSOR } : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

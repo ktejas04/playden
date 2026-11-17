@@ -1,7 +1,7 @@
 import { cn } from "@playden/ui/lib/utils";
 import { TimerIcon } from "lucide-react";
 import type { SketchBattleView } from "../types";
-import { TEAM_ACCENT, TEAM_NAME } from "./palette";
+import { TEAM_ACCENT } from "./palette";
 
 /** The word as blank slots: one per letter or digit, gaps for spaces, punctuation as is. */
 export function Blanks({ blanks }: { blanks: string }) {
@@ -32,58 +32,57 @@ export function Blanks({ blanks }: { blanks: string }) {
 export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: number | null }) {
   const guessing = view.phase === "drawing" || view.phase === "countdown";
   const urgent = view.phase === "drawing" && seconds !== null && seconds <= 5;
+  const myTeam = view.me.team ?? 0;
+  const isSolved = view.teams[myTeam]?.solvedAt !== null;
+  const drawer0 =
+    view.teams[0].players.find((p) => p.id === view.teams[0].drawerId)?.name ?? "Drawer 1";
+  const drawer1 =
+    view.teams[1].players.find((p) => p.id === view.teams[1].drawerId)?.name ?? "Drawer 2";
+
   return (
-    <div className="flex flex-col gap-3" data-tour="timer">
-      <div className="flex items-center justify-between gap-3 text-sm font-medium text-muted-foreground">
-        <span>
-          Round {view.roundNumber} of {view.rounds}
+    <div className="flex items-center justify-between gap-2 sm:gap-4 py-1" data-tour="timer">
+      <div className="min-w-0">
+        {view.word ? (
+          <p
+            className={cn(
+              "truncate font-heading text-xl sm:text-2xl font-bold tracking-tight",
+              isSolved && "text-success",
+            )}
+          >
+            {view.word}
+          </p>
+        ) : view.blanks ? (
+          <Blanks blanks={view.blanks} />
+        ) : view.phase === "drawing" ? (
+          <span
+            className="inline-block h-6 w-28 border-b-[3px] border-foreground/70"
+            aria-label="Hidden word"
+          />
+        ) : null}
+      </div>
+
+      {/* Active Drawers Face-off */}
+      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-muted/60 px-2.5 py-1 text-xs font-semibold text-muted-foreground sm:text-sm">
+        <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[0] }}>
+          <span>✏</span> {drawer0}
         </span>
-        <span className="flex items-center gap-2 font-heading text-base font-bold text-foreground tabular-nums">
-          {view.teams.map((team, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              <span
-                className="size-2.5 rounded-full"
-                style={{ background: TEAM_ACCENT[i] }}
-                aria-hidden
-              />
-              <span className="sr-only">{TEAM_NAME[i]}</span>
-              <span
-                key={team.score}
-                className="duration-300 animate-in fade-in-0 slide-in-from-bottom-1"
-              >
-                {team.score}
-              </span>
-            </span>
-          ))}
+        <span className="font-normal text-muted-foreground/60">vs</span>
+        <span className="flex items-center gap-1" style={{ color: TEAM_ACCENT[1] }}>
+          <span>✏</span> {drawer1}
         </span>
       </div>
-      {guessing && (
-        <div className="flex min-h-10 items-center justify-between gap-3">
-          <div className="min-w-0">
-            {view.word ? (
-              <p className="truncate font-heading text-2xl font-bold tracking-tight">{view.word}</p>
-            ) : view.blanks ? (
-              <Blanks blanks={view.blanks} />
-            ) : view.phase === "drawing" ? (
-              <span
-                className="inline-block h-6 w-28 border-b-[3px] border-foreground/70"
-                aria-label="Hidden word"
-              />
-            ) : null}
-          </div>
-          {view.phase === "drawing" && seconds !== null && (
-            <span
-              className={cn(
-                "flex shrink-0 items-center gap-1 rounded-full bg-muted px-3 py-1 font-heading text-lg font-bold tabular-nums transition-colors duration-300",
-                urgent && "bg-destructive text-white",
-              )}
-              aria-label={`${seconds} seconds left`}
-            >
-              <TimerIcon className="size-4" />
-              {seconds}
-            </span>
+
+      {guessing && seconds !== null && (
+        <span
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded-full bg-muted px-3 py-1 font-heading text-base sm:text-lg font-bold tabular-nums transition-colors duration-300",
+            urgent && "bg-destructive text-white",
           )}
-        </div>
+          aria-label={`${seconds} seconds left`}
+        >
+          <TimerIcon className="size-4" />
+          {seconds}
+        </span>
       )}
     </div>
   );

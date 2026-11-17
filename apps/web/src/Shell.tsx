@@ -1,7 +1,7 @@
 import { Button } from "@playden/ui/components/button";
 import { ThemeToggle } from "@playden/ui/components/theme-toggle";
 import { ChevronLeftIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { navigate } from "./router";
 
 interface ShellProps {
@@ -15,6 +15,17 @@ interface ShellProps {
   headerRight?: ReactNode;
 }
 
+const WideContext = createContext<(wide: boolean) => void>(() => {});
+
+/** Widens the page while `on`, for a game board that needs the desktop's width. */
+export function useWideShell(on: boolean) {
+  const setWide = useContext(WideContext);
+  useEffect(() => {
+    setWide(on);
+    return () => setWide(false);
+  }, [on, setWide]);
+}
+
 export function Wordmark() {
   return (
     <span className="flex items-center gap-1">
@@ -25,37 +36,43 @@ export function Wordmark() {
 }
 
 export function Shell({ children, header = "logo", headerRight }: ShellProps) {
+  const [wide, setWide] = useState(false);
+  const containerClass = wide ? "max-w-5xl" : "max-w-xl";
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-        <div className="mx-auto flex h-16 w-full max-w-xl items-center gap-1 px-3">
-          {header === "plain" ? (
-            <span className="flex h-11 items-center px-1.5">
-              <Wordmark />
-            </span>
-          ) : header === "back" ? (
-            <Button
-              variant="ghost"
-              className="h-11 gap-1 pr-3 pl-1.5 text-base"
-              onClick={() => navigate("/")}
-            >
-              <ChevronLeftIcon className="size-5" />
-              Lobby
-            </Button>
-          ) : (
-            <a
-              href="/"
-              data-slot="logo"
-              className="flex h-11 items-center rounded-xl px-1.5 transition-opacity hover:opacity-80"
-            >
-              <Wordmark />
-            </a>
-          )}
-          <div className="ml-auto flex items-center">{headerRight ?? <ThemeToggle />}</div>
-        </div>
-      </header>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 sm:px-5">{children}</main>
-    </div>
+    <WideContext.Provider value={setWide}>
+      <div className="flex min-h-dvh flex-col">
+        <header className="sticky top-0 z-20 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+          <div className={`mx-auto flex h-16 w-full ${containerClass} items-center gap-1 px-3`}>
+            {header === "plain" ? (
+              <span className="flex h-11 items-center px-1.5">
+                <Wordmark />
+              </span>
+            ) : header === "back" ? (
+              <Button
+                variant="ghost"
+                className="h-11 gap-1 pr-3 pl-1.5 text-base"
+                onClick={() => navigate("/")}
+              >
+                <ChevronLeftIcon className="size-5" />
+                Lobby
+              </Button>
+            ) : (
+              <a
+                href="/"
+                data-slot="logo"
+                className="flex h-11 items-center rounded-xl px-1.5 transition-opacity hover:opacity-80"
+              >
+                <Wordmark />
+              </a>
+            )}
+            <div className="ml-auto flex items-center">{headerRight ?? <ThemeToggle />}</div>
+          </div>
+        </header>
+        <main className={`mx-auto flex w-full ${containerClass} flex-1 flex-col px-4 sm:px-5`}>
+          {children}
+        </main>
+      </div>
+    </WideContext.Provider>
   );
 }
 
@@ -85,8 +102,8 @@ export function Panel({ children, className = "" }: { children: ReactNode; class
 
 export function BottomBar({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-10 mt-auto flex gap-2 bg-gradient-to-t from-background from-65% to-transparent pt-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      {children}
+    <div className="sticky bottom-0 z-10 mt-auto bg-gradient-to-t from-background from-65% to-transparent pt-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto flex w-full max-w-md gap-2">{children}</div>
     </div>
   );
 }

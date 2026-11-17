@@ -1,6 +1,6 @@
 import { Button } from "@playden/ui/components/button";
 import { Input } from "@playden/ui/components/input";
-import { CheckIcon, SendHorizontalIcon } from "lucide-react";
+import { SendHorizontalIcon } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { GUESS_WINDOW_MS, MAX_GUESS_LENGTH } from "../config";
 import { guessProblem, rememberGuess, tooManyGuesses } from "../guess";
@@ -12,11 +12,14 @@ import { guessProblem, rememberGuess, tooManyGuesses } from "../guess";
  */
 export function GuessBox({
   open,
+  closedHint,
   solved,
   now,
   onGuess,
 }: {
   open: boolean;
+  /** What the box says while it's locked, e.g. before the drawing starts or once time is up. */
+  closedHint: string;
   solved: boolean;
   now: () => number;
   onGuess: (text: string) => void;
@@ -36,16 +39,9 @@ export function GuessBox({
     return () => clearTimeout(timer);
   }, [waiting, recent, now]);
 
-  if (solved) {
-    return (
-      <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-success/15 font-heading text-lg font-bold text-success duration-300 animate-in fade-in-0 zoom-in-95">
-        <CheckIcon className="size-5" /> You got it!
-      </p>
-    );
-  }
-
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!open || solved) return;
     const issue = guessProblem(text);
     if (issue) return setProblem(issue);
     if (tooManyGuesses(recent, now())) return setProblem("Slow down");
@@ -63,8 +59,14 @@ export function GuessBox({
           ref={input}
           value={text}
           maxLength={MAX_GUESS_LENGTH}
-          disabled={!open}
-          placeholder={open ? "Type your guess" : "Get ready to guess"}
+          disabled={!open || solved}
+          placeholder={
+            solved
+              ? "You got it! Waiting for other team..."
+              : open
+                ? "Type your guess..."
+                : closedHint
+          }
           aria-label="Your guess"
           autoComplete="off"
           autoCorrect="off"
@@ -81,7 +83,7 @@ export function GuessBox({
           size="icon-lg"
           className="size-12"
           aria-label="Send guess"
-          disabled={!open || waiting || text.trim().length === 0}
+          disabled={!open || solved || waiting || text.trim().length === 0}
         >
           <SendHorizontalIcon className="size-5" />
         </Button>

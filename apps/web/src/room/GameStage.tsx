@@ -23,7 +23,9 @@ export function GameStage({
   const { View } = game;
   if (view === null) return null;
   return (
-    <Panel className="mt-4">
+    // Room below the card, so the last thing in a game (a drawing, a list) never meets the
+    // bottom edge of a phone screen.
+    <Panel className="mt-4 mb-[max(2rem,env(safe-area-inset-bottom))]">
       <View view={view} me={me} sendMove={sendMove} serverNow={serverNow} />
     </Panel>
   );

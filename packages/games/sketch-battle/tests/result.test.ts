@@ -14,9 +14,9 @@ const record = (fields: Partial<RoundRecord>): RoundRecord => ({
 });
 
 describe("the round result overlay (S7)", () => {
-  it("the first team won by the gap, +200", () => {
+  it("the first team won, +200", () => {
     expect(resultText(record({}), 0)).toEqual({
-      title: "You won by 35 seconds!",
+      title: "You win!",
       detail: "+200 points",
       tone: "won",
     });
@@ -30,9 +30,9 @@ describe("the round result overlay (S7)", () => {
     });
   });
 
-  it("only one team guessed: the winner got it first, the other team hears the word", () => {
+  it("only one team guessed: the winner got it, the other team hears the word", () => {
     const one = record({ solvedAt: [5_000, null], points: [200, 0] });
-    expect(resultText(one, 0)).toMatchObject({ title: "You got it first!", detail: "+200 points" });
+    expect(resultText(one, 0)).toEqual({ title: "You win!", detail: "+200 points", tone: "won" });
     expect(resultText(one, 1)).toEqual({
       title: "Time's up!",
       detail: "The word was pot of gold",
@@ -52,7 +52,7 @@ describe("the round result overlay (S7)", () => {
 
   it("spectators hear which team won and the word", () => {
     expect(resultText(record({}), null)).toEqual({
-      title: "Team 1 won by 35 seconds",
+      title: "Team 1 won",
       detail: "The word was pot of gold",
       tone: "neutral",
     });

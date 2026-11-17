@@ -28,7 +28,8 @@ export function PixelView({ cells, className }: { cells: string; className?: str
       height={PREVIEW_ROWS}
       role="img"
       aria-label="The other team's drawing, as blocks"
-      className={cn("aspect-[3/2] w-full rounded-lg border [image-rendering:pixelated]", className)}
+      style={{ imageRendering: "pixelated" }}
+      className={cn("aspect-[3/2] w-full rounded-lg border border-border shadow-xs", className)}
     />
   );
 }

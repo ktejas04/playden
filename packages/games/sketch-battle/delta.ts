@@ -68,7 +68,14 @@ function guessesDelta(before: Guess[] | null, after: Guess[] | null): TeamDelta[
 function teamDelta(before: TeamView, after: TeamView): TeamDelta | null {
   const delta: TeamDelta = {};
   const set: NonNullable<TeamDelta["set"]> = {};
-  for (const key of ["players", "score", "drawerId", "drawFrom", "solvedAt"] as const) {
+  for (const key of [
+    "players",
+    "score",
+    "drawerId",
+    "drawFrom",
+    "solvedAt",
+    "wrongGuesses",
+  ] as const) {
     if (!same(before[key], after[key])) Object.assign(set, { [key]: after[key] });
   }
   if (Object.keys(set).length > 0) delta.set = set;

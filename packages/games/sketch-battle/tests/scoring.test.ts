@@ -23,11 +23,19 @@ describe("the won-by gap", () => {
     expect(gapMs([12_300, null], [0, 0])).toBeNull();
   });
 
-  it("shows one decimal under a second and whole seconds rounded up otherwise", () => {
+  it("rounds up to whole seconds when >= 1s, and tenths when < 1s", () => {
     expect(formatGap(400)).toBe("0.4 seconds");
-    expect(formatGap(40)).toBe("0.1 seconds");
-    expect(formatGap(999)).toBe("1 second");
-    expect(formatGap(1_000)).toBe("1 second");
     expect(formatGap(34_700)).toBe("35 seconds");
+    expect(formatGap(10_060)).toBe("11 seconds");
+    expect(formatGap(10_000)).toBe("10 seconds");
+    expect(formatGap(950)).toBe("1 second");
+    expect(formatGap(1_000)).toBe("1 second");
+    expect(formatGap(1_040)).toBe("2 seconds");
+  });
+
+  it("calls a gap under 0.05 s less than a tenth, never 0 seconds", () => {
+    expect(formatGap(49)).toBe("less than 0.1 seconds");
+    expect(formatGap(0)).toBe("less than 0.1 seconds");
+    expect(formatGap(50)).toBe("0.1 seconds");
   });
 });

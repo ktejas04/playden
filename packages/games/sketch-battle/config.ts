@@ -8,7 +8,7 @@ export const TEAM_COUNT = 2;
 export const ROUND_OPTIONS = [10, 15, 20, 25] as const;
 export const DEFAULT_ROUNDS = 15;
 export const ROUND_SECONDS_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120] as const;
-export const DEFAULT_ROUND_SECONDS = 60;
+export const DEFAULT_ROUND_SECONDS = 45;
 export const DEFAULT_SHOW_WORD_LENGTHS = true;
 
 export const WORD_CHOICES = 2;

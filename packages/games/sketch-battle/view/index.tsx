@@ -2,7 +2,6 @@ import type { GameViewProps } from "@playden/engine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@playden/ui/components/tabs";
 import { type Pending, addPending, settlePending } from "@playden/ui/lib/pending";
 import { useCallback, useState } from "react";
-import { CHOOSE_SECONDS } from "../config";
 import type {
   DrawStart,
   Guess,
@@ -12,16 +11,16 @@ import type {
   TeamView,
 } from "../types";
 import { Canvas } from "./Canvas";
-import { ChooseStage } from "./ChooseStage";
-import { Feed } from "./Feed";
+import { AttemptTracker, Feed } from "./Feed";
 import { GuessBox } from "./GuessBox";
+import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
-import { CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
+import { ChooseOverlay, CountdownOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { resultText } from "./result";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
-import { secondsLeft, useNow } from "./useNow";
+import { phaseLength, secondsLeft } from "./timer";
+import { useNow } from "./useNow";
 
 /** How long a guess shows faded before we give up on hearing it back. */
 const PENDING_TIMEOUT_MS = 5_000;
@@ -31,41 +30,63 @@ type Props = GameViewProps<SketchBattleView, SketchBattleMove>;
 
 const otherTeam = (team: TeamIndex): TeamIndex => (team === 0 ? 1 : 0);
 
-function waitingNote(view: SketchBattleView): string {
-  const names = view.waitingFor.map((t) => TEAM_NAME[t]).join(" and ");
-  return `Waiting for ${names}: each team needs 2 players here to start the next round`;
-}
-
-/** What goes over a team's canvas right now: the 3-2-1, the result, or a wait. */
+/** What goes over a team's canvas right now: choose words, 3-2-1, or a team's win. */
 function CanvasOverlay({
   view,
+  team,
   viewerTeam,
   seconds,
+  sendMove,
 }: {
   view: SketchBattleView;
+  team: TeamIndex;
   viewerTeam: TeamIndex | null;
   seconds: number | null;
+  sendMove?: (move: SketchBattleMove) => void;
 }) {
+  if (view.phase === "choose" && sendMove) {
+    return <ChooseOverlay view={view} seconds={seconds} sendMove={sendMove} />;
+  }
   if (view.phase === "countdown" && seconds !== null) return <CountdownOverlay seconds={seconds} />;
-  if (view.phase === "waiting") return <NoteOverlay>{waitingNote(view)}</NoteOverlay>;
-  if (view.phase === "result" && view.lastRound) {
-    return <ResultOverlay {...resultText(view.lastRound, viewerTeam)} />;
+  if (view.phase === "drawing") {
+    if (viewerTeam !== null && viewerTeam === team) {
+      const mine = view.teams[viewerTeam];
+      if (mine.solvedAt !== null) {
+        const other = viewerTeam === 0 ? 1 : 0;
+        return (
+          <ResultOverlay
+            title="you win!"
+            detail={`waiting for ${TEAM_NAME[other].toLowerCase()}...`}
+            tone="won"
+            showTrophy
+          />
+        );
+      }
+    } else if (viewerTeam === null) {
+      // Spectator view
+      const target = view.teams[team];
+      if (target.solvedAt !== null) {
+        const other = team === 0 ? 1 : 0;
+        return (
+          <ResultOverlay
+            title={`${TEAM_NAME[team]} got it!`}
+            detail={`waiting for ${TEAM_NAME[other].toLowerCase()}...`}
+            tone="won"
+            showTrophy
+          />
+        );
+      }
+    }
   }
   return null;
 }
 
-/** The canvas border: the team's colour, or green or red at the round result. */
+/** The canvas border: neutral, turning green once the team guesses. */
 function borderFor(view: SketchBattleView, team: TeamIndex, viewerTeam: TeamIndex | null): string {
-  if (
-    (view.phase === "result" || view.phase === "waiting") &&
-    view.lastRound &&
-    viewerTeam === team
-  ) {
-    const { tone } = resultText(view.lastRound, viewerTeam);
-    if (tone === "won") return "var(--success)";
-    if (tone === "lost") return "var(--destructive)";
+  if (view.teams[team].solvedAt !== null && (viewerTeam === null || viewerTeam === team)) {
+    return "var(--success)";
   }
-  return TEAM_ACCENT[team];
+  return "var(--border)";
 }
 
 /** A short ring that pulses once on the canvas when the team gets the word. */
@@ -86,12 +107,14 @@ function TeamCanvas({
   viewerTeam,
   seconds,
   tools,
+  sendMove,
 }: {
   view: SketchBattleView;
   team: TeamIndex;
   viewerTeam: TeamIndex | null;
   seconds: number | null;
   tools?: React.ComponentProps<typeof Canvas>["tools"];
+  sendMove?: (move: SketchBattleMove) => void;
 }) {
   const side: TeamView = view.teams[team];
   const ops = side.canvas.kind === "strokes" ? side.canvas.ops : [];
@@ -104,12 +127,18 @@ function TeamCanvas({
       className="transition-[border-color] duration-300"
     >
       <SolvedPulse solvedAt={side.solvedAt} />
-      <CanvasOverlay view={view} viewerTeam={viewerTeam} seconds={seconds} />
+      <CanvasOverlay
+        view={view}
+        team={team}
+        viewerTeam={viewerTeam}
+        seconds={seconds}
+        sendMove={sendMove}
+      />
     </Canvas>
   );
 }
 
-/** A player's round: their team's canvas, their tools or guess box, their feed, the other team. */
+/** A player's round: their team's canvas, their tools or guess box, their feed, and opponent box. */
 function PlayerBoard({
   view,
   me,
@@ -124,6 +153,8 @@ function PlayerBoard({
   const [pending, setPending] = useState<Pending<string>[]>([]);
   const isDrawer = view.me.role === "drawer";
   const drawing = view.phase === "drawing";
+  /** The local timer hasn't hit 0: guessing closes then, without waiting for the round end. */
+  const timeLeft = seconds === null || seconds > 0;
   const canDraw =
     isDrawer && drawing && mine.solvedAt === null && now >= (mine.drawFrom ?? Infinity);
   const myName = mine.players.find((p) => p.id === me)?.name;
@@ -147,54 +178,69 @@ function PlayerBoard({
   );
 
   return (
-    <div className="flex flex-col gap-3">
-      <TeamCanvas
-        view={view}
-        team={team}
-        viewerTeam={team}
-        seconds={seconds}
-        tools={canDraw ? { start: tool, sendMove, serverNow } : null}
-      />
-      {isDrawer ? (
-        drawing && mine.solvedAt === null ? (
-          <Toolbar tool={tool} onChange={setTool} onClear={() => sendMove({ type: "clear" })} />
-        ) : drawing ? (
-          <p className="rounded-xl bg-success/15 py-3 text-center font-heading text-lg font-bold text-success duration-300 animate-in fade-in-0">
-            Your team got it!
-          </p>
-        ) : null
-      ) : (
-        (drawing || view.phase === "countdown") && (
-          <div className="sticky bottom-0 z-10 -mx-1 bg-card px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
-            <GuessBox
-              open={drawing}
-              solved={mine.solvedAt !== null}
-              now={serverNow}
-              onGuess={guess}
-            />
-          </div>
-        )
-      )}
-      <section aria-label="Your team's guesses">
-        <h3 className="mb-1 text-sm font-semibold text-muted-foreground">Your team</h3>
-        <Feed team={mine} pending={shownPending} myName={myName} />
-      </section>
-      <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
+    // Laid out by the board's own width, not the window's: a narrow page never squeezes it.
+    <div className="@container">
+      <div className="flex flex-col gap-6 @3xl:grid @3xl:grid-cols-[1fr_280px] @3xl:gap-8">
+        {/* Main Column (75%-80% on desktop): Canvas, attempt tracker, tools/input, feed */}
+        <div className="flex flex-col gap-2 min-w-0">
+          <TeamCanvas
+            view={view}
+            team={team}
+            viewerTeam={team}
+            seconds={seconds}
+            tools={canDraw ? { start: tool, sendMove, serverNow } : null}
+            sendMove={sendMove}
+          />
+          <AttemptTracker team={mine} />
+          {isDrawer ? (
+            drawing && mine.solvedAt === null ? (
+              <Toolbar tool={tool} onChange={setTool} onClear={() => sendMove({ type: "clear" })} />
+            ) : null
+          ) : (
+            (drawing || view.phase === "countdown") && (
+              <div className="sticky bottom-0 z-10 -mx-1 bg-card px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+                <GuessBox
+                  open={drawing && timeLeft}
+                  closedHint={drawing ? "Time's up" : "Get ready to guess"}
+                  solved={mine.solvedAt !== null}
+                  now={serverNow}
+                  onGuess={guess}
+                />
+              </div>
+            )
+          )}
+          <Feed team={mine} pending={shownPending} myName={myName} className="mt-2" />
+        </div>
+
+        {/* Opponent Column (20%-25% on desktop with vertical separator, bottom on mobile) */}
+        <div className="border-t border-border/60 pt-4 @3xl:border-t-0 @3xl:border-l @3xl:border-border @3xl:pt-0 @3xl:pl-6">
+          <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
+        </div>
+      </div>
     </div>
   );
 }
 
-/** S12 (simple for now): both teams' drawings and guesses; tabs on a phone, side by side wider. */
-function SpectatorBoard({ view, seconds }: { view: SketchBattleView; seconds: number | null }) {
+/** Spectator view: both teams' drawings and guesses */
+function SpectatorBoard({
+  view,
+  seconds,
+  sendMove,
+}: {
+  view: SketchBattleView;
+  seconds: number | null;
+  sendMove: (move: SketchBattleMove) => void;
+}) {
   const side = (team: TeamIndex) => (
     <div className="flex flex-col gap-2">
-      <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} />
+      <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} sendMove={sendMove} />
+      <AttemptTracker team={view.teams[team]} />
       <Feed team={view.teams[team]} />
     </div>
   );
   return (
-    <>
-      <Tabs defaultValue="0" className="sm:hidden">
+    <div className="@container">
+      <Tabs defaultValue="0" className="@2xl:hidden">
         <TabsList className="w-full">
           {([0, 1] as const).map((t) => (
             <TabsTrigger key={t} value={String(t)} className="flex-1">
@@ -210,11 +256,11 @@ function SpectatorBoard({ view, seconds }: { view: SketchBattleView; seconds: nu
         <TabsContent value="0">{side(0)}</TabsContent>
         <TabsContent value="1">{side(1)}</TabsContent>
       </Tabs>
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2">
+      <div className="hidden gap-3 @2xl:grid @2xl:grid-cols-2">
         {side(0)}
         {side(1)}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -234,22 +280,28 @@ function FinalScores({ view }: { view: SketchBattleView }) {
 }
 
 export function SketchBattleScreen(props: Props) {
-  const { view, sendMove, serverNow } = props;
+  const { view, me, sendMove, serverNow } = props;
   const now = useNow(serverNow);
-  const seconds = secondsLeft(view.phaseEndsAt, now);
+  const seconds = secondsLeft(view.phaseEndsAt, serverNow(), phaseLength(view));
+
   if (view.phase === "ended") return <FinalScores view={view} />;
+  if (view.phase === "result" || view.phase === "summary") {
+    return (
+      <Intermission
+        key={view.lastRound?.number}
+        view={view}
+        me={me}
+        seconds={seconds}
+        sendMove={sendMove}
+      />
+    );
+  }
+
   return (
-    <div className="-mx-2 flex flex-col gap-4 sm:mx-0">
+    <div className="-mx-2 flex flex-col gap-2 sm:mx-0">
       <StatusBar view={view} seconds={seconds} />
-      {view.phase === "choose" ? (
-        <ChooseStage
-          view={view}
-          seconds={seconds ?? 0}
-          total={CHOOSE_SECONDS}
-          sendMove={sendMove}
-        />
-      ) : view.me.role === "spectator" ? (
-        <SpectatorBoard view={view} seconds={seconds} />
+      {view.me.role === "spectator" ? (
+        <SpectatorBoard view={view} seconds={seconds} sendMove={sendMove} />
       ) : (
         <PlayerBoard {...props} seconds={seconds} now={now} />
       )}

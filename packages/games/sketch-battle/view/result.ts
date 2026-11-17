@@ -13,13 +13,12 @@ export function resultText(
   const theWord = `The word was ${round.word}`;
   if (team === null) {
     if (round.winnerTeam === null) return { title: "Time's up!", detail: theWord, tone: "neutral" };
-    const by = gap === null ? "" : ` by ${formatGap(gap)}`;
-    return { title: `${TEAM_NAME[round.winnerTeam]} won${by}`, detail: theWord, tone: "neutral" };
+    return { title: `${TEAM_NAME[round.winnerTeam]} won`, detail: theWord, tone: "neutral" };
   }
   const points = round.points[team];
-  if (points > 0 && round.winnerTeam === team) {
+  if (round.winnerTeam === team) {
     return {
-      title: gap === null ? "You got it first!" : `You won by ${formatGap(gap)}!`,
+      title: "You win!",
       detail: `+${points} points`,
       tone: "won",
     };
