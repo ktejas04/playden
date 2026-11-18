@@ -1,7 +1,6 @@
 import type { GameViewProps } from "@playden/engine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@playden/ui/components/tabs";
 import { type Pending, addPending, settlePending } from "@playden/ui/lib/pending";
-import { cn } from "@playden/ui/lib/utils";
 import { PencilIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -19,7 +18,7 @@ import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
 import { ChooseOverlay, CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { ShowdownIntro, ShowdownResult, WordTrack } from "./Showdown";
+import { ShowdownIntro, ShowdownResult, WordHistory, WordTrack } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { resultText } from "./result";
@@ -256,15 +255,18 @@ function PlayerBoard({
     </div>
   );
 
-  // The showdown has no opponent canvas (SB4): just the team's own board.
-  if (racing) return <div className="@container">{main}</div>;
   return (
     // Laid out by the board's own width, not the window's: a narrow page never squeezes it.
     <div className="@container">
       <div className="flex flex-col gap-6 @3xl:grid @3xl:grid-cols-[1fr_280px] @3xl:gap-8">
         {main}
         <div className="border-t border-border/60 pt-4 @3xl:border-t-0 @3xl:border-l @3xl:border-border @3xl:pt-0 @3xl:pl-6">
-          <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
+          {/* The showdown has no opponent canvas (SB4): the team's own words go there (SB27). */}
+          {racing ? (
+            <WordHistory view={view} />
+          ) : (
+            <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
+          )}
         </div>
       </div>
     </div>
@@ -389,13 +391,7 @@ export function SketchBattleScreen(props: Props) {
   }
 
   return (
-    <div
-      className={cn(
-        "-mx-2 flex flex-col gap-2 sm:mx-0",
-        // One canvas in the showdown: keep it the size of a round's main column.
-        view.showdown && view.me.role !== "spectator" && "sm:mx-auto sm:w-full sm:max-w-3xl",
-      )}
-    >
+    <div className="-mx-2 flex flex-col gap-2 sm:mx-0">
       <StatusBar view={view} seconds={seconds} />
       {view.me.role === "spectator" ? (
         <SpectatorBoard view={view} seconds={seconds} sendMove={sendMove} />

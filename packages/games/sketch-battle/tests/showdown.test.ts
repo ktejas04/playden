@@ -271,6 +271,7 @@ describe("the showdown", () => {
     expect(drawerView.showdown?.finished[0]).toEqual([firstWord]);
 
     const guesser = view(state, guesserOf(state, 0));
+    expect(guesser.showdown?.finished[0]).toEqual([firstWord]);
     expect(guesser.word).toBeNull();
     expect(guesser.blanks).toBeNull();
     expect(guesser.showdown).not.toHaveProperty("blanks");

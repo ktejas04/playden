@@ -68,6 +68,9 @@ export const PALETTE_SIZE = 10;
 export const PREVIEW_COLS = 24;
 export const PREVIEW_ROWS = 16;
 
+/** Showdown word history (SB27): rows that show before the list scrolls. */
+export const WORD_HISTORY_ROWS = 15;
+
 /** Replays redraw one step every this many milliseconds. */
 export const REPLAY_STEP_MS = 10;
 
