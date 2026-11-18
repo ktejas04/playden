@@ -229,6 +229,29 @@ describe("a round", () => {
     );
   });
 
+  it("stroke and clear refusals are quiet: late batches after a turn ends raise no pop-up (D61)", () => {
+    const drawing = toDrawing(start());
+    let state = drawing.state;
+    const at = drawing.drawingAt;
+    const d = drawer(state, 0);
+    const g = guessers(state, 0)[0] ?? "";
+    state = move(state, d, line(1, [10, 10, 5, 5]), at + 100);
+    state = move(state, g, guess(word(state)), at + 200);
+    const late: [string, SketchBattleMove][] = [
+      [d, line(2, [20, 20])],
+      [d, { type: "draw", stroke: 1, points: [30, 30] }],
+      [d, { type: "clear" }],
+      [g, line(3, [1, 1])],
+    ];
+    for (const [who, m] of late) {
+      expect(game.validate(state, who, m, at + 300)).toMatchObject({ ok: false, quiet: true });
+    }
+    expect(game.validate(state, d, guess("zzz"), at + 300)).toEqual({
+      ok: false,
+      reason: "Drawers can't guess",
+    });
+  });
+
   it("a stroke drawn in batches is one stroke with absolute points", () => {
     const drawing = toDrawing(start());
     let state = drawing.state;

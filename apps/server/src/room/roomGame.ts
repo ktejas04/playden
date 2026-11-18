@@ -56,10 +56,12 @@ export interface Person {
 
 /**
  * A change to the table, or why it was refused. `live` (D55): only the game's state changed, by
- * a live move, so the room keeps it in memory and sends deltas instead of saving.
+ * a live move, so the room keeps it in memory and sends deltas instead of saving. `quiet` (D61):
+ * a move that came too late to count; the room drops it without an error.
  */
 export type TableOutcome =
-  { ok: true; table: TableState; events: GameEvent[]; live?: true } | { ok: false; reason: string };
+  | { ok: true; table: TableState; events: GameEvent[]; live?: true }
+  | { ok: false; reason: string; quiet?: true };
 
 const done = (table: TableState, events: GameEvent[] = []): TableOutcome => ({
   ok: true,
@@ -416,7 +418,11 @@ export function applyMove(
   const parsed = game.moveSchema.safeParse(raw);
   if (!parsed.success) return refuse("That move isn't valid");
   const verdict = game.validate(session.state, playerId, parsed.data, now);
-  if (!verdict.ok) return refuse(verdict.reason);
+  if (!verdict.ok) {
+    return verdict.quiet
+      ? { ok: false, reason: verdict.reason, quiet: true }
+      : refuse(verdict.reason);
+  }
   const { state, events, live } = game.apply(session.state, playerId, parsed.data, now);
   return settle(table, { ...session, state }, game, events, live);
 }

@@ -297,6 +297,21 @@ describe("moves", () => {
     );
   });
 
+  it("keeps a game's quiet rejection quiet, and ordinary ones loud (D61)", () => {
+    const lateRace: AnyGame = {
+      ...tapRace,
+      validate: () => ({ ok: false, reason: "Too late", quiet: true }),
+    };
+    expect(applyMove(playing(ben), lateRace, HOST, tap, NOW)).toEqual({
+      ok: false,
+      reason: "Too late",
+      quiet: true,
+    });
+    expect(applyMove(playing(ben), tapRace, HOST, { type: "jump" }, NOW)).not.toHaveProperty(
+      "quiet",
+    );
+  });
+
   it("moves to results when the game has a result", () => {
     let table = playing(ben);
     for (let i = 0; i < 5; i++) table = ok(applyMove(table, tapRace, HOST, tap, NOW + i));

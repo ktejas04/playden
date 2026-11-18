@@ -3,6 +3,7 @@ import {
   type GameEvent,
   type Rng,
   type Transition,
+  type Validation,
   createRng,
   nextInt,
   shuffle,
@@ -451,6 +452,46 @@ function streakView(state: State): Pick<SketchBattleView, "streak" | "headStartS
   return { streak: streakFor(state.history, drawers), headStartSeconds: round.headStartSeconds };
 }
 
+const quietly = (verdict: Validation): Validation =>
+  verdict.ok ? verdict : { ...verdict, quiet: true };
+
+/** Why this stroke or clear can't be taken now, if it can't. */
+function drawProblem(
+  state: State,
+  playerId: string,
+  turn: TeamTurn,
+  isDrawer: boolean,
+  move: Extract<SketchBattleMove, { type: "draw" | "clear" }>,
+  now: number,
+): Validation {
+  if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
+  const playing =
+    state.phase === "drawing" ||
+    state.phase === "showdown" ||
+    (state.phase === "headStart" && state.round?.chooserId === playerId);
+  if (!playing || now < turn.drawFrom) {
+    return { ok: false, reason: "Wait for the drawing to start" };
+  }
+  if (turn.solvedAt !== null) {
+    return { ok: false, reason: "Your team got it: the canvas is locked" };
+  }
+  if (move.type === "clear") return { ok: true };
+  if (move.points.length % 2 !== 0) return { ok: false, reason: "That line is broken" };
+  if (!onCanvas(decodePoints(move.points))) {
+    return { ok: false, reason: "That line is off the canvas" };
+  }
+  const last = lastStroke(turn.ops);
+  if (move.start) {
+    return last && move.stroke <= last.id
+      ? { ok: false, reason: "That line was already started" }
+      : { ok: true };
+  }
+  if (!last || last.id !== move.stroke || turn.ops.at(-1) !== last) {
+    return { ok: false, reason: "Start a new line first" };
+  }
+  return { ok: true };
+}
+
 function scoresByPlayer(state: State): Record<string, number> {
   return Object.fromEntries(
     TEAMS.flatMap((team) => state.rotations[team].map((id) => [id, state.scores[team]])),
@@ -526,34 +567,10 @@ export const sketchBattle: GameDefinition<
         }
         return { ok: true };
       case "draw":
-      case "clear": {
-        if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
-        const playing =
-          state.phase === "drawing" ||
-          state.phase === "showdown" ||
-          (state.phase === "headStart" && round.chooserId === playerId);
-        if (!playing || now < turn.drawFrom) {
-          return { ok: false, reason: "Wait for the drawing to start" };
-        }
-        if (turn.solvedAt !== null) {
-          return { ok: false, reason: "Your team got it: the canvas is locked" };
-        }
-        if (move.type === "clear") return { ok: true };
-        if (move.points.length % 2 !== 0) return { ok: false, reason: "That line is broken" };
-        if (!onCanvas(decodePoints(move.points))) {
-          return { ok: false, reason: "That line is off the canvas" };
-        }
-        const last = lastStroke(turn.ops);
-        if (move.start) {
-          return last && move.stroke <= last.id
-            ? { ok: false, reason: "That line was already started" }
-            : { ok: true };
-        }
-        if (!last || last.id !== move.stroke || turn.ops.at(-1) !== last) {
-          return { ok: false, reason: "Start a new line first" };
-        }
-        return { ok: true };
-      }
+      case "clear":
+        // Our client only draws in its own turn, so a refused stroke is one that arrived after the
+        // turn ended (a correct guess, time up, the showdown handoff): dropped quietly (D61).
+        return quietly(drawProblem(state, playerId, turn, isDrawer, move, now));
       case "guess": {
         if (state.phase === "showdownResult") return { ok: false, reason: "The showdown is over" };
         // Closed the moment time is up, even if the room hasn't processed the deadline yet.

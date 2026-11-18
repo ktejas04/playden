@@ -213,6 +213,26 @@ describe("Sketch Battle in a room", SLOW, () => {
     close(game.people);
   });
 
+  it("a stroke batch that arrives after the drawer's turn is dropped without an error (D61)", async () => {
+    const game = await playing("sb-late");
+    const { word, drawer, guesser } = await toDrawing(game);
+    drawer[0].ws.send(draw(1, [100, 100, 30, 30]));
+    guesser[0].ws.send({ type: "move", move: { type: "guess", text: word } });
+    await until(() => viewOf(drawer[0]).teams[0].solvedAt !== null, "solved");
+    const from = [drawer[0].wire.length, guesser[0].wire.length];
+    // The rest of the line the drawer was drawing, and a guesser's stray batch.
+    drawer[0].ws.send(draw(1, [30, 30], false));
+    guesser[0].ws.send(draw(5, [10, 10]));
+    // A wrong move that isn't a stroke still gets its error.
+    drawer[0].ws.send({ type: "move", move: { type: "guess", text: "zzz" } });
+    await until(() => drawer[0].wire.slice(from[0]).join("\n").includes('"error"'), "the error");
+    await settle();
+    expect(drawer[0].wire.slice(from[0]).join("\n")).toContain("Drawers can't guess");
+    expect(drawer[0].wire.slice(from[0]).filter((m) => m.includes('"error"'))).toHaveLength(1);
+    expect(guesser[0].wire.slice(from[1]).join("\n")).not.toContain('"error"');
+    close(game.people);
+  });
+
   it("a correct guess is saved together with the live moves before it", async () => {
     const game = await playing("sb-save");
     const { word, drawer, guesser } = await toDrawing(game);

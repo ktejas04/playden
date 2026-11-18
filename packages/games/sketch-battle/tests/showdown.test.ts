@@ -184,6 +184,23 @@ describe("the showdown", () => {
     expect(sd(state).turns[0].ops).toHaveLength(1);
   });
 
+  it("the last drawer's late batches after a correct guess are refused quietly (D61)", () => {
+    let state = toPlay(playRounds(5));
+    const first = drawerOf(state, 0);
+    const at = drawFrom(state, 0) + 1_000;
+    const start = { tool: "pen", colour: 0, size: 1 } as const;
+    state = move(state, first, { type: "draw", stroke: 1, start, points: [10, 10, 5, 5] }, at);
+    state = solve(state, 0, 1_500);
+    expect(drawerOf(state, 0)).not.toBe(first);
+    expect(sd(state).turns[0].ops).toEqual([]);
+    const rest: SketchBattleMove = { type: "draw", stroke: 1, points: [5, 5] };
+    expect(game.validate(state, first, rest, at + 600)).toEqual({
+      ok: false,
+      reason: "Only the drawer can draw",
+      quiet: true,
+    });
+  });
+
   it("the showdown scores 100 per word plus 100 for finishing, and ends when one team finishes", () => {
     let state = toPlay(playRounds(5));
     const before = [...state.scores];

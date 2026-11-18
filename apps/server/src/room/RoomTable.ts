@@ -230,7 +230,7 @@ export class RoomTable {
     const table = await this.room.store.load();
     const outcome = run(table, gameOf(table, this.room.findGame));
     if (!outcome.ok) {
-      this.room.send(ws, { type: "error", reason: outcome.reason });
+      if (!outcome.quiet) this.room.send(ws, { type: "error", reason: outcome.reason });
       return;
     }
     await this.commit(table, outcome);
