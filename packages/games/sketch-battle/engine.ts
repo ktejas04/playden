@@ -367,12 +367,21 @@ function seesWord(state: State, team: TeamIndex | null, isDrawer: boolean): bool
   return round.turns[team].solvedAt !== null;
 }
 
-/** May this viewer see a team's real strokes and guesses (D47)? Never in the showdown (SB4). */
-function seesTeam(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
-  if (viewerTeam === null || viewerTeam === team) return true;
-  if (state.phase === "result" || state.phase === "summary" || showdownOver(state.phase)) {
-    return true;
-  }
+/** Round result, summary, or the showdown's end: every team's drawing and guesses are open. */
+const allOpen = (state: State) =>
+  state.phase === "result" || state.phase === "summary" || showdownOver(state.phase);
+
+/**
+ * May this viewer see a team's real strokes (D47)? Their own team's, and everyone's at the
+ * result; the other team's only as pixel cells until then, even once their team guessed (SB25).
+ */
+function seesCanvas(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
+  return viewerTeam === null || viewerTeam === team || allOpen(state);
+}
+
+/** May this viewer see a team's guesses? The other team's once their own team guessed; never in the showdown (SB4). */
+function seesGuesses(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
+  if (viewerTeam === null || viewerTeam === team || allOpen(state)) return true;
   if (inShowdown(state.phase)) return false;
   return state.round?.turns[viewerTeam].solvedAt != null;
 }
@@ -399,7 +408,7 @@ function teamView(
   const turn = currentTurn(state, team);
   const racing = inShowdown(state.phase);
   const playing = racing ? state.phase === "showdown" : Boolean(state.round?.word);
-  const shown = seesTeam(state, viewerTeam, team);
+  const shown = seesCanvas(state, viewerTeam, team);
   const hidden = headStartHidden(state, team, viewer);
   const away = new Set(state.away);
   const left = new Set(state.left);
@@ -417,7 +426,7 @@ function teamView(
     canvas: shown
       ? { kind: "strokes", ops: hidden ? NO_OPS : (turn?.ops ?? NO_OPS) }
       : { kind: "cells", cells: racing || hidden ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
-    guesses: shown ? (turn?.guesses ?? NO_GUESSES) : null,
+    guesses: seesGuesses(state, viewerTeam, team) ? (turn?.guesses ?? NO_GUESSES) : null,
     wrongGuesses: turn?.guesses.filter((g) => !g.correct).length ?? 0,
   };
 }

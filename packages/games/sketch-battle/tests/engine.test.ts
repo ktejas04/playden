@@ -441,7 +441,7 @@ describe("hidden information", () => {
     expect(view(state, guessers(state, 0)[0] ?? "").blanks).toBeNull();
   });
 
-  it("the other team gets only pixel cells before they guess, and the full drawing after", () => {
+  it("the other team gets only pixel cells until the round result, even once they guess (SB25)", () => {
     const drawing = toDrawing(start());
     let state = drawing.state;
     const drawingAt = drawing.drawingAt;
@@ -451,10 +451,29 @@ describe("hidden information", () => {
     expect(canvas.kind).toBe("cells");
     expect(JSON.stringify(canvas)).not.toContain("points");
     state = move(state, g ?? "", guess(word(state)), drawingAt + 20);
-    expect(view(state, g ?? "").teams[1].canvas).toEqual({
+    state = move(state, drawer(state, 1), line(2, [10, 500, 400, 500]), drawingAt + 30);
+    for (const id of [g ?? "", drawer(state, 0)]) {
+      const after = view(state, id).teams[1].canvas;
+      expect(after).toEqual({ kind: "cells", cells: round(state).turns[1].cells });
+      expect(JSON.stringify(after)).not.toContain("points");
+    }
+    const result = tick(state);
+    expect(result.phase).toBe("result");
+    expect(view(result, g ?? "").teams[1].canvas).toEqual({
       kind: "strokes",
-      ops: round(state).turns[1].ops,
+      ops: round(result).turns[1].ops,
     });
+  });
+
+  it("a team that guessed gets the other team's draw batches as pixel cells, never points (SB25)", () => {
+    const drawing = toDrawing(start());
+    let state = drawing.state;
+    const [g] = guessers(state, 0);
+    state = move(state, g ?? "", guess(word(state)), drawing.drawingAt + 10);
+    const next = move(state, drawer(state, 1), line(1, [10, 10, 400, 10]), drawing.drawingAt + 20);
+    const change = game.delta?.(state, next, g ?? "");
+    expect(change?.teams?.[1]?.canvas).toHaveProperty("cells");
+    expect(JSON.stringify(change)).not.toContain("points");
   });
 
   it("each team sees its own drawing as strokes", () => {

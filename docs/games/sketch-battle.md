@@ -46,6 +46,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB23 | Owner's call (2026-11-18), task 027: the head start has no stage screen of its own. For its seconds only the challenger draws; everyone else, the challenger's teammates included, sees a blank canvas (the other team a blank pixel view) with no message over it, the other drawer can't draw and nobody can guess. Spectators still see the challenger's canvas (section 15). The head start shows only as badges on the round summary's drawer change: "2x streak" by the staying drawer and "3s head start" by the challenger. The choose stage has no matchup or badges | 2026-11-18 |
 | SB24 | Owner's call (2026-11-18), from the original's code: the "won by" gap is the clock time between the two teams' correct guesses, so a head start counts (a team 2 s behind on the clock lost by 2 seconds, whatever its drawer's start). From 1 s it's rounded up to whole seconds, as the original ("35 seconds" for 34.7); under 1 s it's the nearest tenth, and under 0.05 s "less than 0.1 seconds". Feed times stay per team, from that team's drawing start. Replaces SB14 | 2026-11-18 |
 | SB22 | Owner's call (2026-11-18), from the original's spectator view: in the showdown spectators also get a word track, a column per team with every showdown word in order, each finished word in green and a blank line for each still ahead (beside the canvases on a PC, below them on a phone). Players still get no word tracks (SB18) | 2026-11-18 |
+| SB25 | Owner's call (2026-11-18), from game-night feedback: a team that guessed first no longer sees the other team's real drawing while that team still draws. Until the round result every player sees the other team's canvas only as the 24 × 16 pixel view; the real strokes go out at the result. Once your team has guessed you still see the other team's guesses. Replaces the part of section 6 that opened the real canvas on guessing | 2026-11-18 |
 
 ## 3. Terms
 
@@ -108,7 +109,7 @@ After the last round, the showdown begins (section 9).
 
 - Only guessers can guess, and only during the drawing stage (not during the choose, countdown or head start stages). Guessing closes the moment the round's time is up or the round has ended, even before the room has processed the deadline; the guess box locks when the timer reaches 0 (SB13).
 - Once a team has guessed, its guess box locks ("You got it!"). One correct guess per team is enough.
-- Your team's guesses show to your team and to spectators. Once your team has guessed, you also see the other team's guesses and its real canvas.
+- Your team's guesses show to your team and to spectators. Once your team has guessed, you also see the other team's guesses; their canvas stays the pixel view until the round result (SB25).
 - Each guess in the feed shows how long after that team's drawing started it came ("+12.3 s").
 - A guess is at most 36 characters. Each player may send at most 3 guesses in any 3 s; faster ones are refused with "Slow down". Pasting into the guess box is blocked. The browser stops these before sending; the server checks them again.
 - All timing uses the server's receive time (D9). If two correct guesses carry the same millisecond, the one the room processed first wins.
@@ -236,7 +237,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 
 - **Teams:** "Team 1" and "Team 2", as on the platform's setup screen, with coral and teal accents (the first two player colours, D34): a dot by each score, the canvas border, the matchup names.
 - **Phone, players:** status bar (round, both scores, then the word or blanks and the timer), the own team's canvas full width, then the drawer's toolbar or the guesser's guess box (sticky at the bottom, so it stays above the keyboard), then the team feed, then the opponent strip.
-- **Opponent strip:** a compact card below the feed: the 24 × 16 pixel view (or, once your team has guessed, their real drawing) at 128 px wide, the team name, who draws, and "Got it +8.7 s" once they have.
+- **Opponent strip:** a compact card below the feed: the 24 × 16 pixel view (their real drawing only from the round result, SB25) at 128 px wide, the team name, who draws, and "Got it +8.7 s" once they have.
 - **Guess feed:** newest first; name, guess, and "+12.3 s" since the team's drawing started; a correct guess shows as "got it!" in green, never the word; your own guesses show faded until the server confirms them.
 - **Result:** an overlay on your canvas, "You won by 3 seconds! +200 points" in green, "You lost by 3 seconds +100 points" in red, or "Time's up! The word was …"; the canvas border turns green or red.
 - **Spectators:** both teams as tabs on a phone, side by side from 640 px wide.
@@ -274,7 +275,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 **Opponent pixel view (SB6, D47)**
 
 - The server keeps a 24 × 16 grid per team. Each stroke segment marks the cells it crosses, 1 cell wide whatever the brush size, with the stroke's colour. The eraser empties cells; clear empties all.
-- The other team gets only the cells that changed, in the same message cycle as the batch that changed them, so it looks live. The real strokes never reach them until their own team has guessed; then they get the full drawing so far once, and live points after.
+- The other team gets only the cells that changed, in the same message cycle as the batch that changed them, so it looks live. The real strokes never reach them before the round result, even once their own team has guessed (SB25); at the result they get the full drawing once.
 - No pixel view in the showdown (SB4).
 
 **Replays.** The summary's Replay button redraws a canvas's strokes in order, one step every 10 ms.
@@ -404,8 +405,8 @@ Size: a round's strokes are about 5–20 KB per team; finished rounds keep only 
 **Views and changes**
 
 - `view(state, viewer)` is the full picture for one viewer, sent on join, reconnect and resync.
-- `delta(before, after, viewer)` is what changed for that viewer, sent after every change (D55). For a draw move: new points to the drawer's team and spectators, changed cells to the other team (unless they've guessed). For a correct guess: the guess, the score, the locked box, and for the guessing team the other team's full drawing so far.
-- Hidden information never leaves the server: the word only to drawers, spectators and teams that guessed; word choices only to the two drawers and spectators (SB20); the other team's strokes only once your team guessed; the head-start canvas only to the chooser and spectators.
+- `delta(before, after, viewer)` is what changed for that viewer, sent after every change (D55). For a draw move: new points to the drawer's team and spectators, changed cells to the other team (guessed or not, SB25). For a correct guess: the guess, the score, the locked box, and for the guessing team the other team's guesses so far.
+- Hidden information never leaves the server: the word only to drawers, spectators and teams that guessed; word choices only to the two drawers and spectators (SB20); the other team's strokes only from the round result (SB25); the head-start canvas only to the chooser and spectators.
 
 ## 16. Engine notes
 
@@ -531,7 +532,7 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 **Hidden information and drawing**
 
 - view hides the word from guessers until their team guesses
-- the other team gets only pixel cells before they guess, and the full drawing after
+- the other team gets only pixel cells until the round result, even once they guess (SB25)
 - word choices go only to the two drawers
 - the head-start canvas goes only to the chooser and spectators
 - spectators see both canvases and the word

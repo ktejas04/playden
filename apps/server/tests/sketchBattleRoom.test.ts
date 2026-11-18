@@ -178,7 +178,7 @@ describe("Sketch Battle in a room", SLOW, () => {
     close(game.people);
   });
 
-  it("the other team's socket never carries the strokes or the word before they guess", async () => {
+  it("the other team's socket never carries the strokes before the result, nor the word before they guess", async () => {
     const game = await playing("sb-wire");
     const { word, drawer, guesser } = await toDrawing(game);
     const watchers = game.people.filter(
@@ -197,11 +197,19 @@ describe("Sketch Battle in a room", SLOW, () => {
     }
 
     guesser[1].ws.send({ type: "move", move: { type: "guess", text: word } });
+    await until(() => viewOf(guesser[1]).word === word, "the word once guessed");
+    expect(viewOf(guesser[1]).teams[0].guesses?.map((g) => g.text)).toEqual(["not it"]);
+    // Still only the pixel view until the round result (SB25), even for later batches.
+    const after = watchers.map((p) => p.wire.length);
+    drawer[0].ws.send(draw(2, [100, 800, 30, 30]));
     await until(
-      () => viewOf(guesser[1]).teams[0].canvas.kind === "strokes",
-      "full drawing once guessed",
+      () => watchers.every((p, i) => p.wire.slice(after[i]).join("\n").includes('"cells"')),
+      "the new batch as pixel cells",
     );
-    expect(viewOf(guesser[1]).word).toBe(word);
+    expect(viewOf(guesser[1]).teams[0].canvas.kind).toBe("cells");
+    for (const [i, p] of watchers.entries()) {
+      expect(p.wire.slice(from[i]).join("\n")).not.toContain('"points"');
+    }
     close(game.people);
   });
 
