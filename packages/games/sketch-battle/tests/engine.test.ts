@@ -426,6 +426,11 @@ describe("guessing", () => {
     expect(view(state, a ?? "").teams[1].guesses).toBeNull();
     state = move(state, a ?? "", guess(word(state)), drawingAt + 20);
     expect(view(state, a ?? "").teams[1].guesses?.map((g) => g.text)).toEqual(["zzz"]);
+    // Their later guesses reach the team that guessed live, for the opponent box.
+    const next = move(state, b ?? "", guess("yyy"), drawingAt + 30);
+    expect(game.delta?.(state, next, a ?? "")?.teams?.[1]?.guesses).toEqual({
+      add: [{ by: b, text: "yyy", at: drawingAt + 30, correct: false }],
+    });
   });
 });
 

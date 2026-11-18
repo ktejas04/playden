@@ -42,11 +42,14 @@ export function Feed({
   team,
   pending = [],
   myName,
+  roles = true,
   className,
 }: {
   team: TeamView;
   pending?: readonly Pending<string>[];
   myName?: string;
+  /** The "is guessing" / "is drawing" lines; off for the other team's guesses. */
+  roles?: boolean;
   className?: string;
 }) {
   const nameOf = (id: string) => team.players.find((p) => p.id === id)?.name ?? "Someone";
@@ -85,13 +88,14 @@ export function Feed({
       ))}
 
       {/* Active role status indicators */}
-      {guessers.map((g) => (
-        <div key={`guess-${g.id}`} className="flex items-center gap-2 text-muted-foreground">
-          <span className="font-bold">!</span>
-          <span>{g.name} is guessing</span>
-        </div>
-      ))}
-      {drawer && (
+      {roles &&
+        guessers.map((g) => (
+          <div key={`guess-${g.id}`} className="flex items-center gap-2 text-muted-foreground">
+            <span className="font-bold">!</span>
+            <span>{g.name} is guessing</span>
+          </div>
+        ))}
+      {roles && drawer && (
         <div className="flex items-center gap-2 text-muted-foreground">
           <span>✏</span>
           <span>{drawer.name} is drawing</span>

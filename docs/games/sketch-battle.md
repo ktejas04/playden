@@ -238,7 +238,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 
 - **Teams:** "Team 1" and "Team 2", as on the platform's setup screen, with coral and teal accents (the first two player colours, D34): a dot by each score, the canvas border, the matchup names.
 - **Phone, players:** status bar (round, both scores, then the word or blanks and the timer), the own team's canvas full width, then the drawer's toolbar or the guesser's guess box (sticky at the bottom, so it stays above the keyboard), then the team feed, then the opponent strip.
-- **Opponent strip:** a compact card below the feed: the 24 × 16 pixel view (their real drawing only from the round result, SB25) at 128 px wide, the team name, who draws, and "Got it +8.7 s" once they have.
+- **Opponent strip:** a compact card below the feed: the 24 × 16 pixel view (their real drawing only from the round result, SB25) at 128 px wide, the team name, who draws, and "Got it +8.7 s" once they have. Once your team has guessed, their guesses list under it, newest first, live (section 6).
 - **Guess feed:** newest first; name, guess, and "+12.3 s" since the team's drawing started; a correct guess shows as "got it!" in green, never the word; your own guesses show faded until the server confirms them.
 - **Result:** an overlay on your canvas, "You won by 3 seconds! +200 points" in green, "You lost by 3 seconds +100 points" in red, or "Time's up! The word was …"; the canvas border turns green or red.
 - **Spectators:** both teams as tabs on a phone, side by side from 640 px wide.
