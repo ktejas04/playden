@@ -461,7 +461,6 @@ export const sketchBattle: GameDefinition<
   minPlayers: TEAM_COUNT * TEAM_MIN_PLAYERS,
   maxPlayers: TEAM_COUNT * TEAM_MAX_PLAYERS,
   teams: { count: TEAM_COUNT, minSize: TEAM_MIN_PLAYERS, maxSize: TEAM_MAX_PLAYERS },
-  devOnly: true,
   moveLimit: STROKE_MOVE_LIMIT,
 
   defaultConfig: DEFAULT_CONFIG,

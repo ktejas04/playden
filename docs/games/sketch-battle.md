@@ -1,6 +1,6 @@
 # Sketch Battle — game spec
 
-Id: `sketch-battle` · Version: v1 · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-18
+Id: `sketch-battle` · Version: v1 · Live (dev-only until 2026-11-18, D60) · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-18
 
 Two teams race to guess the same word, each from its own drawer's sketch. The mechanics copy drawbattle.io, checked against its game code on 2026-11-13, so the game plays exactly like the original. The name, look, animations, sounds and word list are our own (D17). Where we deliberately differ, section 2 says so and why. Rules marked **(ours)** are ones the original decides on its server, where we can't see them.
 

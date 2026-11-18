@@ -13,9 +13,9 @@ describe("web game registry", () => {
     expect(findWebGame("no-such-game")).toBeUndefined();
   });
 
-  it("hides dev-only games unless they're allowed; Tap Race is live", () => {
-    expect(listWebGames({ includeDevOnly: false }).map((g) => g.definition.id)).toContain(
-      "tap-race",
+  it("hides dev-only games unless they're allowed; Tap Race and Sketch Battle are live", () => {
+    expect(listWebGames({ includeDevOnly: false }).map((g) => g.definition.id)).toEqual(
+      expect.arrayContaining(["tap-race", "sketch-battle"]),
     );
     expect(listWebGames({ includeDevOnly: false }).some((g) => g.definition.devOnly)).toBe(false);
     expect(listWebGames({ includeDevOnly: true }).length).toBe(GAMES.length);

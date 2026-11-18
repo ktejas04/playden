@@ -18,8 +18,10 @@ describe("server game registry", () => {
     expect(findGame("no-such-game")).toBeUndefined();
   });
 
-  it("hides dev-only games unless they're allowed; Tap Race is live", () => {
-    expect(listGames({ includeDevOnly: false }).map((g) => g.id)).toContain("tap-race");
+  it("hides dev-only games unless they're allowed; Tap Race and Sketch Battle are live", () => {
+    expect(listGames({ includeDevOnly: false }).map((g) => g.id)).toEqual(
+      expect.arrayContaining(["tap-race", "sketch-battle"]),
+    );
     expect(listGames({ includeDevOnly: false }).some((g) => g.devOnly)).toBe(false);
     expect(listGames({ includeDevOnly: true }).length).toBe(GAMES.length);
   });
