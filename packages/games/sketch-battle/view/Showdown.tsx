@@ -200,32 +200,26 @@ const HISTORY_ROW_REM = 1.75;
  */
 export function WordHistory({ view }: { view: SketchBattleView }) {
   const team = view.me.team;
-  const history = wordHistory(view.showdown, team);
-  if (!history || team === null) return null;
+  const words = wordHistory(view.showdown, team);
+  if (!words || team === null) return null;
   return (
     <div className="flex flex-col gap-2" aria-label="Your team's words so far">
-      <div className="flex items-baseline justify-between gap-3 text-sm font-semibold">
-        <span style={{ color: TEAM_ACCENT[team] }}>Your words</span>
-        <span className="text-muted-foreground tabular-nums">
-          {history.done} of {history.total}
-        </span>
-      </div>
-      {history.words.length === 0 ? (
+      <span className="text-sm font-semibold" style={{ color: TEAM_ACCENT[team] }}>
+        Your words
+      </span>
+      {words.length === 0 ? (
         <p className="text-sm text-muted-foreground">Words you get show here</p>
       ) : (
         <ol
           className="flex flex-col overflow-y-auto overscroll-contain"
           style={{ maxHeight: `${WORD_HISTORY_ROWS * HISTORY_ROW_REM}rem` }}
         >
-          {history.words.map((word, i) => (
+          {words.map((word, i) => (
             <li
-              key={history.done - i}
-              className="flex shrink-0 items-center gap-2 font-heading text-base font-semibold text-success duration-300 animate-in fade-in-0 motion-reduce:animate-none"
+              key={words.length - i}
+              className="flex shrink-0 items-center font-heading text-base font-semibold text-success duration-300 animate-in fade-in-0 motion-reduce:animate-none"
               style={{ height: `${HISTORY_ROW_REM}rem` }}
             >
-              <span className="w-6 text-right text-xs font-medium text-muted-foreground tabular-nums">
-                {history.done - i}
-              </span>
               <span className="min-w-0 truncate">{word}</span>
             </li>
           ))}

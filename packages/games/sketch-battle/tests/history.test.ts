@@ -13,16 +13,12 @@ const showdown = (fields: Partial<ShowdownView>): ShowdownView => ({
 });
 
 describe("the showdown word history (SB27)", () => {
-  it("lists the team's finished words, newest first, with how many of the total are done", () => {
-    expect(wordHistory(showdown({}), 0)).toEqual({
-      words: ["drum", "kite", "moon"],
-      done: 3,
-      total: 6,
-    });
+  it("lists the team's finished words, newest first, and nothing else", () => {
+    expect(wordHistory(showdown({}), 0)).toEqual(["drum", "kite", "moon"]);
   });
 
   it("is empty for a team whose words this viewer may not see, or a spectator", () => {
-    expect(wordHistory(showdown({}), 1)).toEqual({ words: [], done: 1, total: 6 });
+    expect(wordHistory(showdown({}), 1)).toEqual([]);
     expect(wordHistory(null, 0)).toBeNull();
     expect(wordHistory(showdown({}), null)).toBeNull();
   });

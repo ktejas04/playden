@@ -4,8 +4,7 @@ import type { ShowdownView, TeamIndex } from "../types";
 export function wordHistory(
   showdown: ShowdownView | null,
   team: TeamIndex | null,
-): { words: string[]; done: number; total: number } | null {
+): string[] | null {
   if (!showdown || team === null) return null;
-  const words = [...(showdown.finished[team] ?? [])].reverse();
-  return { words, done: showdown.done[team], total: showdown.total };
+  return [...(showdown.finished[team] ?? [])].reverse();
 }
