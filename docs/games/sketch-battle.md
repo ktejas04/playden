@@ -49,6 +49,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB25 | Owner's call (2026-11-18), from game-night feedback: a team that guessed first no longer sees the other team's real drawing while that team still draws. Until the round result every player sees the other team's canvas only as the 24 × 16 pixel view; the real strokes go out at the result. Once your team has guessed you still see the other team's guesses. Replaces the part of section 6 that opened the real canvas on guessing | 2026-11-18 |
 | SB26 | Owner's call (2026-11-18), from game-night feedback: no letter count in the showdown. Its guessers see one blank line for the word, whatever "show word lengths" is set to; the setting still applies to rounds. Replaces "its guessers blanks" in SB18 | 2026-11-18 |
 | SB27 | Owner's call (2026-11-18), from game-night feedback: in the showdown players get their own team's word history, so they know which words are done: the words their team has finished, newest first, with "3 of 12", about 15 rows showing and the rest scrolling. It sits where the opponent box sits in rounds (beside the canvas on a PC, below the feed on a phone). The other team's words stay hidden until the result, since they are the words still ahead. Replaces "no word tracks" for players in SB18 and SB22 | 2026-11-18 |
+| SB28 | Owner's call (2026-11-18), from game-night feedback: drawers get their toolbar from the 3-2-1 on (and through a head start or the showdown's countdown and handoff), so they can pick pen or eraser, size and colour before drawing starts; the canvas keeps showing the countdown and the word pick, and clear stays off until they can draw. The toolbar goes once their team guesses, as before | 2026-11-18 |
 
 ## 3. Terms
 
@@ -226,7 +227,7 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | S2 | Choose | Drawers: two large word cards (only the chooser's are tappable) and a 15 s ring. Others: "<name> is choosing…" |
 | S3 | Countdown | 3-2-1 over the canvas |
 | S4 | Head start | Chooser draws as normal. Everyone else's canvas stays blank, with no message over it (SB23) |
-| S5 | Drawer | Header: the word and timer. Canvas full width at 3:2. Toolbar: pen, eraser, clear, 4 sizes, 10 colours. Team feed. The other team's pixel view in a compact strip |
+| S5 | Drawer | Header: the word and timer. Canvas full width at 3:2. Toolbar: pen, eraser, clear, 4 sizes, 10 colours, from the 3-2-1 on (SB28). Team feed. The other team's pixel view in a compact strip |
 | S6 | Guesser | Header: blanks and timer. Canvas, then the guess box pinned above the phone keyboard, then the team feed, then the opponent strip |
 | S7 | Round result | Overlay on the player's own canvas for 5 s, a trophy on a win, red on a loss; the board stays, the timer hides, no buttons (SB21). Spectators get each team's result on its canvas (SB20) |
 | S8 | Round summary | Section 10. Scrollable on phone: scores and handoff on top, Continue / Start next round in the bottom bar, replays below |

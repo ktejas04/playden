@@ -12,6 +12,7 @@ import type {
   TeamView,
 } from "../types";
 import { Canvas } from "./Canvas";
+import { showsToolbar } from "./drawerTools";
 import { AttemptTracker, Feed } from "./Feed";
 import { GuessBox } from "./GuessBox";
 import { Intermission } from "./Intermission";
@@ -230,8 +231,12 @@ function PlayerBoard({
       />
       <AttemptTracker team={mine} />
       {isDrawer ? (
-        drawing && mine.solvedAt === null ? (
-          <Toolbar tool={tool} onChange={setTool} onClear={() => sendMove({ type: "clear" })} />
+        showsToolbar(view) ? (
+          <Toolbar
+            tool={tool}
+            onChange={setTool}
+            onClear={canDraw ? () => sendMove({ type: "clear" }) : undefined}
+          />
         ) : null
       ) : (
         (drawing ||

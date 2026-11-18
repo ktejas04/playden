@@ -13,7 +13,8 @@ const ITEM = "size-9 sm:size-10 min-w-0 rounded-xl";
 
 /**
  * The drawer's tools (spec section 14): pen or eraser, 4 sizes and 10 colours, each a
- * single-choice toggle group, plus clear.
+ * single-choice toggle group, plus clear. Shown from the 3-2-1 (SB28); without `onClear`
+ * (before the drawing starts) clear is disabled.
  */
 export function Toolbar({
   tool,
@@ -22,7 +23,7 @@ export function Toolbar({
 }: {
   tool: DrawStart;
   onChange: (next: DrawStart) => void;
-  onClear: () => void;
+  onClear?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-2 pt-1" data-tour="toolbar">
@@ -72,6 +73,7 @@ export function Toolbar({
           className="ml-auto size-9 sm:size-10"
           aria-label="Clear the canvas"
           data-tour="clear"
+          disabled={!onClear}
           onClick={onClear}
         >
           <Trash2Icon className="size-4 sm:size-5" />
