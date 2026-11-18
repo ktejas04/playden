@@ -16,6 +16,7 @@ import type {
   SketchBattleConfig,
   SketchBattleMove,
   SketchBattleState,
+  SketchBattleSummary,
   SketchBattleView,
   TeamIndex,
 } from "../types";
@@ -72,12 +73,17 @@ const view = (state: State, viewer: string): SketchBattleView => game.view(state
 const guessers = (state: State, team: TeamIndex) =>
   state.rotations[team].filter((id) => id !== drawer(state, team));
 
-/** From setup to the drawing stage: the chooser picks word `index`, the countdown runs out. */
+/**
+ * From the choose stage to the drawing stage: the chooser picks word `index`, the countdown
+ * runs out, then the head start if there is one. `drawingAt` is when both teams draw.
+ */
 function toDrawing(state: State, index: 0 | 1 = 0): { state: State; drawingAt: number } {
   const chosenAt = (state.phaseEndsAt ?? START) - 1_000;
   let next = move(state, round(state).chooserId, { type: "choose", index }, chosenAt);
   next = tick(next);
-  return { state: next, drawingAt: chosenAt + COUNTDOWN_SECONDS * 1000 };
+  if (next.phase === "headStart") next = tick(next);
+  const headStartMs = round(next).headStartSeconds * 1000;
+  return { state: next, drawingAt: chosenAt + COUNTDOWN_SECONDS * 1000 + headStartMs };
 }
 
 const guess = (text: string) => ({ type: "guess", text }) as const;
@@ -181,7 +187,7 @@ describe("choosing", () => {
 });
 
 describe("a round", () => {
-  it("the round deadline counts from the end of the head start", () => {
+  it("with no head start, both drawers start when the countdown ends", () => {
     const { state, drawingAt } = toDrawing(start());
     expect(state.phase).toBe("drawing");
     expect(round(state).turns.map((t) => t.drawFrom)).toEqual([drawingAt, drawingAt]);
@@ -692,6 +698,171 @@ describe("ready-up", () => {
   });
 });
 
+describe("streaks and head starts", () => {
+  /** Plays the current round with `team` guessing first (null: nobody), up to the next choose stage. */
+  function win(state: State, team: TeamIndex | null): State {
+    const drawing = toDrawing(state);
+    let next = drawing.state;
+    if (team !== null) {
+      next = move(next, guessers(next, team)[0] ?? "", guess(word(next)), drawing.drawingAt + 1);
+    }
+    return nextRound(tick(next));
+  }
+  /** The choose stage of a round where Team 1's Asha is on a two-win streak: Faiz gets 3 s. */
+  const afterTwoWins = () => win(win(start(), 0), 0);
+  /** Picks the word and runs the countdown: the head start begins. */
+  function toHeadStart(state: State): { state: State; startsAt: number } {
+    const chosenAt = (state.phaseEndsAt ?? START) - 1_000;
+    const chosen = move(state, round(state).chooserId, { type: "choose", index: 0 }, chosenAt);
+    return { state: tick(chosen), startsAt: chosenAt + COUNTDOWN_SECONDS * 1000 };
+  }
+  const matchup = (state: State) => ({
+    drawers: [drawer(state, 0), drawer(state, 1)],
+    chooser: round(state).chooserId,
+    headStart: round(state).headStartSeconds,
+  });
+
+  it("follows the worked example in section 8", () => {
+    let state = start();
+    expect(matchup(state).drawers).toEqual(["asha", "dev"]);
+    state = win(state, 0);
+    expect(matchup(state)).toEqual({ drawers: ["asha", "esha"], chooser: "esha", headStart: 0 });
+    state = win(state, 0);
+    expect(matchup(state)).toEqual({ drawers: ["asha", "faiz"], chooser: "faiz", headStart: 3 });
+    state = win(state, 1);
+    expect(matchup(state)).toEqual({ drawers: ["ben", "faiz"], chooser: "ben", headStart: 0 });
+  });
+
+  it("two wins in a row give the challenger 3 s, three give 4 s", () => {
+    let state = afterTwoWins();
+    expect(round(state).headStartSeconds).toBe(3);
+    state = win(state, 0);
+    expect(matchup(state)).toEqual({ drawers: ["asha", "dev"], chooser: "dev", headStart: 4 });
+    state = win(state, 0);
+    expect(round(state).headStartSeconds).toBe(5);
+  });
+
+  it("round 1 and the round after a no-winner round have no head start (D44)", () => {
+    expect(round(start()).headStartSeconds).toBe(0);
+    const state = win(afterTwoWins(), null);
+    expect(round(state).headStartSeconds).toBe(0);
+  });
+
+  it("a winning drawer who drops before the next round takes their streak with them", () => {
+    let state = win(start(), 0);
+    const drawing = toDrawing(state);
+    state = move(
+      drawing.state,
+      guessers(drawing.state, 0)[0] ?? "",
+      guess(word(drawing.state)),
+      drawing.drawingAt + 1,
+    );
+    state = tick(tick(state));
+    state = game.onPresence?.(state, ["asha"], state.phaseEndsAt ?? START).state ?? state;
+    state = readyAll(state, state.phaseEndsAt ?? START);
+    expect(matchup(state)).toEqual({ drawers: ["ben", "faiz"], chooser: "faiz", headStart: 0 });
+  });
+
+  it("the round deadline counts from the end of the head start", () => {
+    const { state, startsAt } = toHeadStart(afterTwoWins());
+    expect(state.phase).toBe("headStart");
+    expect(game.nextDeadline(state)).toBe(startsAt + 3_000);
+    const drawing = tick(state);
+    expect(drawing.phase).toBe("drawing");
+    expect(game.nextDeadline(drawing)).toBe(startsAt + 3_000 + ROUND_MS);
+    // The chooser draws round length + 3 s in all; the other drawer the round length.
+    expect(round(drawing).turns.map((t) => t.drawFrom)).toEqual([startsAt + 3_000, startsAt]);
+  });
+
+  it("during the head start only the chooser draws and nobody guesses", () => {
+    const { state, startsAt } = toHeadStart(afterTwoWins());
+    const at = startsAt + 1_000;
+    const drawn = move(state, "faiz", line(1, [10, 10, 5, 5]), at);
+    expect(refusal(drawn, "asha", line(1, [10, 10]), at)).toBe("Wait for the drawing to start");
+    for (const id of ["ben", "esha"]) {
+      expect(refusal(drawn, id, guess(word(drawn)), at)).toBe(
+        "Guessing opens when the drawing starts",
+      );
+    }
+    const drawing = tick(drawn);
+    expect(() => move(drawing, "asha", line(1, [10, 10]), startsAt + 3_000)).not.toThrow();
+  });
+
+  it("the head-start canvas goes only to the chooser and spectators", () => {
+    const { state, startsAt } = toHeadStart(afterTwoWins());
+    const drawn = move(state, "faiz", line(1, [10, 10, 300, 300]), startsAt + 500);
+    const canvasFor = (viewer: string) => view(drawn, viewer).teams[1].canvas;
+    expect(canvasFor("faiz")).toMatchObject({ kind: "strokes", ops: [{ id: 1 }] });
+    expect(canvasFor("spectator")).toMatchObject({ kind: "strokes", ops: [{ id: 1 }] });
+    // His teammates and the other team see nothing of it: no strokes, no pixel cells.
+    expect(canvasFor("esha")).toEqual({ kind: "strokes", ops: [] });
+    expect(canvasFor("asha")).toEqual({ kind: "cells", cells: EMPTY_CELLS });
+    expect(canvasFor("ben")).toEqual({ kind: "cells", cells: EMPTY_CELLS });
+    // Once the drawing starts, the head start's lines show like any others.
+    const drawing = tick(drawn);
+    expect(view(drawing, "esha").teams[1].canvas).toMatchObject({ ops: [{ id: 1 }] });
+    expect(view(drawing, "ben").teams[1].canvas).not.toEqual({ kind: "cells", cells: EMPTY_CELLS });
+  });
+
+  it("the view shows the streak and the head start from the summary to the drawing", () => {
+    let state = win(start(), 0);
+    const drawing = toDrawing(state);
+    state = move(
+      drawing.state,
+      guessers(drawing.state, 0)[0] ?? "",
+      guess(word(drawing.state)),
+      drawing.drawingAt + 1,
+    );
+    state = tick(tick(state));
+    expect(state.phase).toBe("summary");
+    // On the summary: the coming round's streak and head start.
+    for (const viewer of ["asha", "faiz", "spectator"]) {
+      expect(view(state, viewer)).toMatchObject({
+        streak: { team: 0, drawerId: "asha", count: 2 },
+        headStartSeconds: 3,
+      });
+    }
+    // If Asha drops, the streak and head start go with her.
+    const dropped = game.onPresence?.(state, ["asha"], START).state ?? state;
+    expect(view(dropped, "faiz")).toMatchObject({ streak: null, headStartSeconds: 0 });
+    // Through the round itself they stay the round's.
+    const next = readyAll(state, state.phaseEndsAt ?? START);
+    expect(view(next, "ben")).toMatchObject({
+      streak: { team: 0, drawerId: "asha", count: 2 },
+      headStartSeconds: 3,
+    });
+    const { state: headStart } = toHeadStart(next);
+    expect(view(headStart, "ben")).toMatchObject({ phase: "headStart", headStartSeconds: 3 });
+  });
+
+  it("no head starts in the showdown", () => {
+    let state = start({ rounds: 5 });
+    for (let n = 1; n <= 5; n++) state = win(state, 0);
+    expect(state.phase).toBe("showdownIntro");
+    expect(view(state, "dev")).toMatchObject({ streak: null, headStartSeconds: 0 });
+    const turns = state.showdown?.turns ?? [];
+    expect(turns[0]?.drawFrom).toBe(turns[1]?.drawFrom);
+  });
+
+  it("the won-by gap is clock time between the guesses, the head start included", () => {
+    const { state, startsAt } = toHeadStart(afterTwoWins());
+    // Faiz's team drew from `startsAt`, Asha's from 3 s later. They guess 2 s apart on the clock.
+    let next = tick(state);
+    next = move(next, "esha", guess(word(next)), startsAt + 10_000);
+    next = move(next, "ben", guess(word(next)), startsAt + 12_000);
+    const summary = game.recordSummary?.(next) as SketchBattleSummary;
+    expect(summary.rounds.at(-1)).toMatchObject({ winnerTeam: 1, gapMs: 2_000 });
+  });
+
+  it("the record keeps each round's head start", () => {
+    let state = afterTwoWins();
+    const drawing = toDrawing(state);
+    state = tick(drawing.state);
+    const summary = game.recordSummary?.(state) as SketchBattleSummary;
+    expect(summary.rounds.map((r) => r.headStartSeconds)).toEqual([0, 0, 3]);
+  });
+});
+
 describe("the end of the game", () => {
   function playRounds(rounds: number, winner: (n: number) => TeamIndex | null) {
     let state = start({ rounds });
@@ -729,7 +900,16 @@ describe("the end of the game", () => {
     state = move(state, guessers(state, 1)[0] ?? "", guess(w), drawingAt + 30_000);
     const summary = game.recordSummary?.(state);
     expect(summary).toEqual({
-      rounds: [{ number: 1, word: w, drawerIds: ["asha", "dev"], winnerTeam: 0, gapMs: 17_700 }],
+      rounds: [
+        {
+          number: 1,
+          word: w,
+          drawerIds: ["asha", "dev"],
+          winnerTeam: 0,
+          gapMs: 17_700,
+          headStartSeconds: 0,
+        },
+      ],
       showdown: null,
       scores: [200, 100],
     });

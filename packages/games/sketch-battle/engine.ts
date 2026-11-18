@@ -32,6 +32,7 @@ import { blanksFor, guessProblem, isCorrectGuess, rememberGuess, tooManyGuesses 
 import { EMPTY_CELLS, markStroke } from "./preview";
 import { connectedIn, nextDrawer } from "./rotation";
 import { gapMs, pointsFor } from "./scoring";
+import { headStartFor, streakFor } from "./streak";
 import {
   inShowdown,
   newTurn,
@@ -151,20 +152,31 @@ function withTurn(state: State, team: TeamIndex, turn: TeamTurn): State {
   return { ...state, round: { ...round, turns: pair(round.turns) } };
 }
 
-/**
- * Opens the next round's choose stage (section 8): the winning drawer stays and the losing
- * team's challenger chooses; after a no-winner round both teams rotate and a random team
- * chooses. No head starts yet: streaks come in task 026.
- */
-function startRound(state: State, now: number): Transition<State> {
+/** The next round's drawers (section 8): the winning drawer stays, everyone else rotates. */
+function nextDrawers(state: State): Pair<string> {
   const previous = state.round;
   const gone = unavailable(state);
   const winner = previous?.solvedOrder[0] ?? null;
-  const drawers = TEAMS.map((team) => {
+  return TEAMS.map((team) => {
     const rotation = state.rotations[team];
     if (!previous) return rotation[0] ?? "";
     return nextDrawer(rotation, previous.turns[team].drawerId, winner === team, gone);
   }) as Pair<string>;
+}
+
+/** The challenger's head start for the round these drawers play (section 7). */
+const headStartWith = (state: State, drawers: Pair<string>) =>
+  headStartFor(streakFor(state.history, drawers)?.count ?? 0);
+
+/**
+ * Opens the next round's choose stage (section 8): the winning drawer stays and the losing
+ * team's challenger chooses, with a head start if the winner is on a streak (section 7);
+ * after a no-winner round both teams rotate and a random team chooses, with none (D44).
+ */
+function startRound(state: State, now: number): Transition<State> {
+  const previous = state.round;
+  const winner = previous?.solvedOrder[0] ?? null;
+  const drawers = nextDrawers(state);
   const drawn =
     winner === null
       ? nextInt(state.rng, 0, TEAM_COUNT - 1)
@@ -178,7 +190,7 @@ function startRound(state: State, now: number): Transition<State> {
     chooserId: drawers[chooserTeam],
     choices: [words[0] ?? "", words[1] ?? ""],
     word: null,
-    headStartSeconds: 0,
+    headStartSeconds: winner === null ? 0 : headStartWith(state, drawers),
     wordChosenAt: null,
     solvedOrder: [],
     turns: [newTurn(drawers[0], 0), newTurn(drawers[1], 0)],
@@ -196,16 +208,45 @@ function startRound(state: State, now: number): Transition<State> {
   };
 }
 
+/** The chooser draws from `from`; the other drawer once the head start is over. */
+function drawFromAfter(round: Round, from: number): Pair<TeamTurn> {
+  const headStartEnds = from + seconds(round.headStartSeconds);
+  return round.turns.map((turn) => ({
+    ...turn,
+    drawFrom: turn.drawerId === round.chooserId ? from : headStartEnds,
+  })) as Pair<TeamTurn>;
+}
+
+/** Both drawers draw and guessers guess, until the round's time is up. */
+function startDrawing(state: State, now: number): Transition<State> {
+  const round = state.round;
+  if (!round) return { state, events: [] };
+  const turns = round.turns.map((turn) =>
+    turn.drawerId === round.chooserId && state.phase === "headStart"
+      ? turn
+      : { ...turn, drawFrom: now },
+  ) as Pair<TeamTurn>;
+  return {
+    state: {
+      ...state,
+      phase: "drawing",
+      phaseEndsAt: now + seconds(state.config.roundSeconds),
+      round: { ...round, turns },
+    },
+    events: [{ type: "drawing.started" }],
+  };
+}
+
 function chooseWord(state: State, index: 0 | 1, now: number): Transition<State> {
   const round = state.round;
   if (!round) return { state, events: [] };
-  const drawFrom = now + seconds(COUNTDOWN_SECONDS);
-  const turns = round.turns.map((turn) => ({ ...turn, drawFrom })) as Pair<TeamTurn>;
+  const countdownEnds = now + seconds(COUNTDOWN_SECONDS);
+  const turns = drawFromAfter(round, countdownEnds);
   return {
     state: {
       ...state,
       phase: "countdown",
-      phaseEndsAt: drawFrom,
+      phaseEndsAt: countdownEnds,
       round: { ...round, word: round.choices[index], wordChosenAt: now, turns },
     },
     events: [{ type: "word.chosen", data: { chooserId: round.chooserId } }],
@@ -224,6 +265,7 @@ function endRound(state: State, now: number, events: GameEvent[]): Transition<St
     solvedAt: [round.turns[0].solvedAt, round.turns[1].solvedAt],
     drawingStartedAt: [round.turns[0].drawFrom, round.turns[1].drawFrom],
     points,
+    headStartSeconds: round.headStartSeconds,
   };
   return {
     state: {
@@ -338,11 +380,27 @@ function seesTeam(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): 
 const NO_OPS: CanvasOp[] = [];
 const NO_GUESSES: SketchBattleView["teams"][0]["guesses"] = [];
 
-function teamView(state: State, team: TeamIndex, viewerTeam: TeamIndex | null): TeamView {
+/**
+ * The head start is private (SB4): only the chooser and spectators see that canvas. Everyone
+ * else, the chooser's teammates included, gets an empty one until the drawing starts.
+ */
+function headStartHidden(state: State, team: TeamIndex, viewer: string): boolean {
+  const round = state.round;
+  if (state.phase !== "headStart" || !round || viewer === "spectator") return false;
+  return round.turns[team].drawerId === round.chooserId && viewer !== round.chooserId;
+}
+
+function teamView(
+  state: State,
+  team: TeamIndex,
+  viewerTeam: TeamIndex | null,
+  viewer: string,
+): TeamView {
   const turn = currentTurn(state, team);
   const racing = inShowdown(state.phase);
   const playing = racing ? state.phase === "showdown" : Boolean(state.round?.word);
   const shown = seesTeam(state, viewerTeam, team);
+  const hidden = headStartHidden(state, team, viewer);
   const away = new Set(state.away);
   const left = new Set(state.left);
   return {
@@ -357,11 +415,31 @@ function teamView(state: State, team: TeamIndex, viewerTeam: TeamIndex | null): 
     drawFrom: turn && playing ? turn.drawFrom : null,
     solvedAt: turn?.solvedAt ?? null,
     canvas: shown
-      ? { kind: "strokes", ops: turn?.ops ?? NO_OPS }
-      : { kind: "cells", cells: racing ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
+      ? { kind: "strokes", ops: hidden ? NO_OPS : (turn?.ops ?? NO_OPS) }
+      : { kind: "cells", cells: racing || hidden ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
     guesses: shown ? (turn?.guesses ?? NO_GUESSES) : null,
     wrongGuesses: turn?.guesses.filter((g) => !g.correct).length ?? 0,
   };
+}
+
+/**
+ * The streak and head start a viewer is shown (section 7): the round's own while it plays;
+ * from its result on, the coming round's, as the drawers stand now. None in the showdown.
+ */
+function streakView(state: State): Pick<SketchBattleView, "streak" | "headStartSeconds"> {
+  const none = { streak: null, headStartSeconds: 0 };
+  const round = state.round;
+  if (!round || inShowdown(state.phase) || state.phase === "ended") return none;
+  if (state.phase === "result" || state.phase === "summary") {
+    if (isLastRound(state)) return none;
+    const drawers = nextDrawers(state);
+    return {
+      streak: streakFor(state.history, drawers),
+      headStartSeconds: headStartWith(state, drawers),
+    };
+  }
+  const drawers: Pair<string> = [round.turns[0].drawerId, round.turns[1].drawerId];
+  return { streak: streakFor(state.history, drawers), headStartSeconds: round.headStartSeconds };
 }
 
 function scoresByPlayer(state: State): Record<string, number> {
@@ -442,7 +520,10 @@ export const sketchBattle: GameDefinition<
       case "draw":
       case "clear": {
         if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
-        const playing = state.phase === "drawing" || state.phase === "showdown";
+        const playing =
+          state.phase === "drawing" ||
+          state.phase === "showdown" ||
+          (state.phase === "headStart" && round.chooserId === playerId);
         if (!playing || now < turn.drawFrom) {
           return { ok: false, reason: "Wait for the drawing to start" };
         }
@@ -570,11 +651,12 @@ export const sketchBattle: GameDefinition<
           : null,
       word,
       blanks,
-      teams: [teamView(state, 0, team), teamView(state, 1, team)],
+      teams: [teamView(state, 0, team, viewer), teamView(state, 1, team, viewer)],
       lastRound: state.history.at(-1) ?? null,
       waitingFor: waitingFor(state),
       ready: state.phase === "result" || state.phase === "summary" ? state.ready : [],
       showdown,
+      ...streakView(state),
     };
   },
 
@@ -591,17 +673,24 @@ export const sketchBattle: GameDefinition<
       case "countdown": {
         const round = state.round;
         if (!round) return { state, events: [] };
-        const turns = round.turns.map((turn) => ({ ...turn, drawFrom: now })) as Pair<TeamTurn>;
+        if (round.headStartSeconds === 0) return startDrawing(state, now);
         return {
           state: {
             ...state,
-            phase: "drawing",
-            phaseEndsAt: now + seconds(state.config.roundSeconds),
-            round: { ...round, turns },
+            phase: "headStart",
+            phaseEndsAt: now + seconds(round.headStartSeconds),
+            round: { ...round, turns: drawFromAfter(round, now) },
           },
-          events: [{ type: "drawing.started" }],
+          events: [
+            {
+              type: "headStart.started",
+              data: { chooserId: round.chooserId, seconds: round.headStartSeconds },
+            },
+          ],
         };
       }
+      case "headStart":
+        return startDrawing(state, now);
       case "drawing":
         return endRound(state, now, []);
       case "result": {
@@ -653,7 +742,8 @@ export const sketchBattle: GameDefinition<
       word: record.word,
       drawerIds: record.drawerIds,
       winnerTeam: record.winnerTeam,
-      gapMs: gapMs(record.solvedAt, record.drawingStartedAt),
+      gapMs: gapMs(record.solvedAt),
+      headStartSeconds: record.headStartSeconds,
     })),
     showdown: state.showdown && {
       words: state.showdown.words.length,

@@ -66,16 +66,20 @@ export interface RoundRecord {
   solvedAt: Pair<number | null>;
   drawingStartedAt: Pair<number>;
   points: Pair<number>;
+  /** The chooser's head start that round, in seconds (section 7). */
+  headStartSeconds: number;
 }
 
 /**
- * Where the game is. `result`: the round's outcome, 5 s. `summary`: until every connected
+ * Where the game is. `headStart`: only the chooser draws, after a streak of 2+ (section 7).
+ * `result`: the round's outcome, 5 s. `summary`: until every connected
  * player has tapped Continue, or someone taps Start next round (section 10). After the last
  * round: the showdown's intro, countdown, play and result (section 9).
  */
 export type Phase =
   | "choose"
   | "countdown"
+  | "headStart"
   | "drawing"
   | "result"
   | "summary"
@@ -183,6 +187,13 @@ export interface SketchBattleView {
   ready: string[];
   /** The showdown as this viewer may see it; null before it starts. */
   showdown: ShowdownView | null;
+  /**
+   * The staying drawer's wins in a row (section 7): this round's while it plays, the coming
+   * round's from the result on. Null when nobody is on a streak, and in the showdown.
+   */
+  streak: { team: TeamIndex; drawerId: string; count: number } | null;
+  /** The chooser's head start, in seconds, for the same round as `streak`. */
+  headStartSeconds: number;
 }
 
 export interface ShowdownView {
@@ -227,6 +238,7 @@ export interface SketchBattleSummary {
     winnerTeam: TeamIndex | null;
     /** Milliseconds between the two teams' correct guesses; null unless both guessed. */
     gapMs: number | null;
+    headStartSeconds: number;
   }[];
   /** Words each team finished in the showdown and who finished first; null if it never started. */
   showdown: { words: number; done: Pair<number>; winnerTeam: TeamIndex | null } | null;

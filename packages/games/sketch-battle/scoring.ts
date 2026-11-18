@@ -14,16 +14,13 @@ export function pointsFor(solvedOrder: readonly TeamIndex[]): Pair<number> {
 }
 
 /**
- * Milliseconds between the two teams' correct guesses, each timed from its own drawer's start;
- * null unless both guessed.
+ * Milliseconds between the two teams' correct guesses on the clock, as the original: a head
+ * start counts, since the round is won on the clock. Null unless both guessed.
  */
-export function gapMs(
-  solvedAt: Pair<number | null>,
-  drawingStartedAt: Pair<number>,
-): number | null {
+export function gapMs(solvedAt: Pair<number | null>): number | null {
   const [a, b] = solvedAt;
   if (a === null || b === null) return null;
-  return Math.abs(a - drawingStartedAt[0] - (b - drawingStartedAt[1]));
+  return Math.abs(a - b);
 }
 
 /**

@@ -13,7 +13,7 @@ export function resultText(
   team: TeamIndex | null,
   who?: string,
 ): { title: string; detail: string; tone: Tone } {
-  const gap = gapMs(round.solvedAt, round.drawingStartedAt);
+  const gap = gapMs(round.solvedAt);
   const theWord = `The word was ${round.word}`;
   if (team === null) {
     if (round.winnerTeam === null) return { title: "Time's up!", detail: theWord, tone: "neutral" };

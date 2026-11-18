@@ -78,7 +78,8 @@ function playRounds(
     const chosenAt = (state.phaseEndsAt ?? START) - 1_000;
     state = move(state, round.chooserId, { type: "choose", index: 0 }, chosenAt);
     state = tick(state);
-    const drawingAt = chosenAt + COUNTDOWN_SECONDS * 1000;
+    if (state.phase === "headStart") state = tick(state);
+    const drawingAt = chosenAt + (COUNTDOWN_SECONDS + round.headStartSeconds) * 1000;
     const team = winner(n);
     if (team !== null) {
       const turns = state.round?.turns[team];

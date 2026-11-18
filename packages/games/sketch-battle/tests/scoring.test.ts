@@ -17,10 +17,15 @@ describe("round points (SB1)", () => {
 });
 
 describe("the won-by gap", () => {
-  it("is the time between the two teams' guesses, each from their own drawing start", () => {
-    expect(gapMs([12_300, 47_000], [0, 0])).toBe(34_700);
-    expect(gapMs([10_000, 9_000], [3_000, 0])).toBe(2_000);
-    expect(gapMs([12_300, null], [0, 0])).toBeNull();
+  it("is the time between the two teams' correct guesses on the clock, as the original", () => {
+    expect(gapMs([12_300, 47_000])).toBe(34_700);
+    expect(gapMs([47_000, 12_300])).toBe(34_700);
+    expect(gapMs([12_300, null])).toBeNull();
+  });
+
+  it("counts the head start in: a team 2 s behind on the clock lost by 2 seconds", () => {
+    // The challenger's team drew from 0, the other team from 3 s; they guessed at 10 s and 12 s.
+    expect(gapMs([10_000, 12_000])).toBe(2_000);
   });
 
   it("rounds up to whole seconds when >= 1s, and tenths when < 1s", () => {

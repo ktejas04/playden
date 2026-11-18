@@ -10,6 +10,7 @@ const record = (fields: Partial<RoundRecord>): RoundRecord => ({
   solvedAt: [12_300, 47_000],
   drawingStartedAt: [0, 0],
   points: [200, 100],
+  headStartSeconds: 0,
   ...fields,
 });
 

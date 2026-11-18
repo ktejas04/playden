@@ -1,6 +1,6 @@
 # Sketch Battle — game spec
 
-Id: `sketch-battle` · Version: v1 · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-17
+Id: `sketch-battle` · Version: v1 · Players: 4–16 in two teams · Voice: no · Last updated: 2026-11-18
 
 Two teams race to guess the same word, each from its own drawer's sketch. The mechanics copy drawbattle.io, checked against its game code on 2026-11-13, so the game plays exactly like the original. The name, look, animations, sounds and word list are our own (D17). Where we deliberately differ, section 2 says so and why. Rules marked **(ours)** are ones the original decides on its server, where we can't see them.
 
@@ -35,7 +35,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB11 | Drawing is sent in 150 ms batches, with pen-down and pen-up sent at once; phones play each batch back smoothly. Teammates and opponents get each batch's update in the same message cycle | 2026-11-13 |
 | SB12 | A team that loses its connected players mid-round doesn't stop the round: it plays on and times out normally. The next round doesn't start until **each team has at least 2 connected players**: until then the result stays up with "Waiting for <team>", and Continue and Start next round are locked for everyone. The host can always End game (answers section 22) | 2026-11-13 |
 | SB13 | Guessing closes the moment the round's time is up or the round has ended: the server refuses any later guess ("The round is over") even before it has processed the deadline, and the guess box locks when the timer reaches 0. Until the drawing stage starts (choose and countdown) the box stays locked | 2026-11-13 |
-| SB14 | Our difference: the "won by" gap shows tenths of a second ("34.7 seconds"), and a whole number when within 0.05 s of one ("10 seconds"); under 0.05 s it's "less than 0.1 seconds". The original shows tenths only under 1 s and rounds everything else up to whole seconds, so a 10.0 s gap read "11 seconds" next to feed times 10.0 s apart | 2026-11-13 |
+| SB14 | Our difference: the "won by" gap shows tenths of a second ("34.7 seconds"), and a whole number when within 0.05 s of one ("10 seconds"); under 0.05 s it's "less than 0.1 seconds". The original shows tenths only under 1 s and rounds everything else up to whole seconds, so a 10.0 s gap read "11 seconds" next to feed times 10.0 s apart (replaced by SB24) | 2026-11-13 |
 | SB15 | Owner's screens (2026-11-16): the result is its own screen, not a canvas overlay: one outcome in one colour (green won, red lost), with Continue to skip ahead to the summary (replaced by SB21: the result now shows on the board). The summary has no "winner" / "next challenger" labels: the outgoing drawer is struck through and the next one fades in, with the whole team on deck below and a tick by each name that tapped Continue. Both drawers see the two word choices as identical buttons, one per line, so neither reads as suggested; everyone else sees "<name> is choosing a word". Feed lines are one colour each | 2026-11-16 |
 | SB16 | Owner's call (2026-11-17), base game first: winner stays and the challenger choosing ship with the base round (021); streaks and head starts wait for 026. Start next round is only for players who have tapped Continue, so it skips the unready instead of letting an unready player skip everyone. The drawer's mouse pointer is a small black dot; the 10 colours are two rows of 5 on a phone | 2026-11-17 |
 | SB17 | Owner's call (2026-11-17): each team's ✕ / ✓ marks show under its canvas for everyone, the other team included, so you see how close they are; only the count of wrong guesses goes out, never their texts (D47). The marks replace the "Solved" badge. The round summary shows both teams' marks under the drawings. The drawer handoff on the summary is unhurried: a beat, the strike draws across, a pause, then the next drawer eases in | 2026-11-17 |
@@ -43,6 +43,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB19 | Owner's call (2026-11-17), task 033: rounds go from 5 to 15, one at a time (default 15), so a short game is one setting away; seconds per round 15–120 in 15 s steps, default **45**. The results screen is fine as it is: the per-team breakdown and highlights wait until players ask (032) | 2026-11-17 |
 | SB20 | Owner's call (2026-11-17), the spectator view: each canvas has its team and drawer above it; while choosing, spectators see both word options (guessers still never do), and through the 3-2-1 drawers and spectators see the picked word marked and the other faded; at the round result spectators stay on the board, and each canvas shows that team's result ("Team 1 wins! +200 points", "Team 2 lost by 3 seconds +100 points", "Time's up! The word was …") before the summary. On a phone the word or blanks take their own line under the matchup and timer, so long words never push the canvas down | 2026-11-17 |
 | SB21 | Owner's call (2026-11-18), reverses SB15's "the result is its own screen, with Continue to skip ahead": at the round result players stay on the board too, and their own canvas shows their result for the 5 s ("You win! +200 points" with a trophy, "You lost by 3 seconds +100 points" in red, "Time's up! The word was …"). The opponent strip and feeds stay, the timer hides, and nothing can be tapped. Then everyone moves to the summary on their own; its Continue is the round end's only button | 2026-11-18 |
+| SB24 | Owner's call (2026-11-18), from the original's code: the "won by" gap is the clock time between the two teams' correct guesses, so a head start counts (a team 2 s behind on the clock lost by 2 seconds, whatever its drawer's start). From 1 s it's rounded up to whole seconds, as the original ("35 seconds" for 34.7); under 1 s it's the nearest tenth, and under 0.05 s "less than 0.1 seconds". Feed times stay per team, from that team's drawing start. Replaces SB14 | 2026-11-18 |
 | SB22 | Owner's call (2026-11-18), from the original's spectator view: in the showdown spectators also get a word track, a column per team with every showdown word in order, each finished word in green and a blank line for each still ahead (beside the canvases on a PC, below them on a phone). Players still get no word tracks (SB18) | 2026-11-18 |
 
 ## 3. Terms
@@ -119,11 +120,11 @@ After the last round, the showdown begins (section 9).
 | Only one guesses | 200 | 0 |
 | Nobody guesses | 0 | 0 |
 
-The result's "won by" gap is the time between the two teams' correct guesses, to the nearest tenth of a second ("34.7 seconds", "0.4 seconds"). Within 0.05 s of a whole number it shows the whole number ("10 seconds", "1 second"); under 0.05 s it says "less than 0.1 seconds" (SB14).
+The result's "won by" gap is the clock time between the two teams' correct guesses, a head start included (SB24). From 1 s it's rounded up to whole seconds ("35 seconds" for 34.7 s, "2 seconds" for 1.04 s); under 1 s it's the nearest tenth ("0.4 seconds"), and under 0.05 s "less than 0.1 seconds".
 
 **Worked examples**
 
-1. Team A guesses at 12.3 s, team B at 47.0 s → A 200, B 100. A "won by 34.7 seconds".
+1. Team A guesses at 12.3 s, team B at 47.0 s → A 200, B 100. A "won by 35 seconds".
 2. Team A guesses at 20 s, team B never does → A 200, B 0. B sees "time's up! the word was …".
 3. Nobody guesses → 0 and 0. Both teams rotate drawers and a random team chooses next.
 4. Showdown with 15 words: A finishes all 15 while B has finished 9 → A 15 × 100 + 100 = **1600**, B 9 × 100 = **900**. B's half-drawn 10th word doesn't count.
@@ -464,7 +465,8 @@ One hour of an 8-player room, with the platform fixes (D55): about 1,300 Durable
 - team that never guesses scores 0
 - nobody guessing scores 0 for both
 - same-millisecond guesses go to the first processed
-- the won-by gap shows tenths of a second, and a whole number when within 0.05 s of one
+- the won-by gap is clock time between the guesses, the head start included
+- the won-by gap rounds up to whole seconds from 1 s, and shows tenths under 1 s
 - the won-by gap calls under 0.05 s less than a tenth, never 0 seconds
 
 **Guessing**
@@ -573,7 +575,7 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 
 **4.2 Full match** — a 15-round match plays like the original
 
-- [ ] **026 — Engine: streaks and head starts** (private head start). Winner stays moved to 021 (SB16).
+- [x] **026 — Engine: streaks and head starts** (private head start). Winner stays moved to 021 (SB16).
 - [ ] **027 — Head start stage and matchup badges.**
 - [x] **028 — Round summary, replays, Continue and Start next round.**
 - [ ] **029 — Disconnect rules and the spectator view** (SB12 answers section 22).
