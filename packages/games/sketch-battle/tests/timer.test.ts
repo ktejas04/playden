@@ -42,4 +42,12 @@ describe("timers", () => {
     expect(phaseLength(viewIn("summary"))).toBe(FORCE_START_AFTER_SECONDS);
     expect(phaseLength(viewIn("ended"))).toBeNull();
   });
+
+  it("the head start lasts its seconds, and the drawing after it the round length", () => {
+    expect(phaseLength({ ...viewIn("headStart"), headStartSeconds: 4 })).toBe(4);
+    // The chooser started 4 s earlier; the round's time counts from the other drawer's start.
+    const chooser = { drawFrom: END - 49_000 } as SketchBattleView["teams"][0];
+    const other = { drawFrom: END - 45_000 } as SketchBattleView["teams"][0];
+    expect(phaseLength({ ...viewIn("drawing"), teams: [chooser, other] })).toBe(45);
+  });
 });

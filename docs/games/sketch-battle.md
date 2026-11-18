@@ -43,6 +43,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB19 | Owner's call (2026-11-17), task 033: rounds go from 5 to 15, one at a time (default 15), so a short game is one setting away; seconds per round 15–120 in 15 s steps, default **45**. The results screen is fine as it is: the per-team breakdown and highlights wait until players ask (032) | 2026-11-17 |
 | SB20 | Owner's call (2026-11-17), the spectator view: each canvas has its team and drawer above it; while choosing, spectators see both word options (guessers still never do), and through the 3-2-1 drawers and spectators see the picked word marked and the other faded; at the round result spectators stay on the board, and each canvas shows that team's result ("Team 1 wins! +200 points", "Team 2 lost by 3 seconds +100 points", "Time's up! The word was …") before the summary. On a phone the word or blanks take their own line under the matchup and timer, so long words never push the canvas down | 2026-11-17 |
 | SB21 | Owner's call (2026-11-18), reverses SB15's "the result is its own screen, with Continue to skip ahead": at the round result players stay on the board too, and their own canvas shows their result for the 5 s ("You win! +200 points" with a trophy, "You lost by 3 seconds +100 points" in red, "Time's up! The word was …"). The opponent strip and feeds stay, the timer hides, and nothing can be tapped. Then everyone moves to the summary on their own; its Continue is the round end's only button | 2026-11-18 |
+| SB23 | Owner's call (2026-11-18), task 027: the head start has no stage screen of its own. For its seconds only the challenger draws; everyone else, the challenger's teammates included, sees a blank canvas (the other team a blank pixel view) with no message over it, the other drawer can't draw and nobody can guess. Spectators still see the challenger's canvas (section 15). The head start shows only as badges on the round summary's drawer change: "2x streak" by the staying drawer and "3s head start" by the challenger. The choose stage has no matchup or badges | 2026-11-18 |
 | SB24 | Owner's call (2026-11-18), from the original's code: the "won by" gap is the clock time between the two teams' correct guesses, so a head start counts (a team 2 s behind on the clock lost by 2 seconds, whatever its drawer's start). From 1 s it's rounded up to whole seconds, as the original ("35 seconds" for 34.7); under 1 s it's the nearest tenth, and under 0.05 s "less than 0.1 seconds". Feed times stay per team, from that team's drawing start. Replaces SB14 | 2026-11-18 |
 | SB22 | Owner's call (2026-11-18), from the original's spectator view: in the showdown spectators also get a word track, a column per team with every showdown word in order, each finished word in green and a blank line for each still ahead (beside the canvases on a PC, below them on a phone). Players still get no word tracks (SB18) | 2026-11-18 |
 
@@ -74,9 +75,9 @@ The platform's setup screen (D51) runs this:
 
 | # | Stage | Length | What happens |
 | --- | --- | --- | --- |
-| 1 | Choose | 15 s | Both drawers see the two words; only the chooser can tap one. Guessers and spectators see the matchup "<drawer A> vs <drawer B>" with streak and head start badges and "<name> is choosing…". On timeout the first word is picked **(ours)** |
+| 1 | Choose | 15 s | Both drawers see the two words; only the chooser can tap one. Guessers and spectators see "<name> is choosing…". On timeout the first word is picked **(ours)** |
 | 2 | Countdown | 3 s | 3-2-1 for everyone. Both drawers now see the word |
-| 3 | Head start | `h` s, only if `h > 0` | Only the chooser draws, and only the chooser sees that canvas. Everyone else, including the chooser's teammates, sees "<name>'s head start" with a countdown. Nobody can guess |
+| 3 | Head start | `h` s, only if `h > 0` | Only the chooser draws, and only the chooser (and spectators) see that canvas. Everyone else, including the chooser's teammates, sees a blank canvas, and the other team a blank pixel view; the other drawer can't draw yet. Nobody can guess (SB23) |
 | 4 | Drawing | round length | Both drawers draw, guessers guess. The deadline is round length after the head start ends, so the chooser draws round length + `h` in total |
 | 5 | Round end | — | When the deadline passes, or the moment both teams have guessed |
 | 6 | Result | 5 s | On the board, over each player's own canvas (SB21): "You win! +200 points" / "You lost by 6 seconds +100 points" / "Time's up! The word was …". Nothing to tap; the summary follows on its own |
@@ -172,7 +173,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 ## 10. Round summary and ready-up
 
 - Round number and both team scores, counting up from the previous scores.
-- **Drawer handoff:** the staying drawer, marked "winner" with the streak badge. On the losing side, the last drawer hands the pencil to the "next challenger", who shows their head start badge if any. When nobody won, both sides show "next drawer". The animation is our own (section 13).
+- **Drawer handoff:** the staying drawer keeps the pencil, with the "2x streak" badge from two wins in a row. On the losing side the last drawer is struck through and the challenger fades in, with their "3s head start" badge if any. Badges only, no "winner" / "next challenger" labels (SB15, SB23). The animation is our own (section 13).
 - On deck for each team.
 - **Replays:** both canvases from this round with a Replay button that quickly redraws the strokes in order, plus each team's guess log with times.
 - **Continue:** every player taps it and a tick appears next to their name. The next round starts when every connected player has ticked; away players aren't waited for.
@@ -219,9 +220,9 @@ Mobile-first portrait, PC gets a wider version of the same screen. Look: PlayDen
 | # | Screen | Phone layout and interactions |
 | --- | --- | --- |
 | S1 | Setup | The platform's setup screen with team columns, Start and its disabled reason, Settings popup |
-| S2 | Choose | Drawers: two large word cards (only the chooser's are tappable) and a 15 s ring. Others: the matchup with streak and head start badges, and "<name> is choosing…" |
+| S2 | Choose | Drawers: two large word cards (only the chooser's are tappable) and a 15 s ring. Others: "<name> is choosing…" |
 | S3 | Countdown | 3-2-1 over the canvas |
-| S4 | Head start | Chooser draws as normal. Everyone else's canvas is covered by "<name>'s head start" with a countdown |
+| S4 | Head start | Chooser draws as normal. Everyone else's canvas stays blank, with no message over it (SB23) |
 | S5 | Drawer | Header: the word and timer. Canvas full width at 3:2. Toolbar: pen, eraser, clear, 4 sizes, 10 colours. Team feed. The other team's pixel view in a compact strip |
 | S6 | Guesser | Header: blanks and timer. Canvas, then the guess box pinned above the phone keyboard, then the team feed, then the opponent strip |
 | S7 | Round result | Overlay on the player's own canvas for 5 s, a trophy on a win, red on a loss; the board stays, the timer hides, no buttons (SB21). Spectators get each team's result on its canvas (SB20) |
@@ -576,7 +577,7 @@ Each step is one task file in `docs/tasks/`, done in this order. Each phase ends
 **4.2 Full match** — a 15-round match plays like the original
 
 - [x] **026 — Engine: streaks and head starts** (private head start). Winner stays moved to 021 (SB16).
-- [ ] **027 — Head start stage and matchup badges.**
+- [ ] **027 — Head start stage and summary badges.**
 - [x] **028 — Round summary, replays, Continue and Start next round.**
 - [ ] **029 — Disconnect rules and the spectator view** (SB12 answers section 22).
 

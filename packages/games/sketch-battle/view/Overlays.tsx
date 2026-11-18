@@ -2,8 +2,8 @@ import { Button } from "@playden/ui/components/button";
 import { cn } from "@playden/ui/lib/utils";
 import { ArrowRight, Clock, Trophy } from "lucide-react";
 import type { ReactNode } from "react";
-import type { Tone } from "./result";
 import type { SketchBattleMove, SketchBattleView } from "../types";
+import type { Tone } from "./result";
 
 /** A layer over the canvas with one message; the canvas underneath stays as it was. */
 function Over({ children, className }: { children: ReactNode; className?: string }) {

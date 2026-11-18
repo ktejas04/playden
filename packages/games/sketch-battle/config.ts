@@ -24,6 +24,8 @@ export const HEAD_START_BASE_SECONDS = 3;
 export const HEAD_START_PER_EXTRA_WIN_SECONDS = 1;
 /** No cap until players ask for one. */
 export const HEAD_START_MAX_SECONDS: number | null = null;
+/** The staying drawer shows a "2x streak" badge from this many wins in a row. */
+export const STREAK_BADGE_MIN_WINS = 2;
 
 export const RESULT_SECONDS = 5;
 export const FORCE_START_AFTER_SECONDS = 10;

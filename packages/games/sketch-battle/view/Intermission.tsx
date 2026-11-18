@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { nextDrawer } from "../rotation";
 import type { CanvasOp, SketchBattleMove, SketchBattleView, TeamIndex, TeamView } from "../types";
 import { prepare, useCanvasSize } from "./Canvas";
+import { drawerBadge } from "./Badges";
 import { AttemptTracker } from "./Feed";
 import { PAPER, TEAM_ACCENT, TEAM_NAME } from "./palette";
 import { drawOps, opsUpTo, stepCount } from "./strokes";
@@ -176,12 +177,15 @@ function TeamLineup({
   lineup,
   stage,
   ready,
+  badge,
 }: {
   team: TeamView;
   index: TeamIndex;
   lineup: Lineup | null;
   stage: HandoffStage;
   ready: ReadonlySet<string>;
+  /** The next drawer's streak or head start badge (section 7), shown once they're in place. */
+  badge: ReactNode;
 }) {
   /** A player's name, with a tick once they've tapped Continue. */
   const name = (id: string) => (
@@ -248,6 +252,19 @@ function TeamLineup({
               </span>
             )}
           </span>
+          {badge && (
+            // The row is kept while the challenger's name arrives, so nothing below it jumps.
+            <span className="flex h-6 items-center">
+              {arrived && (
+                <span
+                  className="animate-in fade-in-0 motion-reduce:animate-none"
+                  style={{ animationDuration: `${ARRIVE_MS}ms`, animationTimingFunction: EASE }}
+                >
+                  {badge}
+                </span>
+              )}
+            </span>
+          )}
           {deck.length > 0 && (
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-xs font-medium text-muted-foreground">on deck</span>
@@ -343,6 +360,7 @@ export function Intermission({
               lineup={lineup(t)}
               stage={stage}
               ready={ready}
+              badge={drawerBadge(view, t)}
             />
           ))}
         </div>

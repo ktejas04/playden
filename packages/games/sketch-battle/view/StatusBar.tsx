@@ -32,7 +32,8 @@ export function Blanks({ blanks }: { blanks: string }) {
  * long word's blanks never squeeze in beside them and push the canvas down.
  */
 export function StatusBar({ view, seconds }: { view: SketchBattleView; seconds: number | null }) {
-  const guessing = view.phase === "drawing" || view.phase === "countdown";
+  const guessing =
+    view.phase === "drawing" || view.phase === "countdown" || view.phase === "headStart";
   const racing = view.phase === "showdown";
   const urgent = view.phase === "drawing" && seconds !== null && seconds <= 5;
   const myTeam = view.me.team ?? 0;

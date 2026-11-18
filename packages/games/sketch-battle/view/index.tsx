@@ -34,6 +34,12 @@ type Props = GameViewProps<SketchBattleView, SketchBattleMove>;
 
 const otherTeam = (team: TeamIndex): TeamIndex => (team === 0 ? 1 : 0);
 
+/** Whether this viewer picked this round's word. */
+function isChooser(view: SketchBattleView): boolean {
+  const mine = view.me.team === null ? null : view.teams[view.me.team];
+  return view.me.role === "drawer" && mine?.drawerId === view.chooserId;
+}
+
 /** What goes over a team's canvas right now: choose words, 3-2-1, a team's win, or the result. */
 function CanvasOverlay({
   view,
@@ -177,7 +183,9 @@ function PlayerBoard({
   useEffect(() => setPending([]), [mine.drawerId]);
   const isDrawer = view.me.role === "drawer";
   const racing = view.showdown !== null && view.phase !== "ended";
-  const drawing = view.phase === "drawing" || view.phase === "showdown";
+  /** The challenger draws alone through the head start; everyone else sees a blank canvas (S4). */
+  const myHeadStart = view.phase === "headStart" && isChooser(view);
+  const drawing = view.phase === "drawing" || view.phase === "showdown" || myHeadStart;
   /** In the showdown, the 2 s while the pencil passes to the next drawer. */
   const handingOff = view.phase === "showdown" && now < (mine.drawFrom ?? 0);
   const drawerName = mine.players.find((p) => p.id === mine.drawerId)?.name ?? "Someone";
@@ -227,7 +235,10 @@ function PlayerBoard({
           <Toolbar tool={tool} onChange={setTool} onClear={() => sendMove({ type: "clear" })} />
         ) : null
       ) : (
-        (drawing || view.phase === "countdown" || view.phase === "showdownCountdown") && (
+        (drawing ||
+          view.phase === "countdown" ||
+          view.phase === "headStart" ||
+          view.phase === "showdownCountdown") && (
           <div className="sticky bottom-0 z-10 -mx-1 bg-card px-1 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
             <GuessBox
               open={drawing && timeLeft && !handingOff}

@@ -26,6 +26,8 @@ export function phaseLength(view: SketchBattleView): number | null {
       return CHOOSE_SECONDS;
     case "countdown":
       return COUNTDOWN_SECONDS;
+    case "headStart":
+      return view.headStartSeconds;
     case "result":
       return RESULT_SECONDS;
     case "summary":
