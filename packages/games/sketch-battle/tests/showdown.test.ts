@@ -261,7 +261,7 @@ describe("the showdown", () => {
     expect(view(state, guesserOf(state, 1)).teams[1].canvas.kind).toBe("strokes");
   });
 
-  it("the drawer sees the word, guessers see blanks, and nobody sees words they haven't reached", () => {
+  it("the drawer sees the word, guessers no letter count (SB26), and nobody sees words they haven't reached", () => {
     let state = toPlay(playRounds(5));
     const firstWord = currentWord(state, 0);
     state = solve(state, 0);
@@ -272,7 +272,8 @@ describe("the showdown", () => {
 
     const guesser = view(state, guesserOf(state, 0));
     expect(guesser.word).toBeNull();
-    expect(guesser.blanks).toMatch(/^[_ -]+$/);
+    expect(guesser.blanks).toBeNull();
+    expect(guesser.showdown).not.toHaveProperty("blanks");
     expect(guesser.showdown?.current[0]).toBeNull();
 
     // Team 2 hasn't reached team 1's first word yet: it may not see it, or what team 1 is on.

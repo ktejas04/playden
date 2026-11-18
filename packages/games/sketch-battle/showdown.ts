@@ -7,7 +7,7 @@ import {
   SHOWDOWN_RESULT_SECONDS,
   SHOWDOWN_WORD_POINTS,
 } from "./config";
-import { blanksFor, isCorrectGuess, rememberGuess } from "./guess";
+import { isCorrectGuess, rememberGuess } from "./guess";
 import { EMPTY_CELLS } from "./preview";
 import { nextConnected } from "./rotation";
 import type {
@@ -216,11 +216,6 @@ export function showdownView(
         ? word(team)
         : null,
     ) as Pair<string | null>,
-    blanks: TEAMS.map((team) => {
-      const current = word(team);
-      if (over || !started || viewerTeam !== team || isDrawer || current === null) return null;
-      return state.config.showWordLengths ? blanksFor(current) : null;
-    }) as Pair<string | null>,
     winnerTeam: showdown.winnerTeam,
   };
 }

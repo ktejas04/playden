@@ -205,8 +205,6 @@ export interface ShowdownView {
   finished: Pair<string[] | null>;
   /** Each team's current word: for that team's drawer and spectators. */
   current: Pair<string | null>;
-  /** Each team's current word as blanks, for that team's guessers (null with word lengths off). */
-  blanks: Pair<string | null>;
   winnerTeam: TeamIndex | null;
 }
 

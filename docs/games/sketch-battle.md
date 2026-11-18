@@ -47,6 +47,7 @@ Game rule decisions live here (D57). Platform decisions stay in `docs/PROJECT.md
 | SB24 | Owner's call (2026-11-18), from the original's code: the "won by" gap is the clock time between the two teams' correct guesses, so a head start counts (a team 2 s behind on the clock lost by 2 seconds, whatever its drawer's start). From 1 s it's rounded up to whole seconds, as the original ("35 seconds" for 34.7); under 1 s it's the nearest tenth, and under 0.05 s "less than 0.1 seconds". Feed times stay per team, from that team's drawing start. Replaces SB14 | 2026-11-18 |
 | SB22 | Owner's call (2026-11-18), from the original's spectator view: in the showdown spectators also get a word track, a column per team with every showdown word in order, each finished word in green and a blank line for each still ahead (beside the canvases on a PC, below them on a phone). Players still get no word tracks (SB18) | 2026-11-18 |
 | SB25 | Owner's call (2026-11-18), from game-night feedback: a team that guessed first no longer sees the other team's real drawing while that team still draws. Until the round result every player sees the other team's canvas only as the 24 × 16 pixel view; the real strokes go out at the result. Once your team has guessed you still see the other team's guesses. Replaces the part of section 6 that opened the real canvas on guessing | 2026-11-18 |
+| SB26 | Owner's call (2026-11-18), from game-night feedback: no letter count in the showdown. Its guessers see one blank line for the word, whatever "show word lengths" is set to; the setting still applies to rounds. Replaces "its guessers blanks" in SB18 | 2026-11-18 |
 
 ## 3. Terms
 
@@ -168,7 +169,7 @@ There are no streak points. A streak shows as a badge ("3x streak") and feeds th
 - **Words:** every word from the rounds played, including unguessed ones, in one seeded shuffle that is the same for both teams.
 - **Intro:** a 10 s title card showing each team's lineup, then a 3 s countdown.
 - **Play:** each team's first drawer is its next connected player after its last-round drawer; nobody stays (SB18). When a team guesses a word, a 2 s handoff **(ours)** passes the pencil to its next connected player, who sees the next word. No timer, no passing, no head starts.
-- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") (SB18: no word tracks). Spectators see both canvases and a word track per team, finished words in green and blanks for the rest (SB22).
+- **What players see:** only their own team's canvas and feed, plus the running score in words finished ("9 – 7") (SB18: no word tracks). Guessers get a single blank line for the word, never a letter count, whatever the word-lengths setting (SB26). Spectators see both canvases and a word track per team, finished words in green and blanks for the rest (SB22).
 - **End:** the moment one team guesses its last word. A 5 s result overlay ("you win! final score 1600"), then the results screen.
 
 ## 10. Round summary and ready-up

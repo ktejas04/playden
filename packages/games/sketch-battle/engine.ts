@@ -659,7 +659,8 @@ export const sketchBattle: GameDefinition<
       : showWord
         ? (round?.word ?? null)
         : null;
-    const blanks = racing ? (team === null ? null : showdown.blanks[team]) : roundBlanks;
+    // No letter count in the showdown, whatever the setting (SB26).
+    const blanks = racing ? null : roundBlanks;
     return {
       me: { team, role: team === null ? "spectator" : isDrawer ? "drawer" : "guesser" },
       phase: state.phase,
