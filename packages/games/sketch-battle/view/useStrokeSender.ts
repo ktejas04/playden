@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { STROKE_BATCH_MS } from "../config";
 import type { DrawStart, SketchBattleMove } from "../types";
 import { IDLE_SENDER, type Point, type Sender, flushDue, penDown, penMove, penUp } from "./strokes";
@@ -46,5 +46,10 @@ export function useStrokeSender(sendMove: (move: SketchBattleMove) => void, now:
     [sendMove, now],
   );
 
-  return { down, move, up };
+  /** Forgets the line being sent, e.g. when the drawer's turn ends mid-stroke. */
+  const cancel = useCallback(() => {
+    sender.current = IDLE_SENDER;
+  }, []);
+
+  return useMemo(() => ({ down, move, up, cancel }), [down, move, up, cancel]);
 }

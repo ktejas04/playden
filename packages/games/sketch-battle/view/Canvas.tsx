@@ -2,7 +2,7 @@ import { cn } from "@playden/ui/lib/utils";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { CanvasOp, DrawStart, SketchBattleMove, Stroke } from "../types";
 import { PAPER } from "./palette";
-import { type Point, drawOps, farEnough, toCanvasPoint } from "./strokes";
+import { type Point, drawOps, farEnough, keepsLocalLine, toCanvasPoint } from "./strokes";
 import { usePlayback } from "./usePlayback";
 import { useStrokeSender } from "./useStrokeSender";
 
@@ -94,18 +94,20 @@ export function Canvas({
     if (local.current) drawOps(ctx, [local.current.stroke], width);
   }, [width]);
 
-  /** Once the pen is up and the server's copy has every point, the overlay lets go of the line. */
+  const drawing = Boolean(tools);
+  /** The overlay lets go of the line once the server has it all, or the drawer's turn is over. */
   const releaseIfCaughtUp = useCallback(() => {
-    const mine = local.current;
-    if (!mine?.ended) return;
-    const copy = latestOps.current.find(
-      (op): op is Stroke => "id" in op && op.id === mine.stroke.id,
-    );
-    if (copy && copy.points.length >= mine.stroke.points.length) {
-      local.current = null;
-      paintLocal();
-    }
-  }, [paintLocal]);
+    if (!local.current || keepsLocalLine(local.current, latestOps.current, drawing)) return;
+    local.current = null;
+    paintLocal();
+  }, [paintLocal, drawing]);
+
+  // The turn ended (a correct guess, time up, the showdown handoff): drop the line mid-stroke.
+  useEffect(() => {
+    if (drawing) return;
+    sender.cancel();
+    releaseIfCaughtUp();
+  }, [drawing, sender, releaseIfCaughtUp]);
 
   useEffect(() => {
     latestOps.current = ops;

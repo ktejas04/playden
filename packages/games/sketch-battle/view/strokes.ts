@@ -112,6 +112,22 @@ export function penUp(
   return { sender: done, move: batch(withLast, { end: true }) };
 }
 
+/**
+ * Whether the drawer's own line stays on the layer above the canvas. It goes once the server's
+ * copy has every point, or the moment the drawer's turn ends: the rest of the line is dropped
+ * by the server (D61), so the next word must start blank.
+ */
+export function keepsLocalLine(
+  local: { stroke: Stroke; ended: boolean } | null,
+  ops: readonly CanvasOp[],
+  drawing: boolean,
+): boolean {
+  if (!local || !drawing) return false;
+  if (!local.ended) return true;
+  const copy = ops.find((op): op is Stroke => "id" in op && op.id === local.stroke.id);
+  return !copy || copy.points.length < local.stroke.points.length;
+}
+
 /** Line width in pixels for a brush size on a canvas this many pixels wide. */
 export function brushWidth(size: BrushSize, canvasWidth: number): number {
   return (BRUSH_SIZES[size - 1] ?? BRUSH_SIZES[0]) * canvasWidth;

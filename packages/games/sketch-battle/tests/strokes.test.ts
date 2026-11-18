@@ -8,6 +8,7 @@ import {
   encodeBatch,
   farEnough,
   flushDue,
+  keepsLocalLine,
   opsUpTo,
   penDown,
   penMove,
@@ -168,5 +169,26 @@ describe("playback and replay", () => {
     expect(opsUpTo(ops, 2)).toEqual([{ ...ops[0], points: [0, 0, 10, 10] }]);
     expect(opsUpTo(ops, 4)).toEqual([ops[0], ops[1]]);
     expect(opsUpTo(ops, 99)).toEqual(ops);
+  });
+});
+
+describe("the drawer's own line on top (SB11, D61)", () => {
+  const stroke = { id: 3, ...start, points: [10, 10, 20, 20, 30, 30] };
+
+  it("stays while the pen is down, and until the server's copy has every point", () => {
+    expect(keepsLocalLine({ stroke, ended: false }, [], true)).toBe(true);
+    const partial = { ...stroke, points: [10, 10, 20, 20] };
+    expect(keepsLocalLine({ stroke, ended: true }, [partial], true)).toBe(true);
+    expect(keepsLocalLine({ stroke, ended: true }, [stroke], true)).toBe(false);
+  });
+
+  it("goes the moment the drawer's turn ends, even mid-line, so the next word starts blank", () => {
+    expect(keepsLocalLine({ stroke, ended: false }, [], false)).toBe(false);
+    expect(keepsLocalLine({ stroke, ended: true }, [], false)).toBe(false);
+  });
+
+  it("while the turn goes on, a finished line waits for the server's copy to arrive", () => {
+    expect(keepsLocalLine({ stroke, ended: true }, [{ clear: true }], true)).toBe(true);
+    expect(keepsLocalLine(null, [], true)).toBe(false);
   });
 });
