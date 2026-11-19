@@ -428,6 +428,10 @@ function teamView(
       ? { kind: "strokes", ops: hidden ? NO_OPS : (turn?.ops ?? NO_OPS) }
       : { kind: "cells", cells: racing || hidden ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
     guesses: seesGuesses(state, viewerTeam, team) ? (turn?.guesses ?? NO_GUESSES) : null,
+    earlier:
+      state.showdown && racing && seesGuesses(state, viewerTeam, team)
+        ? state.showdown.past[team]
+        : null,
     wrongGuesses: turn?.guesses.filter((g) => !g.correct).length ?? 0,
   };
 }

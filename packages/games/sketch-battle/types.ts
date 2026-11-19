@@ -44,6 +44,13 @@ export interface TeamTurn {
   solvedAt: number | null;
 }
 
+/** A finished showdown word's feed (SB30): who drew it, from when, and the team's guesses. */
+export interface WordFeed {
+  drawerId: string;
+  drawFrom: number;
+  guesses: Guess[];
+}
+
 export interface Round {
   /** 1-based. */
   number: number;
@@ -97,6 +104,8 @@ export interface Showdown {
   done: Pair<number>;
   /** Each team's current word: strokes are kept for the current word only. */
   turns: Pair<TeamTurn>;
+  /** Each team's finished words' feeds, in order, so its feed runs on (SB30). */
+  past: Pair<WordFeed[]>;
   /** The team that finished first, and when. */
   winnerTeam: TeamIndex | null;
   finishedAt: number | null;
@@ -160,6 +169,8 @@ export interface TeamView {
   canvas: CanvasView;
   /** This team's guesses, when the viewer may see them; null otherwise. */
   guesses: Guess[] | null;
+  /** In the showdown, the feeds of this team's finished words, when the viewer may see its guesses (SB30); null otherwise. */
+  earlier: WordFeed[] | null;
   /** How many wrong guesses this team made this round; everyone sees it, not the texts. */
   wrongGuesses: number;
 }

@@ -245,6 +245,61 @@ describe("the showdown", () => {
     expect(game.result(state)?.winners).toEqual([]);
   });
 
+  it("a team's showdown feed runs on: every finished word's drawer, start and guesses (SB30)", () => {
+    let state = toPlay(playRounds(5));
+    const firstDrawer = drawerOf(state, 0);
+    const firstStart = drawFrom(state, 0);
+    const guesser = guesserOf(state, 0);
+    state = move(state, guesser, guess("zzz"), firstStart + 1_000);
+    state = solve(state, 0, 2_000);
+    const secondDrawer = drawerOf(state, 0);
+    const secondStart = drawFrom(state, 0);
+    state = solve(state, 0, 3_000);
+
+    const earlier = view(state, guesser).teams[0].earlier;
+    expect(earlier?.map((w) => [w.drawerId, w.drawFrom])).toEqual([
+      [firstDrawer, firstStart],
+      [secondDrawer, secondStart],
+    ]);
+    expect(earlier?.[0]?.guesses.map((g) => [g.text, g.correct])).toEqual([
+      ["zzz", false],
+      [sd(state).words[0], true],
+    ]);
+    expect(view(state, "spectator").teams[0].earlier).toEqual(earlier);
+    // The other team never sees them before the end (SB4): they are the words still ahead.
+    const other = state.rotations[1][0] ?? "";
+    expect(view(state, other).teams[0].earlier).toBeNull();
+    expect(view(state, other).teams[1].earlier).toEqual([]);
+  });
+
+  it("the showdown feed opens to everyone at the end, and rounds have none", () => {
+    const rounds = toPlay(playRounds(5));
+    expect(
+      view(
+        playRounds(5, () => 0, {}, 7, false),
+        "asha",
+      ).teams[0].earlier,
+    ).toBeNull();
+    let state = rounds;
+    while (state.phase === "showdown") state = solve(state, 0);
+    expect(state.phase).toBe("showdownResult");
+    const other = state.rotations[1][0] ?? "";
+    expect(view(state, other).teams[0].earlier).toHaveLength(sd(state).words.length - 1);
+  });
+
+  it("a finished word's feed reaches the team as one change, and applies cleanly", () => {
+    const state = toPlay(playRounds(5));
+    const guesser = guesserOf(state, 0);
+    const next = solve(state, 0);
+    const before = view(state, guesser);
+    const change = game.delta?.(state, next, guesser) ?? null;
+    expect(change?.teams?.[0]?.set?.earlier).toHaveLength(1);
+    expect(change && game.applyDelta?.(before, change)).toEqual(view(next, guesser));
+    // Nothing about it goes to the other team.
+    const other = state.rotations[1][0] ?? "";
+    expect(game.delta?.(state, next, other)?.teams?.[0]?.set).not.toHaveProperty("earlier");
+  });
+
   it("players get no opponent canvas in the showdown; spectators see both", () => {
     let state = toPlay(playRounds(5));
     const line: SketchBattleMove = {

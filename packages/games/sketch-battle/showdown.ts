@@ -18,6 +18,7 @@ import type {
   SketchBattleState,
   TeamIndex,
   TeamTurn,
+  WordFeed,
 } from "./types";
 
 /**
@@ -64,6 +65,7 @@ export function startShowdown(state: State, now: number, gone: Set<string>): Tra
     words: shuffled.value,
     done: [0, 0],
     turns,
+    past: [[], []],
     winnerTeam: null,
     finishedAt: null,
   };
@@ -182,9 +184,19 @@ export function showdownGuess(
 
   const drawer = nextConnected(state.rotations[team], turn.drawerId, gone);
   const handoff = newTurn(drawer, now + ms(SHOWDOWN_HANDOFF_SECONDS));
+  const finishedWord = { drawerId: turn.drawerId, drawFrom: turn.drawFrom, guesses };
+  const past: Pair<WordFeed[]> =
+    team === 0
+      ? [[...showdown.past[0], finishedWord], showdown.past[1]]
+      : [showdown.past[0], [...showdown.past[1], finishedWord]];
   events.push({ type: "drawer.handoff", data: { team, drawerId: drawer } });
   return {
-    state: { ...state, recentGuesses, scores, showdown: withTeam({ ...showdown, done }, handoff) },
+    state: {
+      ...state,
+      recentGuesses,
+      scores,
+      showdown: withTeam({ ...showdown, done, past }, handoff),
+    },
     events,
   };
 }
