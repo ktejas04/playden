@@ -14,12 +14,13 @@ import type {
 import { Canvas } from "./Canvas";
 import { showsToolbar } from "./drawerTools";
 import { AttemptTracker, Feed } from "./Feed";
+import type { FeedHeader } from "./feedMessages";
 import { GuessBox } from "./GuessBox";
 import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
 import { ChooseOverlay, CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { ShowdownIntro, ShowdownResult, WordHistory, WordTrack } from "./Showdown";
+import { ShowdownIntro, ShowdownResult, WordTrack } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { resultText } from "./result";
@@ -33,6 +34,10 @@ const FIRST_TOOL: DrawStart = { tool: "pen", colour: 0, size: 1 };
 type Props = GameViewProps<SketchBattleView, SketchBattleMove>;
 
 const otherTeam = (team: TeamIndex): TeamIndex => (team === 0 ? 1 : 0);
+/** Each feed's header lines, as the original's (SB29): players in a round, in the showdown, spectators in a round. */
+const ROUND_HEADERS: FeedHeader[] = ["drawer", "guessers"];
+const SHOWDOWN_HEADERS: FeedHeader[] = ["drawer"];
+const SPECTATOR_HEADERS: FeedHeader[] = ["guessers"];
 
 /** Whether this viewer picked this round's word. */
 function isChooser(view: SketchBattleView): boolean {
@@ -256,22 +261,25 @@ function PlayerBoard({
           </div>
         )
       )}
-      <Feed team={mine} pending={shownPending} myName={myName} className="mt-2" />
+      <Feed
+        team={mine}
+        headers={racing ? SHOWDOWN_HEADERS : ROUND_HEADERS}
+        pending={shownPending}
+        myName={myName}
+        className="mt-2"
+      />
     </div>
   );
 
+  // The showdown has no opponent canvas (SB4): just the team's own board.
+  if (racing) return <div className="@container">{main}</div>;
   return (
     // Laid out by the board's own width, not the window's: a narrow page never squeezes it.
     <div className="@container">
       <div className="flex flex-col gap-6 @3xl:grid @3xl:grid-cols-[1fr_280px] @3xl:gap-8">
         {main}
         <div className="border-t border-border/60 pt-4 @3xl:border-t-0 @3xl:border-l @3xl:border-border @3xl:pt-0 @3xl:pl-6">
-          {/* The showdown has no opponent canvas (SB4): the team's own words go there (SB27). */}
-          {racing ? (
-            <WordHistory view={view} />
-          ) : (
-            <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
-          )}
+          <OpponentStrip team={view.teams[otherTeam(team)]} index={otherTeam(team)} />
         </div>
       </div>
     </div>
@@ -316,7 +324,7 @@ function SpectatorBoard({
       )}
       <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} sendMove={sendMove} />
       <AttemptTracker team={view.teams[team]} />
-      <Feed team={view.teams[team]} />
+      <Feed team={view.teams[team]} headers={view.showdown ? [] : SPECTATOR_HEADERS} />
     </div>
   );
   const board = (

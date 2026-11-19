@@ -48,7 +48,7 @@ export function OpponentStrip({
         )}
       </div>
       <AttemptTracker team={team} />
-      {team.guesses && team.guesses.length > 0 && <Feed team={team} roles={false} />}
+      {team.guesses && team.guesses.length > 0 && <Feed team={team} headers={[]} small />}
     </div>
   );
 }

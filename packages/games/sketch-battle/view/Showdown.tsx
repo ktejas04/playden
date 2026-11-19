@@ -1,8 +1,7 @@
 import { cn } from "@playden/ui/lib/utils";
 import { ClockIcon, PencilIcon, TrophyIcon } from "lucide-react";
-import { SHOWDOWN_FINISH_BONUS, SHOWDOWN_WORD_POINTS, WORD_HISTORY_ROWS } from "../config";
+import { SHOWDOWN_FINISH_BONUS, SHOWDOWN_WORD_POINTS } from "../config";
 import type { ShowdownView, SketchBattleView, TeamIndex, TeamView } from "../types";
-import { wordHistory } from "./history";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
 
 /** The title card's entrance: dealt onto the table, unhurried (spec section 13). */
@@ -186,44 +185,6 @@ export function WordTrack({ showdown }: { showdown: ShowdownView }) {
             </span>
           );
         }),
-      )}
-    </div>
-  );
-}
-
-/** Each history row's height in rem, so WORD_HISTORY_ROWS rows fit before the list scrolls. */
-const HISTORY_ROW_REM = 1.75;
-
-/**
- * A player's own team's showdown words so far (SB27), newest first: about 15 show, the rest
- * scroll. Only their own team's: the other team's are the words still ahead of them.
- */
-export function WordHistory({ view }: { view: SketchBattleView }) {
-  const team = view.me.team;
-  const words = wordHistory(view.showdown, team);
-  if (!words || team === null) return null;
-  return (
-    <div className="flex flex-col gap-2" aria-label="Your team's words so far">
-      <span className="text-sm font-semibold" style={{ color: TEAM_ACCENT[team] }}>
-        Your words
-      </span>
-      {words.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Words you get show here</p>
-      ) : (
-        <ol
-          className="flex flex-col overflow-y-auto overscroll-contain"
-          style={{ maxHeight: `${WORD_HISTORY_ROWS * HISTORY_ROW_REM}rem` }}
-        >
-          {words.map((word, i) => (
-            <li
-              key={words.length - i}
-              className="flex shrink-0 items-center font-heading text-base font-semibold text-success duration-300 animate-in fade-in-0 motion-reduce:animate-none"
-              style={{ height: `${HISTORY_ROW_REM}rem` }}
-            >
-              <span className="min-w-0 truncate">{word}</span>
-            </li>
-          ))}
-        </ol>
       )}
     </div>
   );
