@@ -1,8 +1,9 @@
 import { cn } from "@playden/ui/lib/utils";
-import { ClockIcon, PencilIcon, TrophyIcon } from "lucide-react";
+import { CheckIcon, ClockIcon, PencilIcon, TrophyIcon } from "lucide-react";
 import { SHOWDOWN_FINISH_BONUS, SHOWDOWN_WORD_POINTS } from "../config";
 import type { ShowdownView, SketchBattleView, TeamIndex, TeamView } from "../types";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
+import { wordTable } from "./showdownTable";
 
 /** The title card's entrance: dealt onto the table, unhurried (spec section 13). */
 const DEAL_MS = 700;
@@ -187,5 +188,52 @@ export function WordTrack({ showdown }: { showdown: ShowdownView }) {
         }),
       )}
     </div>
+  );
+}
+
+/**
+ * A player's showdown table, as the original's sidebar (SB30): a column per team, theirs
+ * first; their finished words in green, the other team's as a ✓, blanks for the rest.
+ */
+export function WordTable({ showdown, team }: { showdown: ShowdownView; team: TeamIndex }) {
+  const columns = wordTable(showdown, team);
+  return (
+    <table className="w-full table-fixed text-center" aria-label="Showdown words">
+      <thead>
+        <tr>
+          {columns.map(({ team: t }) => (
+            <th
+              key={t}
+              className="pb-1 text-sm font-semibold whitespace-nowrap"
+              style={{ color: TEAM_ACCENT[t] }}
+            >
+              {TEAM_NAME[t]}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: showdown.total }, (_, row) => (
+          <tr key={row} className="h-7">
+            {columns.map(({ team: t, cells }) => {
+              const cell = cells[row];
+              return (
+                <td key={t} className="px-1 align-middle">
+                  {cell?.kind === "word" ? (
+                    <span className="block truncate font-heading text-sm font-semibold text-success">
+                      {cell.word}
+                    </span>
+                  ) : cell?.kind === "check" ? (
+                    <CheckIcon className="mx-auto size-4 text-success" aria-label="done" />
+                  ) : (
+                    <span className="mx-auto block h-0 w-14 border-b-2 border-foreground/40" />
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

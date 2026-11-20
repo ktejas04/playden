@@ -21,7 +21,7 @@ import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
 import { ChooseOverlay, CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { ShowdownIntro, ShowdownResult, WordTrack } from "./Showdown";
+import { ShowdownIntro, ShowdownResult, WordTable, WordTrack } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { resultText } from "./result";
@@ -272,8 +272,21 @@ function PlayerBoard({
     </div>
   );
 
-  // The showdown has no opponent canvas (SB4): just the team's own board.
-  if (racing) return <div className="@container">{main}</div>;
+  // The showdown has no opponent canvas (SB4); over 600 px the word table goes there (SB30).
+  if (racing) {
+    return (
+      <div className="@container">
+        <div className="flex flex-col gap-6 @3xl:grid @3xl:grid-cols-[1fr_280px] @3xl:gap-8">
+          {main}
+          {view.showdown && (
+            <div className="hidden border-t border-border/60 pt-4 min-[601px]:block @3xl:border-t-0 @3xl:border-l @3xl:border-border @3xl:pt-0 @3xl:pl-6">
+              <WordTable showdown={view.showdown} team={team} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     // Laid out by the board's own width, not the window's: a narrow page never squeezes it.
     <div className="@container">
