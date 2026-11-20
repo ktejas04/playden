@@ -11,6 +11,7 @@ import type {
   TeamIndex,
   TeamView,
 } from "../types";
+import { FEED_PC_ROWS } from "../config";
 import { Canvas } from "./Canvas";
 import { showsToolbar } from "./drawerTools";
 import { Feed } from "./Feed";
@@ -265,6 +266,7 @@ function PlayerBoard({
         headers={racing ? SHOWDOWN_HEADERS : ROUND_HEADERS}
         pending={shownPending}
         myName={myName}
+        rows={FEED_PC_ROWS}
         className="mt-2"
       />
     </div>
@@ -322,7 +324,11 @@ function SpectatorBoard({
         </p>
       )}
       <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} sendMove={sendMove} />
-      <Feed team={view.teams[team]} headers={view.showdown ? [] : SPECTATOR_HEADERS} />
+      <Feed
+        team={view.teams[team]}
+        headers={view.showdown ? [] : SPECTATOR_HEADERS}
+        rows={FEED_PC_ROWS}
+      />
     </div>
   );
   const board = (

@@ -68,6 +68,9 @@ export const PALETTE_SIZE = 10;
 export const PREVIEW_COLS = 24;
 export const PREVIEW_ROWS = 16;
 
+/** On screens over 600 px a feed shows this many lines, then scrolls, kept at the newest (SB32). */
+export const FEED_PC_ROWS = 10;
+
 /** Replays redraw one step every this many milliseconds. */
 export const REPLAY_STEP_MS = 10;
 

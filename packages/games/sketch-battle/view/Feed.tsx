@@ -12,6 +12,9 @@ import {
   teamWords,
 } from "./feedMessages";
 
+/** A line is 1.25rem plus a 0.25rem gap; half a line more shows the list goes on. */
+const feedHeight = (rows: number) => `${(rows + 0.5) * 1.5}rem`;
+
 /** The other team's ✓ / ✕ marks, newest first, until your team guesses (SB31). */
 export function AttemptTracker({ team, className }: { team: TeamView; className?: string }) {
   // From the counts, not the guesses: the other team's texts are hidden, their marks are not.
@@ -41,16 +44,15 @@ export function AttemptTracker({ team, className }: { team: TeamView; className?
  * A team's guess feed, as the original's (SB29). Lines in time order: per word the headers
  * asked for ("<drawer> is drawing", "<a> and <b> are guessing"), then its guesses, a right one
  * green and a wrong one red, the time since the word began on hover. On a phone the newest
- * line is on top and the feed grows with the page; wider, the oldest is on top in a box no
- * taller than `maxHeight`, kept scrolled to the newest, with a fade at the top once there's
- * more above. Guesses still on their way show faded, newest of all.
+ * line is on top and the feed grows with the page; wider, the oldest is on top in a box of
+ * `rows` lines, kept scrolled to the newest, with a fade at the top once there's more above. Guesses still on their way show faded, newest of all.
  */
 export function Feed({
   team,
   headers,
   pending = [],
   myName,
-  maxHeight,
+  rows,
   small = false,
   className,
 }: {
@@ -58,8 +60,8 @@ export function Feed({
   headers: readonly FeedHeader[];
   pending?: readonly Pending<string>[];
   myName?: string;
-  /** The tallest the feed gets on screens wider than a phone, e.g. the canvas's height. */
-  maxHeight?: number;
+  /** Lines shown on screens wider than a phone before the feed scrolls; none: it grows. */
+  rows?: number;
   /** Smaller text, for the other team's box. */
   small?: boolean;
   className?: string;
@@ -76,7 +78,7 @@ export function Feed({
     box.scrollTop = box.scrollHeight;
     setMore(box.scrollTop > 0);
   }, []);
-  useEffect(toNewest, [toNewest, lines.length, pending.length, maxHeight]);
+  useEffect(toNewest, [toNewest, lines.length, pending.length, rows]);
   useEffect(() => {
     window.addEventListener("resize", toNewest);
     return () => window.removeEventListener("resize", toNewest);
@@ -123,12 +125,10 @@ export function Feed({
         className={cn(
           "flex flex-col-reverse gap-1 font-medium *:shrink-0 min-[601px]:flex-col min-[601px]:overflow-y-auto",
           small ? "text-sm min-[601px]:text-xs" : "text-sm",
-          maxHeight !== undefined && "min-[601px]:max-h-(--feed-max)",
+          rows !== undefined && "min-[601px]:max-h-(--feed-max)",
         )}
         style={
-          maxHeight === undefined
-            ? undefined
-            : ({ "--feed-max": `${maxHeight}px` } as CSSProperties)
+          rows === undefined ? undefined : ({ "--feed-max": feedHeight(rows) } as CSSProperties)
         }
       >
         {lines.map(line)}

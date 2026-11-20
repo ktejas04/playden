@@ -1,4 +1,5 @@
 import { cn } from "@playden/ui/lib/utils";
+import { FEED_PC_ROWS } from "../config";
 import type { TeamIndex, TeamView } from "../types";
 import { Canvas } from "./Canvas";
 import { AttemptTracker, Feed } from "./Feed";
@@ -51,7 +52,7 @@ export function OpponentStrip({
       {team.guesses === null ? (
         <AttemptTracker team={team} />
       ) : (
-        <Feed team={team} headers={[]} small />
+        <Feed team={team} headers={[]} rows={FEED_PC_ROWS} small />
       )}
     </div>
   );
