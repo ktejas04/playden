@@ -1,7 +1,8 @@
 import { cn } from "@playden/ui/lib/utils";
+import { FEED_PC_ROWS } from "../config";
 import type { TeamIndex, TeamView } from "../types";
 import { Canvas } from "./Canvas";
-import { AttemptTracker } from "./Feed";
+import { AttemptTracker, Feed } from "./Feed";
 import { TEAM_NAME } from "./palette";
 import { PixelView } from "./PixelView";
 
@@ -9,7 +10,8 @@ import { PixelView } from "./PixelView";
  * The opponent's drawing matching original draw battle:
  * - Top header: "team 1" on left, "✏ drawer" on right
  * - Canvas / pixel view
- * - Underneath: their ✕ / ✓ marks, so you see how close they are (their guesses stay hidden)
+ * - Underneath: their ✓ / ✕ marks, newest first, so you see how close they are; once your
+ *   team has guessed, their guesses instead (SB31)
  */
 export function OpponentStrip({
   team,
@@ -46,7 +48,12 @@ export function OpponentStrip({
           />
         )}
       </div>
-      <AttemptTracker team={team} />
+      {/* Marks until your team guesses; then their guesses instead (SB31). */}
+      {team.guesses === null ? (
+        <AttemptTracker team={team} />
+      ) : (
+        <Feed team={team} headers={[]} rows={FEED_PC_ROWS} small />
+      )}
     </div>
   );
 }

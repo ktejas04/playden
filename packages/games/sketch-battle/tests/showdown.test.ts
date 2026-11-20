@@ -184,6 +184,23 @@ describe("the showdown", () => {
     expect(sd(state).turns[0].ops).toHaveLength(1);
   });
 
+  it("the last drawer's late batches after a correct guess are refused quietly (D61)", () => {
+    let state = toPlay(playRounds(5));
+    const first = drawerOf(state, 0);
+    const at = drawFrom(state, 0) + 1_000;
+    const start = { tool: "pen", colour: 0, size: 1 } as const;
+    state = move(state, first, { type: "draw", stroke: 1, start, points: [10, 10, 5, 5] }, at);
+    state = solve(state, 0, 1_500);
+    expect(drawerOf(state, 0)).not.toBe(first);
+    expect(sd(state).turns[0].ops).toEqual([]);
+    const rest: SketchBattleMove = { type: "draw", stroke: 1, points: [5, 5] };
+    expect(game.validate(state, first, rest, at + 600)).toEqual({
+      ok: false,
+      reason: "Only the drawer can draw",
+      quiet: true,
+    });
+  });
+
   it("the showdown scores 100 per word plus 100 for finishing, and ends when one team finishes", () => {
     let state = toPlay(playRounds(5));
     const before = [...state.scores];
@@ -228,6 +245,61 @@ describe("the showdown", () => {
     expect(game.result(state)?.winners).toEqual([]);
   });
 
+  it("a team's showdown feed runs on: every finished word's drawer, start and guesses (SB30)", () => {
+    let state = toPlay(playRounds(5));
+    const firstDrawer = drawerOf(state, 0);
+    const firstStart = drawFrom(state, 0);
+    const guesser = guesserOf(state, 0);
+    state = move(state, guesser, guess("zzz"), firstStart + 1_000);
+    state = solve(state, 0, 2_000);
+    const secondDrawer = drawerOf(state, 0);
+    const secondStart = drawFrom(state, 0);
+    state = solve(state, 0, 3_000);
+
+    const earlier = view(state, guesser).teams[0].earlier;
+    expect(earlier?.map((w) => [w.drawerId, w.drawFrom])).toEqual([
+      [firstDrawer, firstStart],
+      [secondDrawer, secondStart],
+    ]);
+    expect(earlier?.[0]?.guesses.map((g) => [g.text, g.correct])).toEqual([
+      ["zzz", false],
+      [sd(state).words[0], true],
+    ]);
+    expect(view(state, "spectator").teams[0].earlier).toEqual(earlier);
+    // The other team never sees them before the end (SB4): they are the words still ahead.
+    const other = state.rotations[1][0] ?? "";
+    expect(view(state, other).teams[0].earlier).toBeNull();
+    expect(view(state, other).teams[1].earlier).toEqual([]);
+  });
+
+  it("the showdown feed opens to everyone at the end, and rounds have none", () => {
+    const rounds = toPlay(playRounds(5));
+    expect(
+      view(
+        playRounds(5, () => 0, {}, 7, false),
+        "asha",
+      ).teams[0].earlier,
+    ).toBeNull();
+    let state = rounds;
+    while (state.phase === "showdown") state = solve(state, 0);
+    expect(state.phase).toBe("showdownResult");
+    const other = state.rotations[1][0] ?? "";
+    expect(view(state, other).teams[0].earlier).toHaveLength(sd(state).words.length - 1);
+  });
+
+  it("a finished word's feed reaches the team as one change, and applies cleanly", () => {
+    const state = toPlay(playRounds(5));
+    const guesser = guesserOf(state, 0);
+    const next = solve(state, 0);
+    const before = view(state, guesser);
+    const change = game.delta?.(state, next, guesser) ?? null;
+    expect(change?.teams?.[0]?.set?.earlier).toHaveLength(1);
+    expect(change && game.applyDelta?.(before, change)).toEqual(view(next, guesser));
+    // Nothing about it goes to the other team.
+    const other = state.rotations[1][0] ?? "";
+    expect(game.delta?.(state, next, other)?.teams?.[0]?.set).not.toHaveProperty("earlier");
+  });
+
   it("players get no opponent canvas in the showdown; spectators see both", () => {
     let state = toPlay(playRounds(5));
     const line: SketchBattleMove = {
@@ -244,7 +316,7 @@ describe("the showdown", () => {
     expect(view(state, guesserOf(state, 1)).teams[1].canvas.kind).toBe("strokes");
   });
 
-  it("the drawer sees the word, guessers see blanks, and nobody sees words they haven't reached", () => {
+  it("the drawer sees the word, guessers no letter count (SB26), and nobody sees words they haven't reached", () => {
     let state = toPlay(playRounds(5));
     const firstWord = currentWord(state, 0);
     state = solve(state, 0);
@@ -254,8 +326,10 @@ describe("the showdown", () => {
     expect(drawerView.showdown?.finished[0]).toEqual([firstWord]);
 
     const guesser = view(state, guesserOf(state, 0));
+    expect(guesser.showdown?.finished[0]).toEqual([firstWord]);
     expect(guesser.word).toBeNull();
-    expect(guesser.blanks).toMatch(/^[_ -]+$/);
+    expect(guesser.blanks).toBeNull();
+    expect(guesser.showdown).not.toHaveProperty("blanks");
     expect(guesser.showdown?.current[0]).toBeNull();
 
     // Team 2 hasn't reached team 1's first word yet: it may not see it, or what team 1 is on.

@@ -6,7 +6,7 @@ import { nextDrawer } from "../rotation";
 import type { CanvasOp, SketchBattleMove, SketchBattleView, TeamIndex, TeamView } from "../types";
 import { prepare, useCanvasSize } from "./Canvas";
 import { drawerBadge } from "./Badges";
-import { AttemptTracker } from "./Feed";
+import { Feed } from "./Feed";
 import { PAPER, TEAM_ACCENT, TEAM_NAME } from "./palette";
 import { drawOps, opsUpTo, stepCount } from "./strokes";
 
@@ -393,7 +393,8 @@ export function Intermission({
                 accent={won ? "var(--success)" : "var(--border)"}
                 replayKey={replays[t]}
               />
-              <AttemptTracker team={team} />
+              {/* Each team's guesses under its replay, as the original's summary (SB31). */}
+              <Feed team={team} headers={[]} />
             </div>
           );
         })}

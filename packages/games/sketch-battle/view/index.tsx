@@ -1,7 +1,6 @@
 import type { GameViewProps } from "@playden/engine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@playden/ui/components/tabs";
 import { type Pending, addPending, settlePending } from "@playden/ui/lib/pending";
-import { cn } from "@playden/ui/lib/utils";
 import { PencilIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type {
@@ -12,14 +11,17 @@ import type {
   TeamIndex,
   TeamView,
 } from "../types";
+import { FEED_PC_ROWS } from "../config";
 import { Canvas } from "./Canvas";
-import { AttemptTracker, Feed } from "./Feed";
+import { showsToolbar } from "./drawerTools";
+import { Feed } from "./Feed";
+import type { FeedHeader } from "./feedMessages";
 import { GuessBox } from "./GuessBox";
 import { Intermission } from "./Intermission";
 import { OpponentStrip } from "./OpponentStrip";
 import { ChooseOverlay, CountdownOverlay, NoteOverlay, ResultOverlay } from "./Overlays";
 import { TEAM_ACCENT, TEAM_NAME } from "./palette";
-import { ShowdownIntro, ShowdownResult, WordTrack } from "./Showdown";
+import { ShowdownIntro, ShowdownResult, WordTable, WordTrack } from "./Showdown";
 import { StatusBar } from "./StatusBar";
 import { Toolbar } from "./Toolbar";
 import { resultText } from "./result";
@@ -33,6 +35,10 @@ const FIRST_TOOL: DrawStart = { tool: "pen", colour: 0, size: 1 };
 type Props = GameViewProps<SketchBattleView, SketchBattleMove>;
 
 const otherTeam = (team: TeamIndex): TeamIndex => (team === 0 ? 1 : 0);
+/** Each feed's header lines, as the original's (SB29): players in a round, in the showdown, spectators in a round. */
+const ROUND_HEADERS: FeedHeader[] = ["drawer", "guessers"];
+const SHOWDOWN_HEADERS: FeedHeader[] = ["drawer"];
+const SPECTATOR_HEADERS: FeedHeader[] = ["guessers"];
 
 /** Whether this viewer picked this round's word. */
 function isChooser(view: SketchBattleView): boolean {
@@ -229,10 +235,13 @@ function PlayerBoard({
         sendMove={sendMove}
         note={handoffNote}
       />
-      <AttemptTracker team={mine} />
       {isDrawer ? (
-        drawing && mine.solvedAt === null ? (
-          <Toolbar tool={tool} onChange={setTool} onClear={() => sendMove({ type: "clear" })} />
+        showsToolbar(view) ? (
+          <Toolbar
+            tool={tool}
+            onChange={setTool}
+            onClear={canDraw ? () => sendMove({ type: "clear" }) : undefined}
+          />
         ) : null
       ) : (
         (drawing ||
@@ -252,12 +261,32 @@ function PlayerBoard({
           </div>
         )
       )}
-      <Feed team={mine} pending={shownPending} myName={myName} className="mt-2" />
+      <Feed
+        team={mine}
+        headers={racing ? SHOWDOWN_HEADERS : ROUND_HEADERS}
+        pending={shownPending}
+        myName={myName}
+        rows={FEED_PC_ROWS}
+        className="mt-2"
+      />
     </div>
   );
 
-  // The showdown has no opponent canvas (SB4): just the team's own board.
-  if (racing) return <div className="@container">{main}</div>;
+  // The showdown has no opponent canvas (SB4); over 600 px the word table goes there (SB30).
+  if (racing) {
+    return (
+      <div className="@container">
+        <div className="flex flex-col gap-6 @3xl:grid @3xl:grid-cols-[1fr_280px] @3xl:gap-8">
+          {main}
+          {view.showdown && (
+            <div className="hidden border-t border-border/60 pt-4 min-[601px]:block @3xl:border-t-0 @3xl:border-l @3xl:border-border @3xl:pt-0 @3xl:pl-6">
+              <WordTable showdown={view.showdown} team={team} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
     // Laid out by the board's own width, not the window's: a narrow page never squeezes it.
     <div className="@container">
@@ -308,8 +337,11 @@ function SpectatorBoard({
         </p>
       )}
       <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} sendMove={sendMove} />
-      <AttemptTracker team={view.teams[team]} />
-      <Feed team={view.teams[team]} />
+      <Feed
+        team={view.teams[team]}
+        headers={view.showdown ? [] : SPECTATOR_HEADERS}
+        rows={FEED_PC_ROWS}
+      />
     </div>
   );
   const board = (
@@ -389,13 +421,7 @@ export function SketchBattleScreen(props: Props) {
   }
 
   return (
-    <div
-      className={cn(
-        "-mx-2 flex flex-col gap-2 sm:mx-0",
-        // One canvas in the showdown: keep it the size of a round's main column.
-        view.showdown && view.me.role !== "spectator" && "sm:mx-auto sm:w-full sm:max-w-3xl",
-      )}
-    >
+    <div className="-mx-2 flex flex-col gap-2 sm:mx-0">
       <StatusBar view={view} seconds={seconds} />
       {view.me.role === "spectator" ? (
         <SpectatorBoard view={view} seconds={seconds} sendMove={sendMove} />

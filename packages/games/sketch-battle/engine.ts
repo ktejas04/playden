@@ -3,6 +3,7 @@ import {
   type GameEvent,
   type Rng,
   type Transition,
+  type Validation,
   createRng,
   nextInt,
   shuffle,
@@ -367,12 +368,21 @@ function seesWord(state: State, team: TeamIndex | null, isDrawer: boolean): bool
   return round.turns[team].solvedAt !== null;
 }
 
-/** May this viewer see a team's real strokes and guesses (D47)? Never in the showdown (SB4). */
-function seesTeam(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
-  if (viewerTeam === null || viewerTeam === team) return true;
-  if (state.phase === "result" || state.phase === "summary" || showdownOver(state.phase)) {
-    return true;
-  }
+/** Round result, summary, or the showdown's end: every team's drawing and guesses are open. */
+const allOpen = (state: State) =>
+  state.phase === "result" || state.phase === "summary" || showdownOver(state.phase);
+
+/**
+ * May this viewer see a team's real strokes (D47)? Their own team's, and everyone's at the
+ * result; the other team's only as pixel cells until then, even once their team guessed (SB25).
+ */
+function seesCanvas(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
+  return viewerTeam === null || viewerTeam === team || allOpen(state);
+}
+
+/** May this viewer see a team's guesses? The other team's once their own team guessed; never in the showdown (SB4). */
+function seesGuesses(state: State, viewerTeam: TeamIndex | null, team: TeamIndex): boolean {
+  if (viewerTeam === null || viewerTeam === team || allOpen(state)) return true;
   if (inShowdown(state.phase)) return false;
   return state.round?.turns[viewerTeam].solvedAt != null;
 }
@@ -399,7 +409,7 @@ function teamView(
   const turn = currentTurn(state, team);
   const racing = inShowdown(state.phase);
   const playing = racing ? state.phase === "showdown" : Boolean(state.round?.word);
-  const shown = seesTeam(state, viewerTeam, team);
+  const shown = seesCanvas(state, viewerTeam, team);
   const hidden = headStartHidden(state, team, viewer);
   const away = new Set(state.away);
   const left = new Set(state.left);
@@ -417,7 +427,11 @@ function teamView(
     canvas: shown
       ? { kind: "strokes", ops: hidden ? NO_OPS : (turn?.ops ?? NO_OPS) }
       : { kind: "cells", cells: racing || hidden ? EMPTY_CELLS : (turn?.cells ?? EMPTY_CELLS) },
-    guesses: shown ? (turn?.guesses ?? NO_GUESSES) : null,
+    guesses: seesGuesses(state, viewerTeam, team) ? (turn?.guesses ?? NO_GUESSES) : null,
+    earlier:
+      state.showdown && racing && seesGuesses(state, viewerTeam, team)
+        ? state.showdown.past[team]
+        : null,
     wrongGuesses: turn?.guesses.filter((g) => !g.correct).length ?? 0,
   };
 }
@@ -440,6 +454,46 @@ function streakView(state: State): Pick<SketchBattleView, "streak" | "headStartS
   }
   const drawers: Pair<string> = [round.turns[0].drawerId, round.turns[1].drawerId];
   return { streak: streakFor(state.history, drawers), headStartSeconds: round.headStartSeconds };
+}
+
+const quietly = (verdict: Validation): Validation =>
+  verdict.ok ? verdict : { ...verdict, quiet: true };
+
+/** Why this stroke or clear can't be taken now, if it can't. */
+function drawProblem(
+  state: State,
+  playerId: string,
+  turn: TeamTurn,
+  isDrawer: boolean,
+  move: Extract<SketchBattleMove, { type: "draw" | "clear" }>,
+  now: number,
+): Validation {
+  if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
+  const playing =
+    state.phase === "drawing" ||
+    state.phase === "showdown" ||
+    (state.phase === "headStart" && state.round?.chooserId === playerId);
+  if (!playing || now < turn.drawFrom) {
+    return { ok: false, reason: "Wait for the drawing to start" };
+  }
+  if (turn.solvedAt !== null) {
+    return { ok: false, reason: "Your team got it: the canvas is locked" };
+  }
+  if (move.type === "clear") return { ok: true };
+  if (move.points.length % 2 !== 0) return { ok: false, reason: "That line is broken" };
+  if (!onCanvas(decodePoints(move.points))) {
+    return { ok: false, reason: "That line is off the canvas" };
+  }
+  const last = lastStroke(turn.ops);
+  if (move.start) {
+    return last && move.stroke <= last.id
+      ? { ok: false, reason: "That line was already started" }
+      : { ok: true };
+  }
+  if (!last || last.id !== move.stroke || turn.ops.at(-1) !== last) {
+    return { ok: false, reason: "Start a new line first" };
+  }
+  return { ok: true };
 }
 
 function scoresByPlayer(state: State): Record<string, number> {
@@ -517,34 +571,10 @@ export const sketchBattle: GameDefinition<
         }
         return { ok: true };
       case "draw":
-      case "clear": {
-        if (!isDrawer) return { ok: false, reason: "Only the drawer can draw" };
-        const playing =
-          state.phase === "drawing" ||
-          state.phase === "showdown" ||
-          (state.phase === "headStart" && round.chooserId === playerId);
-        if (!playing || now < turn.drawFrom) {
-          return { ok: false, reason: "Wait for the drawing to start" };
-        }
-        if (turn.solvedAt !== null) {
-          return { ok: false, reason: "Your team got it: the canvas is locked" };
-        }
-        if (move.type === "clear") return { ok: true };
-        if (move.points.length % 2 !== 0) return { ok: false, reason: "That line is broken" };
-        if (!onCanvas(decodePoints(move.points))) {
-          return { ok: false, reason: "That line is off the canvas" };
-        }
-        const last = lastStroke(turn.ops);
-        if (move.start) {
-          return last && move.stroke <= last.id
-            ? { ok: false, reason: "That line was already started" }
-            : { ok: true };
-        }
-        if (!last || last.id !== move.stroke || turn.ops.at(-1) !== last) {
-          return { ok: false, reason: "Start a new line first" };
-        }
-        return { ok: true };
-      }
+      case "clear":
+        // Our client only draws in its own turn, so a refused stroke is one that arrived after the
+        // turn ended (a correct guess, time up, the showdown handoff): dropped quietly (D61).
+        return quietly(drawProblem(state, playerId, turn, isDrawer, move, now));
       case "guess": {
         if (state.phase === "showdownResult") return { ok: false, reason: "The showdown is over" };
         // Closed the moment time is up, even if the room hasn't processed the deadline yet.
@@ -633,7 +663,8 @@ export const sketchBattle: GameDefinition<
       : showWord
         ? (round?.word ?? null)
         : null;
-    const blanks = racing ? (team === null ? null : showdown.blanks[team]) : roundBlanks;
+    // No letter count in the showdown, whatever the setting (SB26).
+    const blanks = racing ? null : roundBlanks;
     return {
       me: { team, role: team === null ? "spectator" : isDrawer ? "drawer" : "guesser" },
       phase: state.phase,

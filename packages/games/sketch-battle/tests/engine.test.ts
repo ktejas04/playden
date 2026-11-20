@@ -229,6 +229,29 @@ describe("a round", () => {
     );
   });
 
+  it("stroke and clear refusals are quiet: late batches after a turn ends raise no pop-up (D61)", () => {
+    const drawing = toDrawing(start());
+    let state = drawing.state;
+    const at = drawing.drawingAt;
+    const d = drawer(state, 0);
+    const g = guessers(state, 0)[0] ?? "";
+    state = move(state, d, line(1, [10, 10, 5, 5]), at + 100);
+    state = move(state, g, guess(word(state)), at + 200);
+    const late: [string, SketchBattleMove][] = [
+      [d, line(2, [20, 20])],
+      [d, { type: "draw", stroke: 1, points: [30, 30] }],
+      [d, { type: "clear" }],
+      [g, line(3, [1, 1])],
+    ];
+    for (const [who, m] of late) {
+      expect(game.validate(state, who, m, at + 300)).toMatchObject({ ok: false, quiet: true });
+    }
+    expect(game.validate(state, d, guess("zzz"), at + 300)).toEqual({
+      ok: false,
+      reason: "Drawers can't guess",
+    });
+  });
+
   it("a stroke drawn in batches is one stroke with absolute points", () => {
     const drawing = toDrawing(start());
     let state = drawing.state;
@@ -403,6 +426,11 @@ describe("guessing", () => {
     expect(view(state, a ?? "").teams[1].guesses).toBeNull();
     state = move(state, a ?? "", guess(word(state)), drawingAt + 20);
     expect(view(state, a ?? "").teams[1].guesses?.map((g) => g.text)).toEqual(["zzz"]);
+    // Their later guesses reach the team that guessed live, for the opponent box.
+    const next = move(state, b ?? "", guess("yyy"), drawingAt + 30);
+    expect(game.delta?.(state, next, a ?? "")?.teams?.[1]?.guesses).toEqual({
+      add: [{ by: b, text: "yyy", at: drawingAt + 30, correct: false }],
+    });
   });
 });
 
@@ -441,7 +469,7 @@ describe("hidden information", () => {
     expect(view(state, guessers(state, 0)[0] ?? "").blanks).toBeNull();
   });
 
-  it("the other team gets only pixel cells before they guess, and the full drawing after", () => {
+  it("the other team gets only pixel cells until the round result, even once they guess (SB25)", () => {
     const drawing = toDrawing(start());
     let state = drawing.state;
     const drawingAt = drawing.drawingAt;
@@ -451,10 +479,29 @@ describe("hidden information", () => {
     expect(canvas.kind).toBe("cells");
     expect(JSON.stringify(canvas)).not.toContain("points");
     state = move(state, g ?? "", guess(word(state)), drawingAt + 20);
-    expect(view(state, g ?? "").teams[1].canvas).toEqual({
+    state = move(state, drawer(state, 1), line(2, [10, 500, 400, 500]), drawingAt + 30);
+    for (const id of [g ?? "", drawer(state, 0)]) {
+      const after = view(state, id).teams[1].canvas;
+      expect(after).toEqual({ kind: "cells", cells: round(state).turns[1].cells });
+      expect(JSON.stringify(after)).not.toContain("points");
+    }
+    const result = tick(state);
+    expect(result.phase).toBe("result");
+    expect(view(result, g ?? "").teams[1].canvas).toEqual({
       kind: "strokes",
-      ops: round(state).turns[1].ops,
+      ops: round(result).turns[1].ops,
     });
+  });
+
+  it("a team that guessed gets the other team's draw batches as pixel cells, never points (SB25)", () => {
+    const drawing = toDrawing(start());
+    let state = drawing.state;
+    const [g] = guessers(state, 0);
+    state = move(state, g ?? "", guess(word(state)), drawing.drawingAt + 10);
+    const next = move(state, drawer(state, 1), line(1, [10, 10, 400, 10]), drawing.drawingAt + 20);
+    const change = game.delta?.(state, next, g ?? "");
+    expect(change?.teams?.[1]?.canvas).toHaveProperty("cells");
+    expect(JSON.stringify(change)).not.toContain("points");
   });
 
   it("each team sees its own drawing as strokes", () => {

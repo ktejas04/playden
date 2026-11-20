@@ -7,3 +7,6 @@ coverage/
 .env
 .env.*
 !.dev.vars.example
+
+# Local gameplay recordings
+/gameplay*

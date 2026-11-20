@@ -75,6 +75,7 @@ function teamDelta(before: TeamView, after: TeamView): TeamDelta | null {
     "drawFrom",
     "solvedAt",
     "wrongGuesses",
+    "earlier",
   ] as const) {
     if (!same(before[key], after[key])) Object.assign(set, { [key]: after[key] });
   }

@@ -24,7 +24,11 @@ export interface GameResult {
 }
 
 export type Ok = { ok: true };
-export type Rejection = { ok: false; reason: string };
+/**
+ * A refused move. `quiet` (D61): the move only arrived too late to count (e.g. the rest of a
+ * line after the drawer's turn ended), so the room drops it without telling the player.
+ */
+export type Rejection = { ok: false; reason: string; quiet?: true };
 export type Validation = Ok | Rejection;
 
 export interface Transition<State> {
