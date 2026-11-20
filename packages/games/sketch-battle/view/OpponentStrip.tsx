@@ -9,8 +9,8 @@ import { PixelView } from "./PixelView";
  * The opponent's drawing matching original draw battle:
  * - Top header: "team 1" on left, "✏ drawer" on right
  * - Canvas / pixel view
- * - Underneath: their ✕ / ✓ marks, so you see how close they are; their guesses themselves
- *   once your team has guessed (section 6)
+ * - Underneath: their ✓ / ✕ marks, newest first, so you see how close they are; once your
+ *   team has guessed, their guesses instead (SB31)
  */
 export function OpponentStrip({
   team,
@@ -47,8 +47,12 @@ export function OpponentStrip({
           />
         )}
       </div>
-      <AttemptTracker team={team} />
-      {team.guesses && team.guesses.length > 0 && <Feed team={team} headers={[]} small />}
+      {/* Marks until your team guesses; then their guesses instead (SB31). */}
+      {team.guesses === null ? (
+        <AttemptTracker team={team} />
+      ) : (
+        <Feed team={team} headers={[]} small />
+      )}
     </div>
   );
 }

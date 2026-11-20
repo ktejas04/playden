@@ -5,19 +5,17 @@ import type { TeamView } from "../types";
 import {
   type FeedHeader,
   type FeedLine,
+  attemptMarks,
   elapsedLabel,
   feedLines,
   guessersLine,
   teamWords,
 } from "./feedMessages";
 
-/** Row of mini attempt marks under the canvas: ✓ (green) and ✕ (red). */
+/** The other team's ✓ / ✕ marks, newest first, until your team guesses (SB31). */
 export function AttemptTracker({ team, className }: { team: TeamView; className?: string }) {
   // From the counts, not the guesses: the other team's texts are hidden, their marks are not.
-  const marks = [
-    ...Array.from({ length: team.wrongGuesses }, () => false),
-    ...(team.solvedAt !== null ? [true] : []),
-  ];
+  const marks = attemptMarks(team);
   if (marks.length === 0) return null;
   return (
     <div

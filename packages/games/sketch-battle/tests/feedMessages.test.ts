@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Guess, TeamView, WordFeed } from "../types";
-import { elapsedLabel, feedLines, guessersLine, teamWords } from "../view/feedMessages";
+import {
+  attemptMarks,
+  elapsedLabel,
+  feedLines,
+  guessersLine,
+  teamWords,
+} from "../view/feedMessages";
 
 /** The feed as the original's MessageLog builds it (SB29, SB30). */
 const g = (by: string, text: string, at: number, correct = false): Guess => ({
@@ -99,5 +105,13 @@ describe("a team's words", () => {
     expect(teamWords(team({ drawerId: null, drawFrom: null }))).toEqual([
       { drawerId: null, drawFrom: null, guesses: [] },
     ]);
+  });
+});
+
+describe("the other team's marks (SB31)", () => {
+  it("are newest first: their right guess, then each wrong one", () => {
+    expect(attemptMarks(team({ wrongGuesses: 2, solvedAt: 9_000 }))).toEqual([true, false, false]);
+    expect(attemptMarks(team({ wrongGuesses: 3 }))).toEqual([false, false, false]);
+    expect(attemptMarks(team())).toEqual([]);
   });
 });

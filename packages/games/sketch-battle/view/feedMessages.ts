@@ -52,3 +52,14 @@ export function guessersLine(names: readonly string[]): string {
 export function elapsedLabel(ms: number): string {
   return `${Math.round(ms / 100) / 10}s elapsed`;
 }
+
+/**
+ * The other team's ✓ / ✕ marks, newest first, as the original (SB31): their right guess, if
+ * they made it, then a ✕ for each wrong one. `true` is a right guess.
+ */
+export function attemptMarks(team: TeamView): boolean[] {
+  return [
+    ...(team.solvedAt !== null ? [true] : []),
+    ...Array.from({ length: team.wrongGuesses }, () => false),
+  ];
+}

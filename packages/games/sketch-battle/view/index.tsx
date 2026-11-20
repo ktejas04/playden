@@ -13,7 +13,7 @@ import type {
 } from "../types";
 import { Canvas } from "./Canvas";
 import { showsToolbar } from "./drawerTools";
-import { AttemptTracker, Feed } from "./Feed";
+import { Feed } from "./Feed";
 import type { FeedHeader } from "./feedMessages";
 import { GuessBox } from "./GuessBox";
 import { Intermission } from "./Intermission";
@@ -234,7 +234,6 @@ function PlayerBoard({
         sendMove={sendMove}
         note={handoffNote}
       />
-      <AttemptTracker team={mine} />
       {isDrawer ? (
         showsToolbar(view) ? (
           <Toolbar
@@ -323,7 +322,6 @@ function SpectatorBoard({
         </p>
       )}
       <TeamCanvas view={view} team={team} viewerTeam={null} seconds={seconds} sendMove={sendMove} />
-      <AttemptTracker team={view.teams[team]} />
       <Feed team={view.teams[team]} headers={view.showdown ? [] : SPECTATOR_HEADERS} />
     </div>
   );
