@@ -21,8 +21,8 @@ Each step: tests first, `pnpm typecheck && pnpm lint && pnpm test`, the engine s
 
 ## Done when
 
-- [ ] the showdown feed keeps every word, with "<drawer> is drawing" at each handoff, on phone and PC
-- [ ] the feed's order, height and hover times match the original on phone (≤ 600 px) and PC
-- [ ] the other team's box shows marks before you guess and their guesses after; the summary shows each team's guesses
-- [ ] PC feeds scroll after 10 lines, kept at the newest; the showdown table shows on PC, not on phones
-- [ ] pnpm typecheck, lint, test pass
+- [x] the showdown feed keeps every word, with "<drawer> is drawing" at each handoff, on phone and PC
+- [x] the feed's order, height and hover times match the original on phone (≤ 600 px) and PC
+- [x] the other team's box shows marks before you guess and their guesses after; the summary shows each team's guesses
+- [x] PC feeds scroll after 10 lines, kept at the newest; the showdown table shows on PC, not on phones
+- [x] pnpm typecheck, lint, test pass
